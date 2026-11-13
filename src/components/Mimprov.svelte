@@ -154,7 +154,7 @@
   // El rol llega de forma asíncrona desde Owlbear. Asegura una pestaña válida al cambiar de rol.
   $: if ($isGM && activeTab !== 'gm' && activeTab !== 'conflicto') activeTab = 'gm';
   $: if (!$isGM && (activeTab === 'gm' || activeTab === 'conflicto')) activeTab = 'personaje';
-  $: partyMembers = $PartyStore.filter(p => p.role !== 'GM');
+  $: partyMembers = $PartyStore.filter(p => p.role !== 'GM' && getPlayerCharacter(p)?.created === true);
   $: if ($isGM && partyMembers.length && !partyMembers.some(p => p.id === selectedPlayerId)) selectedPlayerId = partyMembers[0].id;
   $: selectedPlayer = partyMembers.find(p => p.id === selectedPlayerId);
   $: selectedCharacter = selectedPlayer?.metadata?.[DATA_KEY] as Character;
@@ -799,7 +799,7 @@
       <p class="muted">Seguimiento independiente. Estos controles no modifican las fichas de los jugadores.</p>
       <section class="card"><h2>Personajes de la sala</h2>
         {#if partyMembers.length === 0}
-          <p>No hay jugadores conectados.</p>
+          <p>No hay personajes creados en la sala.</p>
         {:else}
           <nav class="character-tabs" aria-label="Personajes">
             {#each partyMembers as player}
@@ -813,7 +813,7 @@
                 <div class="gm-stats"><span>Voluntad: <b>{getPlayerCharacter(player)?.will} / {getPlayerCharacter(player)?.maxWill}</b></span><span>Enfoques: <b>{APPROACHES.map(a => a + ' ' + (getPlayerCharacter(player)?.approaches?.[a] ?? 0)).join(' · ')}</b></span><span>Rasgos: <b>{getPlayerCharacter(player)?.traits?.join(', ')}</b></span></div>
               {:else}<p class="muted">El jugador todavía no ha creado su ficha.</p>{/if}
               <h4>Estados actuales</h4><div class="state-grid">{#each STATES as state}<label class="check-row"><input type="checkbox" checked={playerTracker(player.id).states.includes(state.name)} on:change={() => toggleState(player.id, state.name)}><span><b>{state.name}</b><small>{state.enfoque}: {state.detail}</small></span></label>{/each}</div>
-              <h4>Sobreesfuerzo</h4><p class="muted">Puntos disponibles: {1 - playerTracker(player.id).overexertionUsed} / 1</p><div class="stepper"><b>{playerTracker(player.id).overexertionUsed} usado</b><button class="secondary" on:click={() => setOverexertion(player.id, 0)} disabled={playerTracker(player.id).overexertionUsed === 0}>Recuperar por descanso</button></div><div class="approach-buttons">{#each APPROACHES as enfoque}<button class="secondary" on:click={() => spendOverexertion(player.id, enfoque)} disabled={playerTracker(player.id).overexertionUsed >= 1}>{enfoque}</button>{/each}</div><small class="muted">Al gastar el punto, el panel añade el Estado correspondiente al Enfoque utilizado. Se recupera al realizar un descanso.</small>
+              <h4>Sobreesfuerzo</h4><p class="muted">Puntos disponibles: {1 - playerTracker(player.id).overexertionUsed} / 1</p><div class="stepper"><b>{playerTracker(player.id).overexertionUsed} usado</b></div><div class="approach-buttons">{#each APPROACHES as enfoque}<button class="secondary" on:click={() => spendOverexertion(player.id, enfoque)} disabled={playerTracker(player.id).overexertionUsed >= 1}>{enfoque}</button>{/each}</div><small class="muted">Al gastar el punto, el panel añade el Estado correspondiente al Enfoque utilizado. Se recupera al realizar un descanso.</small>
             </article>
           {/each}
         {/if}
