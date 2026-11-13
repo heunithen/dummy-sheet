@@ -519,7 +519,7 @@
   .summary h3 { margin-bottom:.2rem; }
   .sheet-header { display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; margin-bottom:1.2rem; }
   .sheet-header h1 { font-size:2rem; }
-  .sheet-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem; }
+  .sheet-grid { display:grid; grid-template-columns:1fr; gap:1rem; }
   .sheet-grid .card { margin:0; }
   .will-value { font-size:2.6rem; color:#f2c879; font-weight:700; }
   .will-value small { font-size:1rem; color:#aaa; }
