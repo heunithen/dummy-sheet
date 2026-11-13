@@ -425,7 +425,7 @@
             }
           }
           if (role === 'PLAYER') {
-            playerMagicRecord = metadata?.[PLAYER_MAGIC_KEY] || { spells: [] };
+            playerMagicRecord = (await OBR.player.getMetadata())?.[PLAYER_MAGIC_KEY] || { spells: [] };
             const syncStates = (metadata: any) => {
               const allStates = metadata?.[STATE_KEY] || {};
               visibleStates = Array.isArray(allStates[$currentPlayerId]) ? allStates[$currentPlayerId] : [];
