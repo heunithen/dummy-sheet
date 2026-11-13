@@ -8,6 +8,7 @@
   const OVEREXERTION_KEY = 'com.heunithen.dummysheet-mimprov/player-overexertion';
   const CONFLICT_KEY = 'com.heunithen.dummysheet-mimprov/conflict';
   const EFFORT_REQUEST_CHANNEL = 'com.heunithen.dummysheet-mimprov/spend-effort';
+  const REST_REQUEST_CHANNEL = 'com.heunithen.dummysheet-mimprov/rest';
   const DICE_PLUS_SOURCE = 'com.heunithen.dummysheet-mimprov';
   const DELETE_CHARACTER_CHANNEL = 'com.heunithen.dummysheet-mimprov/delete-character';
   const STATES = [
@@ -218,7 +219,8 @@
   $: selectedStatePenalty = selectedState && STATES.find(s => s.name === selectedState && (s.enfoque === selectedApproach || s.enfoque === 'Todos')) ? 1 : 0;
   $: baseDicePool = selectedApproachScore + selectedTraitBonus - selectedStatePenalty;
   $: dicePool = baseDicePool + (rollModifier === 'advantage' ? 1 : rollModifier === 'disadvantage' ? -1 : 0);
-  $: diceNotation = dicePool <= 0 ? '2d6kl1' : `${dicePool}d6kh1`;
+  $: forcedLowRoll = Number(character.will) <= 0;
+  $: diceNotation = forcedLowRoll || dicePool <= 0 ? '2d6kl1' : `${dicePool}d6kh1`;
 
   async function checkDicePlusReady(): Promise<boolean> {
     const requestId = `mimprov_ready_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
@@ -403,6 +405,20 @@
               console.error('No se pudo registrar el Punto de Esfuerzo', error);
             }
           });
+          OBR.broadcast.onMessage(REST_REQUEST_CHANNEL, async (event) => {
+            if (role !== 'GM') return;
+            const data = event.data as any;
+            if (!data?.playerId) return;
+            try {
+              const party = await OBR.party.getPlayers();
+              const sender = party.find((p: any) => p.connectionId === event.connectionId);
+              if (!sender || sender.role !== 'PLAYER' || sender.id !== data.playerId) return;
+              playerTracker(sender.id).overexertionUsed = 0;
+              saveGmTracker();
+            } catch (error) {
+              console.error('No se pudo registrar el descanso', error);
+            }
+          });
           OBR.broadcast.onMessage(DELETE_CHARACTER_CHANNEL, async (event) => {
             const data = event.data as any;
             if (!data || data.action !== 'DELETE_CHARACTER' || data.playerId !== $currentPlayerId) return;
@@ -515,6 +531,27 @@
   }
   function finishEdit() { updateCharacter(); editingCharacter = false; }
   function adjustWill(delta: number) { character.will = Math.max(0, Math.min(character.maxWill, character.will + delta)); updateCharacter(); }
+  async function restCharacter() {
+    try {
+      if (OBR.isAvailable) {
+        await OBR.broadcast.sendMessage(REST_REQUEST_CHANNEL, {
+          playerId: await OBR.player.getId(),
+          requestedAt: Date.now()
+        }, { destination: 'ALL' });
+      } else {
+        visibleOverexertionUsed = 0;
+      }
+      adjustWill(2);
+      if (!OBR.isAvailable) {
+        const tracker = playerTracker('local');
+        tracker.overexertionUsed = 0;
+        saveGmTracker();
+      }
+    } catch (error) {
+      console.error('No se pudo realizar el descanso', error);
+      dicePlusError = 'No se pudo registrar el descanso. Inténtalo de nuevo.';
+    }
+  }
   function toggleState(id: string, stateName: string) {
     const t = playerTracker(id);
     if (t.states.includes(stateName)) t.states = t.states.filter((s: string) => s !== stateName);
@@ -682,7 +719,7 @@
           <div class="sheet-grid">
             <section class="card"><h2>Enfoques</h2>{#each APPROACHES as name}<div class="approach-row compact"><div><strong>{name}</strong><small>{APPROACH_DESCRIPTIONS[name].short}</small></div><span class="score">{character.approaches[name]}</span></div>{/each}</section>
             <section class="card"><h2>Rasgos</h2>{#each character.traits as trait}<div class="trait-line"><strong>{trait}</strong><small>{trait.startsWith('Conocedor de ') ? 'Conocedor de...' : trait} </small><p>{trait.startsWith('Conocedor de ') ? 'Conocimientos y experiencia en ' + trait.slice('Conocedor de '.length) + '.' : TRAIT_DESCRIPTIONS[trait]?.short || ''}</p></div>{/each}</section>
-            <section class="card"><h2>Voluntad</h2><div class="will-value">{character.will}<small> / {character.maxWill}</small></div><div class="will-controls"><button on:click={() => adjustWill(-1)} disabled={character.will <= 0}>−</button><button on:click={() => adjustWill(1)} disabled={character.will >= character.maxWill}>+</button></div><p class="muted">Con 0 Voluntad, las tiradas usan 2d6 y conservan el menor.</p></section>
+            <section class="card"><h2>Voluntad</h2><div class="will-value">{character.will}<small> / {character.maxWill}</small></div><div class="will-controls"><button on:click={() => adjustWill(-1)} disabled={character.will <= 0}>−</button><button on:click={() => adjustWill(1)} disabled={character.will >= character.maxWill}>+</button></div><button class="secondary full" on:click={restCharacter}>Descansar</button><p class="muted">Recuperas 2 puntos de Voluntad (sin superar el máximo) y tu Punto de Esfuerzo. Con 0 Voluntad, siempre tiras 2d6 y conservas el menor, sin importar ventaja o desventaja.</p></section>
             <section class="card extra-info"><h2>Punto de Esfuerzo</h2><div class="will-value">{1 - visibleOverexertionUsed}<small> / 1 punto disponible</small></div><p class="muted">Punto utilizado: {visibleOverexertionUsed}. Se recupera al realizar un descanso.</p></section>
             <section class="card"><h2>Estados</h2><div class="state-grid">{#each STATES as state}<label class="check-row"><input type="checkbox" checked={visibleStates.includes(state.name)} disabled><span><b>{state.name}</b><small>{state.enfoque}: {state.detail}</small></span></label>{/each}</div></section>
             <section class="card"><h2>Equipo</h2>{#each character.inventory as item}<div class="inventory-line"><input bind:value={item.name} placeholder="Objeto por definir" on:input={updateCharacter}><small>{item.trait}</small><button class="remove" on:click={() => removeInventoryItem(item.id)}>×</button></div>{/each}<button class="secondary full" on:click={addInventoryItem}>Añadir objeto</button></section>
