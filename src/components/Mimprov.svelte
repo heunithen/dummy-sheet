@@ -129,7 +129,7 @@
   let equipmentDraft: string[] = [];
   let editingCharacter = false;
   let activeTab = 'personaje';
-  let gmTracker: any = { players: {}, conflict: null };
+  let gmTracker: any = { players: {}, conflict: { danger: 'Bajo', resistance: null } };
   let gmLoaded = false;
   let visibleStates: string[] = [];
   let visibleOverexertionUsed = 0;
@@ -146,6 +146,7 @@
   $: approachValid = approachTotal === 4 && APPROACHES.every(name => approachDraft[name] >= 0 && approachDraft[name] <= 2);
   $: myPlayer = $PartyStore.find(p => p.id === $currentPlayerId);
   $: partyMembers = $PartyStore.filter(p => p.role !== 'GM');
+  $: if ($isGM && partyMembers.length && !partyMembers.some(p => p.id === selectedPlayerId)) selectedPlayerId = partyMembers[0].id;
   $: selectedPlayer = partyMembers.find(p => p.id === selectedPlayerId);
   $: selectedCharacter = selectedPlayer?.metadata?.[DATA_KEY] as Character;
   $: createdCharacterCount = partyMembers.filter(p => getPlayerCharacter(p)?.created).length;
@@ -260,7 +261,8 @@
     } catch (error) {
       console.error('No se pudo enviar la tirada a Dice+', error);
       pendingDiceRoll = null;
-      dicePlusError = 'No se pudo enviar la tirada a Dice+. Comprueba que la extensión esté activa.';
+      const detail = error instanceof Error ? error.message : String(error ?? 'Error desconocido');
+      dicePlusError = `No se pudo enviar la tirada a Dice+: ${detail}. Comprueba que Dice+ esté activo en esta sala.`;
     }
   }
 
@@ -343,8 +345,13 @@
     try {
       const room = OBR.isAvailable ? OBR.room.id : 'local';
       const raw = localStorage.getItem('mimprov-gm-v1-' + room);
-      gmTracker = raw ? JSON.parse(raw) : { players: {}, conflict: null };
-    } catch { gmTracker = { players: {}, conflict: null }; }
+      gmTracker = raw ? JSON.parse(raw) : { players: {}, conflict: { danger: 'Bajo', resistance: null } };
+      if (!gmTracker || typeof gmTracker !== 'object') gmTracker = { players: {}, conflict: { danger: 'Bajo', resistance: null } };
+      if (!gmTracker.players || typeof gmTracker.players !== 'object') gmTracker.players = {};
+      if (!gmTracker.conflict || typeof gmTracker.conflict !== 'object') gmTracker.conflict = { danger: 'Bajo', resistance: null };
+      if (!['Bajo', 'Medio', 'Alto'].includes(gmTracker.conflict.danger)) gmTracker.conflict.danger = 'Bajo';
+      if (gmTracker.conflict.resistance !== null && !Number.isFinite(Number(gmTracker.conflict.resistance))) gmTracker.conflict.resistance = null;
+    } catch { gmTracker = { players: {}, conflict: { danger: 'Bajo', resistance: null } }; }
     saveGmTracker();
   }
   function saveGmTracker() {
@@ -430,15 +437,18 @@
     saveGmTracker();
   }
   function adjustConflictResistance(delta: number) {
-    const current = gmTracker.conflict?.resistance ?? initialConflictResistance;
+    if (!gmTracker.conflict) gmTracker.conflict = { danger: 'Bajo', resistance: null };
+    const current = gmTracker.conflict.resistance ?? initialConflictResistance;
     gmTracker.conflict.resistance = Math.max(0, current + delta);
     saveGmTracker();
   }
   function resetConflictResistance() {
+    if (!gmTracker.conflict) gmTracker.conflict = { danger: 'Bajo', resistance: null };
     gmTracker.conflict.resistance = null;
     saveGmTracker();
   }
   function setConflictDanger(danger: string) {
+    if (!gmTracker.conflict) gmTracker.conflict = { danger: 'Bajo', resistance: null };
     gmTracker.conflict.danger = danger;
     saveGmTracker();
   }
