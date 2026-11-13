@@ -169,3 +169,17 @@ const initialTheme = {
 export const editing = writable(false);
 export const sheet = localStore('dummy-sheet', initialSheet);
 export const theme = localStore('dummy-sheet-theme', initialTheme);
+
+export const gmTracker = localStore('mimprov-gm-tracker', {
+    risk: "Sin riesgo",
+    riskNote: "",
+    players: {},
+    conflict: {
+        active: false,
+        participants: [],
+        initial: 0,
+        remaining: 0,
+        round: 1,
+        state: "Mermado"
+    }
+});
