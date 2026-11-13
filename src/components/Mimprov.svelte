@@ -152,7 +152,7 @@
   $: approachValid = approachTotal === 4 && APPROACHES.every(name => approachDraft[name] >= 0 && approachDraft[name] <= 2);
   $: myPlayer = $PartyStore.find(p => p.id === $currentPlayerId);
   // El rol llega de forma asíncrona desde Owlbear. Asegura una pestaña válida al cambiar de rol.
-  $: if ($isGM && activeTab !== 'gm' && activeTab !== 'conflicto') activeTab = 'gm';
+  $: if ($isGM && activeTab !== 'gm' && activeTab !== 'conflicto' && activeTab !== 'reglamento') activeTab = 'gm';
   $: if (!$isGM && (activeTab === 'gm' || activeTab === 'conflicto')) activeTab = 'personaje';
   $: partyMembers = $PartyStore.filter(p => p.role !== 'GM' && getPlayerCharacter(p)?.created === true);
   $: if ($isGM && partyMembers.length && !partyMembers.some(p => p.id === selectedPlayerId)) selectedPlayerId = partyMembers[0].id;
@@ -626,11 +626,13 @@
     <nav class="main-tabs">
       <button class:active={activeTab === 'personaje'} on:click={() => { activeTab = 'personaje'; }}>Personaje</button>
       <button class:active={activeTab === 'tiradas'} on:click={() => { activeTab = 'tiradas'; }}>Tiradas</button>
+      <button class:active={activeTab === 'reglamento'} on:click={() => { activeTab = 'reglamento'; }}>Reglamento</button>
     </nav>
   {:else}
     <nav class="main-tabs">
       <button class:active={activeTab === 'gm'} on:click={() => { activeTab = 'gm'; }}>Personajes</button>
       <button class:active={activeTab === 'conflicto'} on:click={() => { activeTab = 'conflicto'; }}>Conflicto</button>
+      <button class:active={activeTab === 'reglamento'} on:click={() => { activeTab = 'reglamento'; }}>Reglamento</button>
     </nav>
   {/if}
 
@@ -850,6 +852,110 @@
       <p class="sync-note">El seguimiento del conflicto se sincroniza con los jugadores de la sala. Fallo: Bajo −1 Voluntad · Medio −2 · Alto −3. El Punto de Esfuerzo puede gastarse una vez para añadir el Estado del Enfoque y repetir todos los dados.</p>
       {/if}
     </main>
+  {:else if activeTab === 'reglamento'}
+    <main class="content rules-content">
+      <div class="eyebrow">SISTEMA DE JUEGO</div>
+      <h1>Reglamento MIMPROV</h1>
+      <p class="rules-intro">Resumen de las reglas para jugadores y narrador. Esta sección es de consulta y no modifica las fichas ni el seguimiento de la partida.</p>
+
+      <section class="card">
+        <h2>1. Creación de personajes</h2>
+        <p>Cada personaje se define mediante su nombre, concepto, edad, apariencia, cuatro Enfoques, cuatro Rasgos y su equipo.</p>
+        <ul>
+          <li><strong>Enfoques:</strong> distribuye exactamente 4 puntos entre Tenacidad, Control, Astucia y Rapidez. Cada Enfoque puede tener entre 0 y 2 puntos.</li>
+          <li><strong>Rasgos:</strong> escoge cuatro. Cada Rasgo aporta +1 dado cuando resulta directamente relevante para la acción.</li>
+          <li><strong>Equipo:</strong> cada Rasgo proporciona tres espacios de objetos asociados. Debes completar al menos 12 objetos para terminar la creación.</li>
+          <li><strong>Voluntad:</strong> comienzas con 4 puntos y tu máximo inicial también es 4.</li>
+          <li><strong>Punto de Esfuerzo:</strong> comienzas con 1 punto disponible.</li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <h2>2. Resolución de acciones</h2>
+        <p>Cuando una acción tiene un resultado incierto y relevante, el narrador pide una tirada. La reserva se calcula así:</p>
+        <div class="rules-formula">Enfoque + Rasgo aplicable − penalización por Estado</div>
+        <ul>
+          <li><strong>Enfoque:</strong> aporta tantos dados como puntos tengas en el Enfoque elegido.</li>
+          <li><strong>Rasgo:</strong> añade 1 dado si el Rasgo es pertinente para la acción.</li>
+          <li><strong>Estado:</strong> resta 1 dado cuando el Estado correspondiente afecta al Enfoque utilizado.</li>
+          <li><strong>Ventaja:</strong> añade 1 dado a la reserva.</li>
+          <li><strong>Desventaja:</strong> resta 1 dado a la reserva.</li>
+          <li><strong>Reserva de 0 o menos:</strong> tira 2d6 y conserva el resultado menor.</li>
+        </ul>
+        <p>En una tirada normal se conserva el dado más alto. Con desventaja también se conserva el más alto de los dados que se tiren.</p>
+        <div class="rules-outcomes">
+          <div><strong>1–4</strong><span>Fracaso</span></div>
+          <div><strong>5</strong><span>Éxito con consecuencia</span></div>
+          <div><strong>6</strong><span>Éxito limpio</span></div>
+        </div>
+        <p>Si en una tirada aparecen dos o más resultados de 6, obtienes un <strong>éxito crítico</strong> y recuperas 1 punto de Voluntad, sin superar tu máximo.</p>
+        <p class="muted">Los Estados activos no se aplican automáticamente a la tirada: el jugador debe seleccionar el Estado pertinente. Solo corresponde la penalización cuando afecta al Enfoque utilizado.</p>
+      </section>
+
+      <section class="card">
+        <h2>3. Voluntad</h2>
+        <p>La Voluntad representa la capacidad del personaje para sostenerse frente a la presión.</p>
+        <ul>
+          <li>Comienzas con 4 puntos de Voluntad.</li>
+          <li>Un éxito crítico recupera 1 punto, sin superar el máximo.</li>
+          <li>Al descansar recuperas 2 puntos, sin superar el máximo.</li>
+          <li>Cuando llegas a 0 Voluntad, todas tus tiradas pasan a ser 2d6 conservando el resultado menor, independientemente de la reserva, la ventaja o la desventaja.</li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <h2>4. Estados</h2>
+        <p>Los Estados representan condiciones que dificultan determinadas acciones. Cada Estado aplica una penalización de −1 dado al Enfoque asociado.</p>
+        <ul>
+          <li><strong>Mermado — Rapidez:</strong> lesión o limitación física.</li>
+          <li><strong>Deprimido — Tenacidad:</strong> enfermedad, intoxicación o debilidad.</li>
+          <li><strong>Ansioso — Control:</strong> miedo, terror o intimidación.</li>
+          <li><strong>Confundido — Astucia:</strong> percepción o pensamiento alterados.</li>
+          <li><strong>Incapacitado — Todos:</strong> el personaje queda fuera de acción. Este Estado reemplaza a los demás y no puede acumularse con ellos.</li>
+        </ul>
+        <p>Descansar no elimina Estados. Cada Estado debe resolverse mediante su propio procedimiento; quitar uno no elimina los demás.</p>
+      </section>
+
+      <section class="card">
+        <h2>5. Punto de Esfuerzo</h2>
+        <p>Cada personaje dispone de 1 Punto de Esfuerzo.</p>
+        <ul>
+          <li>Después de fallar una tirada, puedes gastar el punto para repetirla.</li>
+          <li>Al gastarlo, recibes el Estado asociado al Enfoque utilizado y vuelves a lanzar todos los dados de la tirada.</li>
+          <li>Tenacidad añade Deprimido; Control añade Ansioso; Astucia añade Confundido; Rapidez añade Mermado.</li>
+          <li>El Punto de Esfuerzo solo puede utilizarse una vez hasta recuperarlo mediante un descanso.</li>
+          <li>Si la repetición también fracasa, no puedes volver a gastar ese mismo punto.</li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <h2>6. Descanso</h2>
+        <p>Al realizar un descanso:</p>
+        <ul>
+          <li>Recuperas 2 puntos de Voluntad, sin superar tu máximo.</li>
+          <li>Recuperas tu Punto de Esfuerzo.</li>
+          <li>Conservas los Estados que tengas; el descanso no los elimina.</li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <h2>7. Conflictos</h2>
+        <p>El narrador puede activar un conflicto. Cuando lo hace, todos los personajes creados quedan involucrados.</p>
+        <ul>
+          <li>El conflicto tiene un nivel de peligro: <strong>Bajo, Medio o Alto</strong>.</li>
+          <li>Cuando un personaje falla una tirada durante el conflicto, pierde Voluntad según el peligro: <strong>Bajo −1, Medio −2, Alto −3</strong>.</li>
+          <li>La Resistencia inicial equivale a 2 puntos por cada personaje creado.</li>
+          <li>El narrador puede ajustar la Resistencia manualmente. Esta no disminuye automáticamente por los fracasos.</li>
+          <li>El narrador administra el nivel de peligro, la Resistencia y los Estados de los personajes.</li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <h2>8. Dirección de juego</h2>
+        <p>El narrador determina cuándo una acción requiere una tirada, qué Enfoque corresponde, si un Rasgo resulta aplicable y qué consecuencias tiene el resultado. Las reglas no establecen rondas, turnos, ataques ni movimientos automáticos: esos elementos se resuelven según la situación y la dirección del narrador.</p>
+        <p>Las tiradas se realizan mediante Dice+. La aplicación sincroniza las fichas, la Voluntad, los Estados, el Punto de Esfuerzo y el estado del conflicto con la sala de Owlbear Rodeo.</p>
+      </section>
+    </main>
   {/if}
 </div>
 
@@ -861,6 +967,18 @@
   .main-tabs button { border:0; border-bottom:3px solid transparent; background:transparent; color:#aaa; padding:1rem 1.2rem; cursor:pointer; }
   .main-tabs button.active { color:#f2c879; border-bottom-color:#d5a64b; }
   .content { width:min(900px,92%); margin:0 auto; padding:2rem 0 4rem; }
+  .rules-content .rules-intro { margin:.2rem 0 1.2rem; }
+  .rules-content .card { padding:1.35rem 1.5rem; }
+  .rules-content h2 { margin-bottom:.65rem; }
+  .rules-content p { line-height:1.65; }
+  .rules-content ul { color:#c7c7c7; padding-left:1.35rem; line-height:1.7; }
+  .rules-content li { margin:.35rem 0; }
+  .rules-content li strong, .rules-content p strong { color:#f1d49d; }
+  .rules-formula { margin:1rem 0; padding:.9rem 1rem; border:1px solid #806638; border-radius:6px; background:#202225; color:#f2c879; text-align:center; font-weight:750; }
+  .rules-outcomes { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.6rem; margin:1rem 0; }
+  .rules-outcomes div { display:flex; flex-direction:column; gap:.25rem; align-items:center; padding:.8rem .4rem; border:1px solid #55595e; border-radius:6px; background:#202225; text-align:center; }
+  .rules-outcomes strong { color:#f2c879; font-size:1.35rem; }
+  .rules-outcomes span { color:#ccc; font-size:.82rem; }
   h1 { color:#f2c879; margin:.4rem 0 .8rem; font-size:1.8rem; }
   h2 { color:#f2c879; font-size:1.2rem; margin:0 0 1rem; }
   h3 { color:#e8c47f; font-size:1rem; }
