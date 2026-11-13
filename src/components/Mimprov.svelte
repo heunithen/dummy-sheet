@@ -240,6 +240,9 @@
           const c = p?.metadata?.[DATA_KEY] as Character;
           return !c || c.will <= 0;
         }) ? 'Derrota' : 'Conflicto no superado';
+    if (gmTracker.conflict.outcome === 'Derrota') {
+      conflictParticipants.forEach((id: string) => { playerTracker(id).states = ['Incapacitado']; });
+    }
     saveGmTracker();
   }
   function resetConflict() { gmTracker.conflict = null; partyMembers.forEach(p => { if (gmTracker.players[p.id]) gmTracker.players[p.id].inConflict = false; }); saveGmTracker(); }
