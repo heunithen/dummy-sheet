@@ -1,16 +1,16 @@
 {
-    "name": "DummySheet",
-    "version": "1.0.0",
-    "manifest_version": 1,
-    "icon": "/icon.svg",
-    "author": "kurara ara",
-    "description": "A dummy-simple customisable character sheet.",
-    "homepage_url": "https://www.dummysheet.com",
-    "action": {
-      "title": "DummySheet",
-      "icon": "/icon.svg",
-      "popover": "/",
-      "height": 1200,
-      "width": 700
-    }
+  "name": "DummySheet MIMPROV",
+  "version": "1.0.1",
+  "manifest_version": 1,
+  "icon": "/dummy-sheet/icon.svg",
+  "author": "Christian Muñoz",
+  "description": "Hoja de personaje personalizable basada en DummySheet, en adaptación para MIMPROV.",
+  "homepage_url": "https://github.com/heunithen/dummy-sheet",
+  "action": {
+    "title": "DummySheet MIMPROV",
+    "icon": "/dummy-sheet/icon.svg",
+    "popover": "/dummy-sheet/",
+    "height": 1200,
+    "width": 700
   }
+}
