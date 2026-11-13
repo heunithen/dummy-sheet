@@ -7,6 +7,7 @@
   const STATE_KEY = 'com.heunithen.dummysheet-mimprov/player-states';
   const OVEREXERTION_KEY = 'com.heunithen.dummysheet-mimprov/player-overexertion';
   const DICE_PLUS_SOURCE = 'com.heunithen.dummysheet-mimprov';
+  const DELETE_CHARACTER_CHANNEL = 'com.heunithen.dummysheet-mimprov/delete-character';
   const STATES = [
     { name: 'Mermado', enfoque: 'Rapidez', detail: 'Lesión o limitación física.' },
     { name: 'Deprimido', enfoque: 'Tenacidad', detail: 'Enfermedad, intoxicación o debilidad.' },
@@ -328,7 +329,23 @@
             syncStates(await OBR.room.getMetadata());
             OBR.room.onMetadataChange(syncStates);
           }
-          OBR.broadcast.onMessage(`${DICE_PLUS_SOURCE}/roll-result`, handleDicePlusResult);
+          OBR.broadcast.onMessage(DELETE_CHARACTER_CHANNEL, async (event) => {
+            const data = event.data as any;
+            if (!data || data.action !== 'DELETE_CHARACTER' || data.playerId !== $currentPlayerId) return;
+            try {
+              const party = await OBR.party.getPlayers();
+              const sender = party.find((p: any) => p.connectionId === event.connectionId);
+              if (!sender || sender.role !== 'GM') return;
+              character = blankCharacter();
+              editingCharacter = false;
+              step = 0;
+              localStorage.removeItem('mimprov-character-v1');
+              await OBR.player.setMetadata({ [DATA_KEY]: clone(character) });
+            } catch (error) {
+              console.error('No se pudo borrar la ficha del personaje', error);
+            }
+          });
+                    OBR.broadcast.onMessage(`${DICE_PLUS_SOURCE}/roll-result`, handleDicePlusResult);
           OBR.broadcast.onMessage(`${DICE_PLUS_SOURCE}/roll-error`, handleDicePlusError);
           loaded = true;
         } catch (error) {
@@ -441,6 +458,28 @@
     if (!t.states.includes(state) && !t.states.includes('Incapacitado')) t.states = [...t.states, state];
     saveGmTracker();
   }
+  async function deletePlayerCharacter(player: any) {
+    const stored = getPlayerCharacter(player);
+    if (!stored?.created) return;
+    const name = stored.name || player.name;
+    if (!confirm(`¿Borrar la ficha de ${name}? El personaje volverá al estado de creación y el jugador tendrá que crearlo nuevamente.`)) return;
+    try {
+      await OBR.broadcast.sendMessage(DELETE_CHARACTER_CHANNEL, {
+        action: 'DELETE_CHARACTER',
+        playerId: player.id,
+        requestedAt: Date.now()
+      }, { destination: 'ALL' });
+      const tracker = playerTracker(player.id);
+      tracker.states = [];
+      tracker.overexertionUsed = 0;
+      tracker.overexertionNotes = [];
+      saveGmTracker();
+    } catch (error) {
+      console.error('No se pudo solicitar el borrado de la ficha', error);
+      alert('No se pudo enviar la solicitud para borrar la ficha. Comprueba que el jugador esté conectado.');
+    }
+  }
+
   function adjustConflictResistance(delta: number) {
     if (!gmTracker.conflict) gmTracker.conflict = { danger: 'Bajo', resistance: null };
     const current = gmTracker.conflict.resistance ?? initialConflictResistance;
@@ -650,8 +689,8 @@
           </nav>
           {#each partyMembers.filter(p => p.id === selectedPlayerId) as player}
             <article class="gm-player">
-              <div class="gm-player-head"><div><h3>{getPlayerCharacter(player)?.name || player.name}</h3><small>{getPlayerCharacter(player)?.concept || 'Ficha MIMPROV aún no creada'}</small></div></div>
-              {#if getPlayerCharacter(player)}
+              <div class="gm-player-head"><div><h3>{getPlayerCharacter(player)?.name || player.name}</h3><small>{getPlayerCharacter(player)?.created ? getPlayerCharacter(player)?.concept : 'Ficha MIMPROV aún no creada'}</small></div>{#if getPlayerCharacter(player)?.created}<button class="danger-button" on:click={() => deletePlayerCharacter(player)}>Borrar personaje</button>{/if}</div>
+              {#if getPlayerCharacter(player)?.created}
                 <div class="gm-stats"><span>Voluntad: <b>{getPlayerCharacter(player)?.will} / {getPlayerCharacter(player)?.maxWill}</b></span><span>Enfoques: <b>{APPROACHES.map(a => a + ' ' + (getPlayerCharacter(player)?.approaches?.[a] ?? 0)).join(' · ')}</b></span><span>Rasgos: <b>{getPlayerCharacter(player)?.traits?.join(', ')}</b></span></div>
               {:else}<p class="muted">El jugador todavía no ha creado su ficha.</p>{/if}
               <h4>Estados actuales</h4><div class="state-grid">{#each STATES as state}<label class="check-row"><input type="checkbox" checked={playerTracker(player.id).states.includes(state.name)} on:change={() => toggleState(player.id, state.name)}><span><b>{state.name}</b><small>{state.enfoque}: {state.detail}</small></span></label>{/each}</div>
