@@ -19,6 +19,78 @@
     'Intimidante', 'Liderazgo', 'Maestro Chasquilla', 'Observador',
     'Peleador', 'Persuasivo', 'Superviviente', 'Tirador'
   ];
+  const APPROACH_DESCRIPTIONS: Record<string, { long: string; short: string }> = {
+    Tenacidad: {
+      long: 'Representa la resistencia física y mental, la determinación y la capacidad de soportar presión. Se utiliza para aguantar dolor, cansancio, privaciones o situaciones extremas, mantener el esfuerzo pese a las dificultades y no ceder ante amenazas, sufrimiento o adversidad.',
+      short: 'Resistir, soportar presión y mantener la determinación.'
+    },
+    Control: {
+      long: 'Representa la disciplina, la precisión y la capacidad de actuar con calma. Se utiliza para ejecutar acciones delicadas, mantener la concentración, controlar los movimientos o las emociones y realizar tareas que requieren cuidado, coordinación y dominio de uno mismo.',
+      short: 'Actuar con calma, precisión y disciplina.'
+    },
+    Astucia: {
+      long: 'Representa la inteligencia práctica, la observación analítica y la capacidad de encontrar soluciones. Se utiliza para deducir, investigar, recordar información útil, detectar patrones, engañar, improvisar estrategias o resolver problemas mediante el ingenio.',
+      short: 'Analizar, deducir y encontrar soluciones ingeniosas.'
+    },
+    Rapidez: {
+      long: 'Representa la velocidad de reacción, la agilidad y la capacidad de moverse con rapidez. Se utiliza para correr, esquivar, perseguir, escapar, reaccionar antes que otros y realizar acciones que dependen de la velocidad o los reflejos.',
+      short: 'Moverse con agilidad y reaccionar rápidamente.'
+    }
+  };
+  const TRAIT_DESCRIPTIONS: Record<string, { long: string; short: string }> = {
+    'Atlético': {
+      long: 'Tienes una buena condición física y sabes aprovechar tu fuerza, resistencia y coordinación. Este Rasgo resulta útil al correr, saltar, trepar, nadar, mantener esfuerzos físicos prolongados o superar obstáculos que exigen preparación corporal.',
+      short: 'Aprovechar tu condición física para superar desafíos corporales.'
+    },
+    'Conocedor de...': {
+      long: 'Posees conocimientos y experiencia en un campo específico que defines al elegir el Rasgo. Puedes reconocer elementos propios de esa materia, comprender información especializada, recordar procedimientos y resolver problemas relacionados con ese ámbito.',
+      short: 'Aplicar conocimientos y experiencia en el campo que definiste.'
+    },
+    'Espadachín': {
+      long: 'Tienes entrenamiento y experiencia en el uso de espadas. Sabes manejar este tipo de arma, medir distancias, encontrar aperturas y aprovechar sus características en un enfrentamiento o en otras situaciones donde sea relevante tu dominio de la espada.',
+      short: 'Usar espadas con técnica y experiencia.'
+    },
+    'Investigador': {
+      long: 'Sabes buscar información, examinar indicios y reconstruir lo ocurrido a partir de pistas. Puedes interrogar, comparar testimonios, revisar documentos, relacionar detalles y seguir un método para descubrir respuestas que no son evidentes.',
+      short: 'Buscar pistas, analizar indicios y reconstruir información.'
+    },
+    'Furtivo': {
+      long: 'Sabes evitar llamar la atención y desplazarte sin ser detectado. Puedes ocultarte, moverte en silencio, aprovechar sombras y coberturas, infiltrarte o pasar inadvertido cuando la situación permite actuar con discreción.',
+      short: 'Ocultarte, infiltrarte y actuar sin llamar la atención.'
+    },
+    'Intimidante': {
+      long: 'Proyectas una presencia amenazante y sabes utilizarla para imponer respeto o temor. Puedes presionar a otros mediante tu actitud, reputación, aspecto o palabras, haciendo evidente que enfrentarte o contrariarte puede tener consecuencias.',
+      short: 'Imponer temor o presión mediante tu presencia.'
+    },
+    'Liderazgo': {
+      long: 'Sabes organizar, dirigir y coordinar a otras personas. Puedes transmitir instrucciones, mantener unido a un grupo, distribuir responsabilidades, tomar la iniciativa y orientar los esfuerzos colectivos hacia un objetivo común.',
+      short: 'Dirigir, coordinar y mantener unido a un grupo.'
+    },
+    'Maestro Chasquilla': {
+      long: 'Tienes habilidad práctica para reparar, adaptar, montar y construir cosas con los materiales y herramientas disponibles. Puedes improvisar arreglos, comprender mecanismos sencillos y encontrar soluciones manuales cuando no cuentas con el equipo ideal.',
+      short: 'Reparar, adaptar e improvisar soluciones prácticas.'
+    },
+    'Observador': {
+      long: 'Prestas atención a los detalles del entorno y sabes percibir aquello que otros pasan por alto. Puedes advertir movimientos, cambios, objetos fuera de lugar, señales sutiles o comportamientos extraños antes de que resulten evidentes.',
+      short: 'Percibir detalles y notar cambios en el entorno.'
+    },
+    'Peleador': {
+      long: 'Tienes experiencia enfrentándote físicamente a otras personas, especialmente en combate cuerpo a cuerpo. Sabes golpear, forcejear, derribar, defenderte y aprovechar tu cuerpo en una pelea sin depender necesariamente de armas.',
+      short: 'Enfrentarte a otros cuerpo a cuerpo.'
+    },
+    'Persuasivo': {
+      long: 'Sabes comunicarte para convencer, negociar y conseguir la cooperación de otras personas. Puedes argumentar, generar confianza, presentar propuestas de manera convincente y adaptar tu discurso a lo que le importa a tu interlocutor.',
+      short: 'Convencer, negociar y conseguir la cooperación de otros.'
+    },
+    'Superviviente': {
+      long: 'Sabes desenvolverte en entornos difíciles y cubrir necesidades básicas cuando faltan comodidades o recursos. Puedes orientarte, encontrar refugio, reconocer peligros naturales, conseguir recursos y tomar precauciones para mantenerte a salvo.',
+      short: 'Orientarte y mantenerte a salvo en entornos difíciles.'
+    },
+    'Tirador': {
+      long: 'Tienes práctica con armas a distancia y sabes apuntar, calcular trayectorias y elegir el momento adecuado para disparar o lanzar. Este Rasgo representa tu experiencia al atacar objetivos que se encuentran fuera del alcance cuerpo a cuerpo.',
+      short: 'Apuntar y atacar con armas a distancia.'
+    }
+  };
   const EQUIPMENT: Record<string, string[]> = {
     'Atlético': ['Cuerda', 'Guantes de agarre', 'Botella de agua'],
     'Conocedor de...': ['Cuaderno de referencia', 'Instrumento de medición', 'Kit básico de trabajo'],
@@ -277,7 +349,7 @@
             <h1>Distribuye sus Enfoques</h1>
             <p>Reparte exactamente 4 puntos. Cada Enfoque puede tener entre 0 y 2 puntos.</p>
             {#each APPROACHES as name}
-              <div class="approach-row"><div><strong>{name}</strong><small>{name === 'Tenacidad' ? 'Imponerse y seguir adelante.' : name === 'Control' ? 'Actuar con calma y precisión.' : name === 'Astucia' ? 'Encontrar soluciones ingeniosas.' : 'Actuar antes de que cambie la situación.'}</small></div><div class="stepper"><button on:click={() => setApproach(name, approachDraft[name] - 1)} disabled={approachDraft[name] <= 0}>−</button><b>{approachDraft[name]}</b><button on:click={() => setApproach(name, approachDraft[name] + 1)} disabled={approachDraft[name] >= 2 || approachTotal >= 4}>+</button></div></div>
+              <div class="approach-row"><div><strong>{name}</strong><small>{APPROACH_DESCRIPTIONS[name].long}</small></div><div class="stepper"><button on:click={() => setApproach(name, approachDraft[name] - 1)} disabled={approachDraft[name] <= 0}>−</button><b>{approachDraft[name]}</b><button on:click={() => setApproach(name, approachDraft[name] + 1)} disabled={approachDraft[name] >= 2 || approachTotal >= 4}>+</button></div></div>
             {/each}
             <div class:valid={approachValid} class="total-points">Puntos distribuidos: {approachTotal} / 4</div>
           {:else if step === 5}
@@ -288,7 +360,7 @@
               {#if traitDraft === 'Conocedor de...'}<input bind:value={customTraitField} placeholder="¿Conocedor de qué?">{/if}
               <button on:click={addTrait} disabled={!traitDraft || (traitDraft === 'Conocedor de...' && !customTraitField.trim())}>Añadir</button>
             </div>
-            <div class="selected-list">{#each character.traits as trait}<div class="selected-item"><span>{trait}</span><button class="remove" on:click={() => removeTrait(trait)}>Quitar</button></div>{/each}</div>
+            <div class="selected-list">{#each character.traits as trait}<div class="selected-item trait-description"><div><strong>{trait}</strong><small>{trait.startsWith('Conocedor de ') ? 'Conocedor de...': trait} </small><p>{trait.startsWith('Conocedor de ') ? 'Posees conocimientos y experiencia en ' + trait.slice('Conocedor de '.length) + '. Puedes reconocer elementos propios de esa materia, comprender información especializada, recordar procedimientos y resolver problemas relacionados con ese ámbito.' : TRAIT_DESCRIPTIONS[trait]?.long || ''}</p></div><button class="remove" on:click={() => removeTrait(trait)}>Quitar</button></div>{/each}</div>
             <div class="total-points" class:valid={character.traits.length === 4}>Rasgos seleccionados: {character.traits.length} / 4</div>
           {:else if step === 6}
             <h1>Prepara su equipo</h1>
@@ -332,8 +404,8 @@
           {/if}
           <div class="sheet-grid">
             <section class="card"><h2>Voluntad</h2><div class="will-value">{character.will}<small> / {character.maxWill}</small></div><div class="will-controls"><button on:click={() => adjustWill(-1)} disabled={character.will <= 0}>−</button><button on:click={() => adjustWill(1)} disabled={character.will >= character.maxWill}>+</button></div><p class="muted">Con 0 Voluntad, las tiradas usan 2d6 y conservan el menor.</p></section>
-            <section class="card"><h2>Enfoques</h2>{#each APPROACHES as name}<div class="approach-row compact"><strong>{name}</strong><span class="score">{character.approaches[name]}</span></div>{/each}</section>
-            <section class="card"><h2>Rasgos</h2>{#each character.traits as trait}<div class="trait-line">{trait}</div>{/each}</section>
+            <section class="card"><h2>Enfoques</h2>{#each APPROACHES as name}<div class="approach-row compact"><div><strong>{name}</strong><small>{APPROACH_DESCRIPTIONS[name].short}</small></div><span class="score">{character.approaches[name]}</span></div>{/each}</section>
+            <section class="card"><h2>Rasgos</h2>{#each character.traits as trait}<div class="trait-line"><strong>{trait}</strong><small>{trait.startsWith('Conocedor de ') ? 'Conocedor de...' : trait} </small><p>{trait.startsWith('Conocedor de ') ? 'Conocimientos y experiencia en ' + trait.slice('Conocedor de '.length) + '.' : TRAIT_DESCRIPTIONS[trait]?.short || ''}</p></div>{/each}</section>
             <section class="card"><h2>Inventario</h2>{#each character.inventory as item}<div class="inventory-line"><input bind:value={item.name} placeholder="Objeto por definir" on:input={updateCharacter}><small>{item.trait}</small><button class="remove" on:click={() => removeInventoryItem(item.id)}>×</button></div>{/each}<button class="secondary full" on:click={addInventoryItem}>Añadir objeto</button></section>
           </div>
           <p class="sync-note">{OBR.isAvailable ? 'La ficha se sincroniza con Owlbear Rodeo.' : 'Modo de vista previa: la ficha se guarda en este navegador.'}</p>
@@ -420,7 +492,14 @@
   .progress span { display:block; height:100%; background:#d3a34d; transition:width .2s; }
   .wizard-actions { display:flex; justify-content:flex-end; gap:.6rem; margin-top:1.5rem; }
   .approach-row { display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:.8rem 0; border-bottom:1px solid #414448; }
-  .approach-row small { display:block; color:#aaa; margin-top:.25rem; }
+  .approach-row small { display:block; color:#aaa; margin-top:.25rem; line-height:1.45; }
+  .trait-description { align-items:flex-start; }
+  .trait-description > div { flex:1; }
+  .trait-description small { display:block; color:#aaa; margin-top:.2rem; }
+  .trait-description p { margin:.35rem 0 .5rem; font-size:.85rem; }
+  .trait-line strong { display:block; color:#eee; }
+  .trait-line small { display:block; color:#aaa; margin-top:.2rem; }
+  .trait-line p { margin:.25rem 0 .1rem; font-size:.82rem; }
   .stepper { display:flex; align-items:center; gap:.8rem; }
   .stepper button, .will-controls button { width:2rem; height:2rem; padding:0; font-size:1.1rem; }
   .stepper b { min-width:1rem; text-align:center; }
@@ -446,7 +525,8 @@
   .will-value small { font-size:1rem; color:#aaa; }
   .will-controls { display:flex; gap:.5rem; margin:.5rem 0; }
   .muted, .sync-note { color:#999; font-size:.82rem; }
-  .compact { padding:.45rem 0; }
+  .compact { padding:.55rem 0; }
+  .compact small { display:block; max-width:26rem; color:#999; font-size:.76rem; margin-top:.2rem; line-height:1.35; }
   .score { color:#f2c879; font-weight:700; font-size:1.2rem; }
   .trait-line, .inventory-line { padding:.45rem 0; border-bottom:1px solid #414448; }
   .inventory-line small { display:block; color:#999; font-size:.72rem; }
