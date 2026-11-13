@@ -3,7 +3,8 @@
   import OBR from '@owlbear-rodeo/sdk';
   import Sheet from './Sheet.svelte';
   import GmBinderTabs from './GMBinderTabs.svelte';
-  import { PartyStore, currentPlayerId, isGM } from '../services/OBRHelper';
+  import { PartyStore, currentPlayerId, isGM, ViewingSheet, viewingPlayerId } from '../services/OBRHelper';
+  import { sheet } from '../stores';
 
   const DATA_KEY = 'com.heunithen.dummysheet-mimprov/sheet';
   const STATES = [
@@ -121,8 +122,11 @@
     } else {
       loaded = true;
     }
-    loadGmTracker();
-    gmLoaded = true;
+    if (OBR.isAvailable) {
+      OBR.onReady(() => { loadGmTracker(); gmLoaded = true; });
+    } else {
+      loadGmTracker(); gmLoaded = true;
+    }
   });
 
   function loadGmTracker() {
@@ -147,7 +151,8 @@
     if (step === 0 && !character.concept.trim()) return;
     if (step === 1 && !approachValid) return;
     if (step === 2 && character.traits.length !== 4) return;
-    if (step === 3 && character.inventory.length !== 12) return;
+    if (step === 3 && character.inventory.length < 12) return;
+    if (step === 1) character.approaches = { ...approachDraft };
     if (step < 4) step += 1;
     else { character.created = true; character.will = 4; character.maxWill = 4; updateCharacter(); editingCharacter = false; }
   }
@@ -190,10 +195,26 @@
     playerTracker(id).overexertionUsed = Math.max(0, Math.min(2, value));
     saveGmTracker();
   }
+  function spendOverexertion(id: string, enfoque: string) {
+    const t = playerTracker(id);
+    if (t.overexertionUsed >= 2) return;
+    const stateByApproach: Record<string, string> = { Tenacidad: 'Deprimido', Control: 'Ansioso', Astucia: 'Confundido', Rapidez: 'Mermado' };
+    const state = stateByApproach[enfoque];
+    t.overexertionUsed += 1;
+    if (!t.states.includes(state) && !t.states.includes('Incapacitado')) t.states = [...t.states, state];
+    saveGmTracker();
+  }
+  function applyConflictFailure(id: string) {
+    const state = gmTracker.conflict?.associatedState;
+    if (!state) return;
+    const t = playerTracker(id);
+    if (!t.states.includes(state) && !t.states.includes('Incapacitado')) t.states = [...t.states, state];
+    saveGmTracker();
+  }
   function startConflict() {
     const ids = partyMembers.filter(p => gmTracker.players[p.id]?.inConflict).map(p => p.id);
     if (!ids.length) return;
-    gmTracker.conflict = { participants: ids, initialResistance: ids.length * 2, resistance: ids.length * 2, round: 1, active: true };
+    gmTracker.conflict = { participants: ids, initialResistance: ids.length * 2, resistance: ids.length * 2, round: 1, active: true, associatedState: 'Ansioso' };
     saveGmTracker();
   }
   function applyReduction() {
@@ -328,7 +349,7 @@
               {:else}<p class="muted">El jugador todavía no ha creado su ficha.</p>{/if}
               <h4>Estados actuales</h4><div class="state-grid">{#each STATES as state}<label class="check-row"><input type="checkbox" checked={t.states.includes(state.name)} on:change={() => toggleState(player.id, state.name)}><span><b>{state.name}</b><small>{state.enfoque}: {state.detail}</small></span></label>{/each}</div>
               <h4>Riesgo de situación</h4><select value={t.risk} on:change={(e) => setRisk(player.id, e.currentTarget.value)}><option>Ninguno</option><option>Bajo</option><option>Medio</option><option>Alto</option></select>
-              <h4>Sobreesfuerzo</h4><p class="muted">Puntos disponibles: {2 - t.overexertionUsed} / 2</p><div class="stepper"><button on:click={() => setOverexertion(player.id, t.overexertionUsed - 1)} disabled={t.overexertionUsed <= 0}>−</button><b>{t.overexertionUsed} usados</b><button on:click={() => setOverexertion(player.id, t.overexertionUsed + 1)} disabled={t.overexertionUsed >= 2}>+</button></div>
+              <h4>Sobreesfuerzo</h4><p class="muted">Puntos disponibles: {2 - t.overexertionUsed} / 2</p><div class="stepper"><button on:click={() => setOverexertion(player.id, t.overexertionUsed - 1)} disabled={t.overexertionUsed <= 0}>−</button><b>{t.overexertionUsed} usados</b></div><div class="approach-buttons">{#each APPROACHES as enfoque}<button class="secondary" on:click={() => spendOverexertion(player.id, enfoque)} disabled={t.overexertionUsed >= 2}>{enfoque}</button>{/each}</div><small class="muted">Al registrar el gasto, el panel añade el Estado correspondiente al Enfoque utilizado.</small>
               <h4>Participación en conflicto</h4><label class="check-row"><input type="checkbox" checked={!!t.inConflict} on:change={(e) => { t.inConflict = e.currentTarget.checked; saveGmTracker(); }}><span>Incluir en el próximo conflicto</span></label>
             {/if}
           </article>
@@ -339,10 +360,10 @@
           <p>Marca los participantes en su seguimiento y comienza un conflicto. La Resistencia inicial será 2 por personaje (Voluntad base 4 ÷ 2).</p><button on:click={startConflict} disabled={!partyMembers.some(p => gmTracker.players[p.id]?.inConflict)}>Iniciar conflicto</button>
         {:else}
           <div class="conflict-summary"><div><small>Resistencia</small><strong>{gmTracker.conflict.resistance} / {gmTracker.conflict.initialResistance}</strong></div><div><small>Ronda</small><strong>{gmTracker.conflict.round} / 2</strong></div><div><small>Voluntad restante del grupo</small><strong>{conflictWill}</strong></div></div>
-          <p class="muted">Participantes: {conflictParticipants.map((id: string) => partyMembers.find(p => p.id === id)?.name || 'Jugador').join(', ')}</p>
+          <p class="muted">Participantes: {conflictParticipants.map((id: string) => partyMembers.find(p => p.id === id)?.name || 'Jugador').join(', ')}</p><label>Estado asociado al conflicto<select bind:value={gmTracker.conflict.associatedState} on:change={saveGmTracker}>{#each STATES.filter(s => s.name !== 'Incapacitado') as state}<option value={state.name}>{state.name}</option>{/each}</select></label><div class="failure-list"><strong>Registrar fracaso (1–4)</strong>{#each conflictParticipants as id}<button class="secondary" on:click={() => applyConflictFailure(id)}>{partyMembers.find(p => p.id === id)?.name || 'Jugador'}: aplicar {gmTracker.conflict.associatedState}</button>{/each}</div>
           {#if gmTracker.conflict.active}
             <div class="reduction-row"><label>Éxitos (dados con 6)<input type="number" min="0" bind:value={conflictReduction}></label><button on:click={applyReduction}>Reducir Resistencia</button></div>
-            <div class="wizard-actions"><button class="secondary" on:click={nextRound} disabled={gmTracker.conflict.round >= 2}>Pasar a ronda 2</button><button on:click={resolveConflict}>Resolver conflicto</button></div>
+            <div class="wizard-actions"><button class="secondary" on:click={nextRound} disabled={gmTracker.conflict.round >= 2}>Pasar a ronda 2</button><button on:click={resolveConflict} disabled={gmTracker.conflict.resistance > 0 && gmTracker.conflict.round < 2}>Resolver conflicto</button></div>
           {:else}<h3>Resultado: {gmTracker.conflict.outcome}</h3>{/if}
           <button class="secondary full" on:click={resetConflict}>Cerrar y reiniciar conflicto</button>
         {/if}
@@ -352,7 +373,8 @@
   {:else}
     <main class="classic-content">
       {#if $isGM}<GmBinderTabs />{/if}
-      <Sheet bind:sheet={$myPlayer?.metadata?.dummysheet} />
+      <div style:display={$currentPlayerId === $viewingPlayerId ? 'block' : 'none'}><Sheet bind:sheet={$sheet} /></div>
+      <div style:display={$currentPlayerId === $viewingPlayerId ? 'none' : 'block'}><Sheet bind:sheet={$ViewingSheet} /></div>
       <p class="sync-note">Vista original de DummySheet. Conserva la ficha clásica, su edición y sus herramientas.</p>
     </main>
   {/if}
@@ -424,6 +446,11 @@
   .gm-stats { display:grid; gap:.4rem; padding:.6rem 0; color:#ccc; font-size:.85rem; }
   .gm-stats b { color:#f1d49d; }
   .gm-player h4 { color:#d8b66f; margin:1.1rem 0 .4rem; }
+  .approach-buttons { display:flex; flex-wrap:wrap; gap:.35rem; margin:.5rem 0; }
+  .approach-buttons button { font-size:.75rem; padding:.45rem .6rem; }
+  .failure-list { display:flex; flex-wrap:wrap; gap:.4rem; align-items:center; margin:.8rem 0; }
+  .failure-list strong { width:100%; color:#d8b66f; font-size:.85rem; }
+  .failure-list button { font-size:.78rem; }
   .state-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.4rem; }
   .check-row { display:flex; align-items:flex-start; gap:.6rem; margin:.4rem 0; padding:.5rem; background:#222427; border-radius:5px; }
   .check-row input { width:auto; margin:.2rem 0 0; }
