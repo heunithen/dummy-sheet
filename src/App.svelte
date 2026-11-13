@@ -40,7 +40,7 @@
         <GmBinderTabs />
         <div style={mainSheetVisible}>
           {#if !$characterCreated}
-            <CharacterCreation on:complete={finishCreation} />
+            <CharacterCreation on:complete={finishCreation} on:skip={skipCreation} />
           {:else}
             <Sheet bind:sheet={$sheet} />
           {/if}
