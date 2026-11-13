@@ -116,14 +116,14 @@
   };
   const blankCharacter = (): Character => ({
     name: '', concept: '', age: '', appearance: '', experience: '',
-    approaches: { Tenacidad: 1, Control: 1, Astucia: 1, Rapidez: 1 },
+    approaches: { Tenacidad: 0, Control: 0, Astucia: 0, Rapidez: 0 },
     traits: [], inventory: [], will: 4, maxWill: 4, created: false
   });
 
   let character: Character = blankCharacter();
   let loaded = false;
   let step = 0;
-  let approachDraft: Record<string, number> = { Tenacidad: 1, Control: 1, Astucia: 1, Rapidez: 1 };
+  let approachDraft: Record<string, number> = { Tenacidad: 0, Control: 0, Astucia: 0, Rapidez: 0 };
   let traitDraft = '';
   let customTraitField = '';
   let equipmentDraft: string[] = [];
@@ -234,11 +234,8 @@
     }
     if (pendingDiceRoll) return;
     dicePlusError = '';
-    const ready = await checkDicePlusReady();
-    if (!ready) {
-      dicePlusError = 'No se detectó Dice+. Instala o activa Dice+ en esta sala y vuelve a intentarlo.';
-      return;
-    }
+    // El chequeo de disponibilidad puede fallar por latencia entre extensiones.
+    // Enviamos la solicitud igualmente: Dice+ responderá por el canal propio de esta extensión.
     try {
       const rollId = `mimprov_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
       pendingDiceRoll = { rollId, pool: baseDicePool, notation: diceNotation };
@@ -253,6 +250,13 @@
         timestamp: Date.now(),
         source: DICE_PLUS_SOURCE
       }, { destination: 'ALL' });
+      // Evita dejar el botón bloqueado indefinidamente si Dice+ no responde.
+      setTimeout(() => {
+        if (pendingDiceRoll?.rollId === rollId) {
+          pendingDiceRoll = null;
+          dicePlusError = 'Dice+ no respondió a la tirada. Comprueba que esté instalado y activo en esta sala.';
+        }
+      }, 12000);
     } catch (error) {
       console.error('No se pudo enviar la tirada a Dice+', error);
       pendingDiceRoll = null;
@@ -368,7 +372,7 @@
     return player?.metadata?.[DATA_KEY] as Character | undefined;
   }
 
-  function startCreation() { step = 0; character = blankCharacter(); approachDraft = { Tenacidad: 1, Control: 1, Astucia: 1, Rapidez: 1 }; }
+  function startCreation() { step = 0; character = blankCharacter(); approachDraft = { Tenacidad: 0, Control: 0, Astucia: 0, Rapidez: 0 }; }
   function nextStep() {
     if (step === 1 && !character.concept.trim()) return;
     if (step === 4 && !approachValid) return;
@@ -380,7 +384,7 @@
   }
   function previousStep() { if (step > 0) step -= 1; }
   function setApproach(name: string, value: number) {
-    approachDraft = { ...approachDraft, [name]: Math.max(0, Math.min(1, value)) };
+    approachDraft = { ...approachDraft, [name]: Math.max(0, Math.min(2, value)) };
   }
   function addTrait() {
     const trait = traitDraft === 'Conocedor de...' && customTraitField.trim() ? 'Conocedor de ' + customTraitField.trim() : traitDraft;
