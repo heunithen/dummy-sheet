@@ -169,6 +169,7 @@
   $: selectedCharacter = selectedPlayer?.metadata?.[DATA_KEY] as Character;
   $: createdCharacterCount = partyMembers.filter(p => getPlayerCharacter(p)?.created).length;
   $: initialConflictResistance = createdCharacterCount * 2;
+  $: if ($isGM && gmTracker.conflict?.active && partyMembers.length > 0 && partyMembers.every((player) => (Number(getPlayerCharacter(player)?.will) || 0) <= 0)) resolveConflict('defeat');
 
   function clone<T>(value: T): T { return JSON.parse(JSON.stringify(value)); }
   function getStoredCharacter(): Character {
