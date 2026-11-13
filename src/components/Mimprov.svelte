@@ -151,12 +151,12 @@
 
   function startCreation() { step = 0; character = blankCharacter(); approachDraft = { Tenacidad: 1, Control: 1, Astucia: 1, Rapidez: 1 }; }
   function nextStep() {
-    if (step === 0 && !character.concept.trim()) return;
-    if (step === 1 && !approachValid) return;
-    if (step === 2 && character.traits.length !== 4) return;
-    if (step === 3 && character.inventory.length < 12) return;
-    if (step === 1) character.approaches = { ...approachDraft };
-    if (step < 4) step += 1;
+    if (step === 1 && !character.concept.trim()) return;
+    if (step === 4 && !approachValid) return;
+    if (step === 5 && character.traits.length !== 4) return;
+    if (step === 6 && character.inventory.length < 12) return;
+    if (step === 4) character.approaches = { ...approachDraft };
+    if (step < 7) step += 1;
     else { character.created = true; character.will = 4; character.maxWill = 4; updateCharacter(); editingCharacter = false; }
   }
   function previousStep() { if (step > 0) step -= 1; }
@@ -261,25 +261,31 @@
     <main class="content">
       {#if !character.created}
         <section class="card wizard">
-          <div class="eyebrow">CREACIÓN DE PERSONAJE · PASO {step + 1} DE 5</div>
-          <div class="progress"><span style="width:{(step + 1) * 20}%"></span></div>
+          <div class="eyebrow">CREACIÓN DE PERSONAJE · PASO {step + 1} DE 8</div>
+          <div class="progress"><span style="width:{(step + 1) * 12.5}%"></span></div>
           {#if step === 0}
-            <h1>Define tu personaje</h1>
-            <p>Escribe una frase que describa quién es y qué lo caracteriza.</p>
-            <label>Nombre del personaje<input bind:value={character.name} placeholder="Nombre"></label>
-            <label>Concepto<textarea bind:value={character.concept} rows="3" placeholder="Un exsoldado que ahora protege caravanas..."></textarea></label>
-            <label>Edad<input bind:value={character.age} placeholder="Edad"></label>
-            <label>Apariencia<textarea bind:value={character.appearance} rows="2" placeholder="Descripción física"></textarea></label>
+            <h1>¿Cómo se llama tu personaje?</h1>
+            <label>Nombre<input bind:value={character.name} placeholder="Nombre del personaje"></label>
           {:else if step === 1}
-            <h1>Distribuye tus Enfoques</h1>
+            <h1>¿Cuál es su concepto?</h1>
+            <p>Escribe una frase que describa quién es y qué lo caracteriza.</p>
+            <label>Concepto<textarea bind:value={character.concept} rows="3" placeholder="Un exsoldado que ahora protege caravanas..."></textarea></label>
+          {:else if step === 2}
+            <h1>¿Qué edad tiene?</h1>
+            <label>Edad<input bind:value={character.age} placeholder="Edad o rango aproximado"></label>
+          {:else if step === 3}
+            <h1>¿Cómo es su apariencia?</h1>
+            <label>Apariencia<textarea bind:value={character.appearance} rows="3" placeholder="Descripción física y vestimenta"></textarea></label>
+          {:else if step === 4}
+            <h1>Distribuye sus Enfoques</h1>
             <p>Reparte exactamente 4 puntos. Cada Enfoque puede tener entre 0 y 2 puntos.</p>
             {#each APPROACHES as name}
               <div class="approach-row"><div><strong>{name}</strong><small>{name === 'Tenacidad' ? 'Imponerse y seguir adelante.' : name === 'Control' ? 'Actuar con calma y precisión.' : name === 'Astucia' ? 'Encontrar soluciones ingeniosas.' : 'Actuar antes de que cambie la situación.'}</small></div><div class="stepper"><button on:click={() => setApproach(name, approachDraft[name] - 1)} disabled={approachDraft[name] <= 0}>−</button><b>{approachDraft[name]}</b><button on:click={() => setApproach(name, approachDraft[name] + 1)} disabled={approachDraft[name] >= 2 || approachTotal >= 4}>+</button></div></div>
             {/each}
             <div class:valid={approachValid} class="total-points">Puntos distribuidos: {approachTotal} / 4</div>
-          {:else if step === 2}
-            <h1>Escoge tus Rasgos</h1>
-            <p>Selecciona cuatro Rasgos. Cada uno aporta un dado cuando es directamente relevante para una acción.</p>
+          {:else if step === 5}
+            <h1>Escoge cuatro Rasgos</h1>
+            <p>Cada Rasgo aporta un dado cuando es directamente relevante para una acción.</p>
             <div class="trait-picker">
               <select bind:value={traitDraft}><option value="">Seleccionar Rasgo...</option>{#each TRAITS as trait}<option value={trait} disabled={character.traits.includes(trait) || character.traits.length >= 4}>{trait}</option>{/each}</select>
               {#if traitDraft === 'Conocedor de...'}<input bind:value={customTraitField} placeholder="¿Conocedor de qué?">{/if}
@@ -287,9 +293,9 @@
             </div>
             <div class="selected-list">{#each character.traits as trait}<div class="selected-item"><span>{trait}</span><button class="remove" on:click={() => removeTrait(trait)}>Quitar</button></div>{/each}</div>
             <div class="total-points" class:valid={character.traits.length === 4}>Rasgos seleccionados: {character.traits.length} / 4</div>
-          {:else if step === 3}
-            <h1>Prepara tu equipo</h1>
-            <p>Cada Rasgo entrega tres objetos asociados. Puedes editar sus nombres y añadir pertenencias personales.</p>
+          {:else if step === 6}
+            <h1>Prepara su equipo</h1>
+            <p>Cada Rasgo entrega tres objetos asociados. Puedes editar los nombres de los objetos y añadir pertenencias personales.</p>
             {#each character.traits as trait}
               <div class="equipment-group"><h3>{trait}</h3>{#each character.inventory.filter(i => i.trait === trait) as item}
                 <label class="inline-label"><input value={item.name} placeholder="Nombre del objeto" on:input={(e) => { item.name = e.currentTarget.value; updateCharacter(); }}></label>
@@ -301,12 +307,12 @@
             {/each}
             <div class="total-points" class:valid={character.inventory.length >= 12}>Objetos de Rasgos: 12 · Total actual: {character.inventory.length}</div>
           {:else}
-            <h1>Revisa tu personaje</h1>
+            <h1>Revisa el personaje</h1>
             <div class="summary"><p><strong>{character.name || 'Sin nombre'}</strong></p><p>{character.concept}</p><h3>Enfoques</h3>{#each APPROACHES as name}<p>{name}: {approachDraft[name]}</p>{/each}<h3>Rasgos</h3><p>{character.traits.join(' · ')}</p><h3>Equipo</h3><p>{character.inventory.map(i => i.name || 'Objeto por definir').join(' · ')}</p><p>Voluntad inicial: 4 / 4</p><p>Sobreesfuerzo disponible: 2</p></div>
           {/if}
           <div class="wizard-actions">
             {#if step > 0}<button class="secondary" on:click={previousStep}>Anterior</button>{/if}
-            <button on:click={nextStep} disabled={(step === 0 && !character.concept.trim()) || (step === 1 && !approachValid) || (step === 2 && character.traits.length !== 4) || (step === 3 && character.inventory.length < 12)}>{step === 4 ? 'Crear personaje' : 'Continuar'}</button>
+            <button on:click={nextStep} disabled={(step === 1 && !character.concept.trim()) || (step === 4 && !approachValid) || (step === 5 && character.traits.length !== 4) || (step === 6 && character.inventory.length < 12)}>{step === 7 ? 'Crear personaje' : 'Continuar'}</button>
           </div>
         </section>
       {:else}
@@ -328,7 +334,7 @@
             <section class="card"><h2>Voluntad</h2><div class="will-value">{character.will}<small> / {character.maxWill}</small></div><div class="will-controls"><button on:click={() => adjustWill(-1)} disabled={character.will <= 0}>−</button><button on:click={() => adjustWill(1)} disabled={character.will >= character.maxWill}>+</button></div><p class="muted">Con 0 Voluntad, las tiradas usan 2d6 y conservan el menor.</p></section>
             <section class="card"><h2>Enfoques</h2>{#each APPROACHES as name}<div class="approach-row compact"><strong>{name}</strong><span class="score">{character.approaches[name]}</span></div>{/each}</section>
             <section class="card"><h2>Rasgos</h2>{#each character.traits as trait}<div class="trait-line">{trait}</div>{/each}</section>
-            <section class="card"><h2>Inventario</h2>{#each character.inventory as item}<div class="inventory-line"><span>{item.name || 'Objeto por definir'}</span><small>{item.trait}</small></div>{/each}<button class="secondary full" on:click={addInventoryItem}>Añadir objeto</button></section>
+            <section class="card"><h2>Inventario</h2>{#each character.inventory as item}<div class="inventory-line"><input bind:value={item.name} placeholder="Objeto por definir" on:input={updateCharacter}><small>{item.trait}</small><button class="remove" on:click={() => removeInventoryItem(item.id)}>×</button></div>{/each}<button class="secondary full" on:click={addInventoryItem}>Añadir objeto</button></section>
           </div>
           <section class="card extra-info"><h2>Datos del personaje</h2><p><strong>Edad:</strong> {character.age || '—'}</p><p><strong>Apariencia:</strong> {character.appearance || '—'}</p><p><strong>Experiencia:</strong> {character.experience || '—'}</p></section>
           <p class="sync-note">{OBR.isAvailable ? 'La ficha se sincroniza con Owlbear Rodeo.' : 'Modo de vista previa: la ficha se guarda en este navegador.'}</p>
