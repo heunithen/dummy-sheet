@@ -145,6 +145,9 @@
   $: approachTotal = APPROACHES.reduce((sum, name) => sum + (Number(approachDraft[name]) || 0), 0);
   $: approachValid = approachTotal === 4 && APPROACHES.every(name => approachDraft[name] >= 0 && approachDraft[name] <= 2);
   $: myPlayer = $PartyStore.find(p => p.id === $currentPlayerId);
+  // El rol llega de forma asíncrona desde Owlbear. Asegura una pestaña válida al cambiar de rol.
+  $: if ($isGM && activeTab !== 'gm' && activeTab !== 'conflicto') activeTab = 'gm';
+  $: if (!$isGM && (activeTab === 'gm' || activeTab === 'conflicto')) activeTab = 'personaje';
   $: partyMembers = $PartyStore.filter(p => p.role !== 'GM');
   $: if ($isGM && partyMembers.length && !partyMembers.some(p => p.id === selectedPlayerId)) selectedPlayerId = partyMembers[0].id;
   $: selectedPlayer = partyMembers.find(p => p.id === selectedPlayerId);
@@ -261,8 +264,10 @@
     } catch (error) {
       console.error('No se pudo enviar la tirada a Dice+', error);
       pendingDiceRoll = null;
-      const detail = error instanceof Error ? error.message : String(error ?? 'Error desconocido');
-      dicePlusError = `No se pudo enviar la tirada a Dice+: ${detail}. Comprueba que Dice+ esté activo en esta sala.`;
+      const detail = error instanceof Error
+        ? `${error.name}: ${error.message}`
+        : (() => { try { return JSON.stringify(error); } catch { return String(error ?? 'Error desconocido'); } })();
+      dicePlusError = `[MIMPROV 1.3.4] Error al enviar la solicitud a Dice+: ${detail || 'sin detalle'}.`;
     }
   }
 
