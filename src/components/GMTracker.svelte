@@ -64,7 +64,8 @@
         const player = $PartyStore.find((entry) => entry.id === id);
         if (!player) return total;
         const raw = snapshot(player).will;
-        const match = String(raw).match(/-?\\d+/);\n        const amount = match ? Number.parseInt(match[0], 10) : 0;
+        const match = String(raw).match(/-?\d+/);
+        const amount = match ? Number.parseInt(match[0], 10) : 0;
         return total + (Number.isFinite(amount) ? amount : 0);
       }, 0);
       const result = remainingWill === 0
