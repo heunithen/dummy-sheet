@@ -130,6 +130,6 @@
   .trait input { margin-top:.2rem; }
   .equipment-note, .validation { font-size:.88rem; opacity:.8; }
   .create { display:block; margin:1.2rem auto .5rem; padding:.75rem 2rem; border:0; background:rgb(var(--accent)); color:#171717; font-weight:700; cursor:pointer; }
-  .create:disabled { opacity:.35; cursor:not-allowed; }
+  .create:disabled { opacity:.35; cursor:not-allowed; }\n  .skip { display:block; margin:1rem auto; padding:.5rem 1rem; border:1px solid rgba(var(--accent),.6); background:transparent; color:rgb(var(--primary)); cursor:pointer; }
   @media(max-width:520px) { .two { grid-template-columns:1fr; } .focus { align-items:flex-start; } }
 </style>
