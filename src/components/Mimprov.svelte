@@ -1,10 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import OBR from '@owlbear-rodeo/sdk';
-  import Sheet from './Sheet.svelte';
-  import GmBinderTabs from './GMBinderTabs.svelte';
-  import { PartyStore, currentPlayerId, isGM, ViewingSheet, viewingPlayerId } from '../services/OBRHelper';
-  import { sheet } from '../stores';
+  import { PartyStore, currentPlayerId, isGM } from '../services/OBRHelper';
 
   const DATA_KEY = 'com.heunithen.dummysheet-mimprov/sheet';
   const STATES = [
@@ -57,7 +54,6 @@
   let equipmentDraft: string[] = [];
   let editingCharacter = false;
   let activeTab = 'personaje';
-  let classicSheet = false;
   let gmTracker: any = { players: {}, conflict: null };
   let gmLoaded = false;
   let selectedPlayerId = '';
@@ -254,11 +250,10 @@
 
 <div class="app-shell">
   <nav class="main-tabs">
-    <button class:active={activeTab === 'personaje'} on:click={() => { activeTab = 'personaje'; classicSheet = false; }}>Personaje</button>
+    <button class:active={activeTab === 'personaje'} on:click={() => { activeTab = 'personaje'; }}>Personaje</button>
     {#if $isGM}
-      <button class:active={activeTab === 'gm'} on:click={() => { activeTab = 'gm'; classicSheet = false; }}>Panel GM</button>
+      <button class:active={activeTab === 'gm'} on:click={() => { activeTab = 'gm'; }}>Panel GM</button>
     {/if}
-    <button class:active={activeTab === 'clasica'} on:click={() => { activeTab = 'clasica'; classicSheet = true; }}>Ficha original</button>
   </nav>
 
   {#if activeTab === 'personaje'}
@@ -381,13 +376,6 @@
       </section>
       <p class="sync-note">El seguimiento del GM se guarda localmente en este dispositivo y sala. No se publica en las fichas de los jugadores.</p>
     </main>
-  {:else}
-    <main class="classic-content">
-      {#if $isGM}<GmBinderTabs />{/if}
-      <div style:display={$currentPlayerId === $viewingPlayerId ? 'block' : 'none'}><Sheet bind:sheet={$sheet} /></div>
-      <div style:display={$currentPlayerId === $viewingPlayerId ? 'none' : 'block'}><Sheet bind:sheet={$ViewingSheet} /></div>
-      <p class="sync-note">Vista original de DummySheet. Conserva la ficha clásica, su edición y sus herramientas.</p>
-    </main>
   {/if}
 </div>
 
@@ -473,7 +461,6 @@
   .conflict-summary strong { color:#f2c879; font-size:1.2rem; margin-top:.3rem; }
   .reduction-row { display:flex; align-items:end; gap:.7rem; }
   .reduction-row label { flex:1; margin-bottom:0; }
-  .classic-content { padding:0 0 2rem; }
   @media(max-width:600px) {
     .sheet-grid, .state-grid { grid-template-columns:1fr; }
     .sheet-header { display:block; }
