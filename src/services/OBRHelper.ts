@@ -1,6 +1,6 @@
 import OBR from "@owlbear-rodeo/sdk";
 import type { Player } from "@owlbear-rodeo/sdk";
-import { sheet } from "../stores";
+import { sheet, gmTracker } from "../stores";
 import { writable, get } from "svelte/store";
 
 const SHEET_META_KEY = "com.heunithen.mimprov-dummysheet";
@@ -63,6 +63,21 @@ export async function init() {
 }
 
 async function initGM() {
+  const trackerKey = `mimprov-gm-tracker:${OBR.room.id}`;
+  const savedTracker = localStorage.getItem(trackerKey);
+  if (savedTracker) {
+    try {
+      gmTracker.set(JSON.parse(savedTracker));
+    } catch (error) {
+      console.warn("No se pudo leer el seguimiento guardado para esta sala.", error);
+    }
+  } else {
+    gmTracker.set({ risk: "Sin riesgo", riskNote: "", players: {}, conflict: { active: false, participants: [], initial: 0, remaining: 0, round: 1, state: "Mermado", result: "" } });
+  }
+  gmTracker.subscribe((tracker) => {
+    localStorage.setItem(trackerKey, JSON.stringify(tracker));
+  });
+
   PartyStore.set(await OBR.party.getPlayers());
   refreshViewingSheet();
 
