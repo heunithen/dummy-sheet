@@ -185,7 +185,7 @@
               const allStates = metadata?.[STATE_KEY] || {};
               visibleStates = Array.isArray(allStates[$currentPlayerId]) ? allStates[$currentPlayerId] : [];
               const allOverexertion = metadata?.[OVEREXERTION_KEY] || {};
-              visibleOverexertionUsed = Math.max(0, Math.min(2, Number(allOverexertion[$currentPlayerId]) || 0));
+              visibleOverexertionUsed = Math.max(0, Math.min(1, Number(allOverexertion[$currentPlayerId]) || 0));
             };
             syncStates(await OBR.room.getMetadata());
             OBR.room.onMetadataChange(syncStates);
@@ -223,7 +223,7 @@
       const allOverexertion: Record<string, number> = {};
       Object.entries(gmTracker.players || {}).forEach(([id, tracker]: [string, any]) => {
         allStates[id] = Array.isArray(tracker.states) ? [...tracker.states] : [];
-        allOverexertion[id] = Math.max(0, Math.min(2, Number(tracker.overexertionUsed) || 0));
+        allOverexertion[id] = Math.max(0, Math.min(1, Number(tracker.overexertionUsed) || 0));
       });
       OBR.room.setMetadata({ [STATE_KEY]: allStates, [OVEREXERTION_KEY]: allOverexertion }).catch((error) => {
         console.error('No se pudieron publicar los datos de seguimiento de los personajes', error);
@@ -250,7 +250,7 @@
   }
   function previousStep() { if (step > 0) step -= 1; }
   function setApproach(name: string, value: number) {
-    approachDraft = { ...approachDraft, [name]: Math.max(0, Math.min(2, value)) };
+    approachDraft = { ...approachDraft, [name]: Math.max(0, Math.min(1, value)) };
   }
   function addTrait() {
     const trait = traitDraft === 'Conocedor de...' && customTraitField.trim() ? 'Conocedor de ' + customTraitField.trim() : traitDraft;
@@ -288,7 +288,7 @@
   }
   function spendOverexertion(id: string, enfoque: string) {
     const t = playerTracker(id);
-    if (t.overexertionUsed >= 2) return;
+    if (t.overexertionUsed >= 1) return;
     const stateByApproach: Record<string, string> = { Tenacidad: 'Deprimido', Control: 'Ansioso', Astucia: 'Confundido', Rapidez: 'Mermado' };
     const state = stateByApproach[enfoque];
     t.overexertionUsed += 1;
@@ -377,7 +377,7 @@
             <div class="total-points" class:valid={character.inventory.length >= 12}>Objetos de Rasgos: 12 · Total actual: {character.inventory.length}</div>
           {:else}
             <h1>Revisa el personaje</h1>
-            <div class="summary"><p><strong>{character.name || 'Sin nombre'}</strong></p><p>{character.concept}</p><h3>Enfoques</h3>{#each APPROACHES as name}<p>{name}: {approachDraft[name]}</p>{/each}<h3>Rasgos</h3><p>{character.traits.join(' · ')}</p><h3>Equipo</h3><p>{character.inventory.map(i => i.name || 'Objeto por definir').join(' · ')}</p><p>Voluntad inicial: 4 / 4</p><p>Sobreesfuerzo disponible: 2</p></div>
+            <div class="summary"><p><strong>{character.name || 'Sin nombre'}</strong></p><p>{character.concept}</p><h3>Enfoques</h3>{#each APPROACHES as name}<p>{name}: {approachDraft[name]}</p>{/each}<h3>Rasgos</h3><p>{character.traits.join(' · ')}</p><h3>Equipo</h3><p>{character.inventory.map(i => i.name || 'Objeto por definir').join(' · ')}</p><p>Voluntad inicial: 4 / 4</p><p>Sobreesfuerzo disponible: 1</p></div>
           {/if}
           <div class="wizard-actions">
             {#if step > 0}<button class="secondary" on:click={previousStep}>Anterior</button>{/if}
@@ -389,7 +389,7 @@
           <header class="sheet-header"><div><div class="eyebrow">PERSONAJE MIMPROV</div><h1>{character.name || 'Sin nombre'}</h1><p>{character.concept}</p></div><button class="secondary" on:click={() => editingCharacter = !editingCharacter}>{editingCharacter ? 'Cerrar edición' : 'Editar ficha'}</button></header>
           {#if visibleStates.length > 0}<section class="card character-states"><h2>Estados actuales</h2><div class="state-badges">{#each visibleStates as state}<span class="state-badge">{state}</span>{/each}</div></section>{/if}
           <section class="card extra-info"><h2>Datos del personaje</h2><p><strong>Edad:</strong> {character.age || '—'}</p><p><strong>Apariencia:</strong> {character.appearance || '—'}</p><p><strong>Experiencia:</strong> {character.experience || '—'}</p></section>
-          <section class="card extra-info"><h2>Sobreesfuerzo</h2><div class="will-value">{2 - visibleOverexertionUsed}<small> / 2 puntos disponibles</small></div><p class="muted">Puntos utilizados: {visibleOverexertionUsed}</p></section>
+          <section class="card extra-info"><h2>Sobreesfuerzo</h2><div class="will-value">{1 - visibleOverexertionUsed}<small> / 1 punto disponible</small></div><p class="muted">Punto utilizado: {visibleOverexertionUsed}</p></section>
           {#if editingCharacter}
             <div class="card edit-card">
               <label>Nombre<input bind:value={character.name} on:input={updateCharacter}></label>
@@ -433,7 +433,7 @@
                 <div class="gm-stats"><span>Voluntad: <b>{getPlayerCharacter(player)?.will} / {getPlayerCharacter(player)?.maxWill}</b></span><span>Enfoques: <b>{APPROACHES.map(a => a + ' ' + (getPlayerCharacter(player)?.approaches?.[a] ?? 0)).join(' · ')}</b></span><span>Rasgos: <b>{getPlayerCharacter(player)?.traits?.join(', ')}</b></span></div>
               {:else}<p class="muted">El jugador todavía no ha creado su ficha.</p>{/if}
               <h4>Estados actuales</h4><div class="state-grid">{#each STATES as state}<label class="check-row"><input type="checkbox" checked={playerTracker(player.id).states.includes(state.name)} on:change={() => toggleState(player.id, state.name)}><span><b>{state.name}</b><small>{state.enfoque}: {state.detail}</small></span></label>{/each}</div>
-              <h4>Sobreesfuerzo</h4><p class="muted">Puntos disponibles: {2 - playerTracker(player.id).overexertionUsed} / 2</p><div class="stepper"><button on:click={() => setOverexertion(player.id, playerTracker(player.id).overexertionUsed - 1)} disabled={playerTracker(player.id).overexertionUsed <= 0}>−</button><b>{playerTracker(player.id).overexertionUsed} usados</b></div><div class="approach-buttons">{#each APPROACHES as enfoque}<button class="secondary" on:click={() => spendOverexertion(player.id, enfoque)} disabled={playerTracker(player.id).overexertionUsed >= 2}>{enfoque}</button>{/each}</div><small class="muted">Al registrar el gasto, el panel añade el Estado correspondiente al Enfoque utilizado.</small>
+              <h4>Sobreesfuerzo</h4><p class="muted">Puntos disponibles: {1 - playerTracker(player.id).overexertionUsed} / 1</p><div class="stepper"><b>{playerTracker(player.id).overexertionUsed} usado</b><button class="secondary" on:click={() => setOverexertion(player.id, 0)} disabled={playerTracker(player.id).overexertionUsed === 0}>Recuperar por descanso</button></div><div class="approach-buttons">{#each APPROACHES as enfoque}<button class="secondary" on:click={() => spendOverexertion(player.id, enfoque)} disabled={playerTracker(player.id).overexertionUsed >= 1}>{enfoque}</button>{/each}</div><small class="muted">Al gastar el punto, el panel añade el Estado correspondiente al Enfoque utilizado. Se recupera al realizar un descanso.</small>
             </article>
           {/each}
         {/if}
