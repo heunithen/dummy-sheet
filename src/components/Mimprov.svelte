@@ -217,8 +217,8 @@
   $: selectedTraitBonus = selectedTrait && character.traits.includes(selectedTrait) ? 1 : 0;
   $: selectedStatePenalty = selectedState && STATES.find(s => s.name === selectedState && (s.enfoque === selectedApproach || s.enfoque === 'Todos')) ? 1 : 0;
   $: baseDicePool = selectedApproachScore + selectedTraitBonus - selectedStatePenalty;
-  $: dicePool = baseDicePool > 0 ? baseDicePool + (rollModifier === 'normal' ? 0 : 1) : 0;
-  $: diceNotation = baseDicePool <= 0 ? '2d6kl1' : `${dicePool}d6${rollModifier === 'disadvantage' ? 'kl1' : 'kh1'}`;
+  $: dicePool = baseDicePool + (rollModifier === 'advantage' ? 1 : rollModifier === 'disadvantage' ? -1 : 0);
+  $: diceNotation = dicePool <= 0 ? '2d6kl1' : `${dicePool}d6kh1`;
 
   async function checkDicePlusReady(): Promise<boolean> {
     const requestId = `mimprov_ready_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
@@ -737,7 +737,7 @@
               <li>{selectedApproach}: +{selectedApproachScore}d6</li>
               <li>{selectedTrait ? selectedTrait + ': +1d6' : 'Sin Rasgo: +0d6'}</li>
               <li>{selectedStatePenalty ? selectedState + ': −1d6' : 'Estado: sin penalización'}</li>
-              <li>{rollModifier === 'advantage' ? 'Ventaja: añade 1d6 y conserva el mayor' : rollModifier === 'disadvantage' ? 'Desventaja: añade 1d6 y conserva el menor' : 'Tirada normal: conserva el mayor'}</li>
+              <li>{rollModifier === 'advantage' ? 'Ventaja: añade 1d6 y conserva el mayor' : rollModifier === 'disadvantage' ? (dicePool <= 0 ? 'Desventaja: reduce 1d6; al quedar en 0 dados, tira 2d6 y conserva el menor' : 'Desventaja: resta 1d6 y conserva el mayor') : 'Tirada normal: conserva el mayor'}</li>
             </ul>
           </div>
           {#if dicePlusError}<p class="error-message">{dicePlusError}</p>{/if}
