@@ -4,6 +4,7 @@
   import { PartyStore, currentPlayerId, isGM } from '../services/OBRHelper';
 
   const DATA_KEY = 'com.heunithen.dummysheet-mimprov/sheet';
+  const STATE_KEY = 'com.heunithen.dummysheet-mimprov/player-states';
   const STATES = [
     { name: 'Mermado', enfoque: 'Rapidez', detail: 'Lesión o limitación física.' },
     { name: 'Deprimido', enfoque: 'Tenacidad', detail: 'Enfermedad, intoxicación o debilidad.' },
@@ -56,6 +57,7 @@
   let activeTab = 'personaje';
   let gmTracker: any = { players: {}, conflict: null };
   let gmLoaded = false;
+  let visibleStates: string[] = [];
   let selectedPlayerId = '';
   let conflictReduction = 1;
 
@@ -110,6 +112,14 @@
               await OBR.player.setMetadata({ [DATA_KEY]: clone(character) });
             }
           }
+          if (role === 'PLAYER') {
+            const syncStates = (metadata: any) => {
+              const allStates = metadata?.[STATE_KEY] || {};
+              visibleStates = Array.isArray(allStates[$currentPlayerId]) ? allStates[$currentPlayerId] : [];
+            };
+            syncStates(await OBR.room.getMetadata());
+            OBR.room.onMetadataChange(syncStates);
+          }
           loaded = true;
         } catch (error) {
           console.error('Error al cargar la ficha MIMPROV', error);
@@ -137,6 +147,15 @@
     const room = OBR.isAvailable ? OBR.room.id : 'local';
     localStorage.setItem('mimprov-gm-v1-' + room, JSON.stringify(gmTracker));
     gmTracker = clone(gmTracker);
+    if (OBR.isAvailable && $isGM) {
+      const allStates: Record<string, string[]> = {};
+      Object.entries(gmTracker.players || {}).forEach(([id, tracker]: [string, any]) => {
+        allStates[id] = Array.isArray(tracker.states) ? [...tracker.states] : [];
+      });
+      OBR.room.setMetadata({ [STATE_KEY]: allStates }).catch((error) => {
+        console.error('No se pudieron publicar los Estados de los personajes', error);
+      });
+    }
   }
   function playerTracker(id: string) {
     if (!gmTracker.players[id]) gmTracker.players[id] = { states: [], risk: 'Ninguno', overexertionUsed: 0, overexertionNotes: [] };
@@ -317,6 +336,8 @@
       {:else}
         <section class="character-sheet">
           <header class="sheet-header"><div><div class="eyebrow">PERSONAJE MIMPROV</div><h1>{character.name || 'Sin nombre'}</h1><p>{character.concept}</p></div><button class="secondary" on:click={() => editingCharacter = !editingCharacter}>{editingCharacter ? 'Cerrar edición' : 'Editar ficha'}</button></header>
+          {#if visibleStates.length > 0}<section class="card character-states"><h2>Estados actuales</h2><div class="state-badges">{#each visibleStates as state}<span class="state-badge">{state}</span>{/each}</div></section>{/if}
+          <section class="card extra-info"><h2>Datos del personaje</h2><p><strong>Edad:</strong> {character.age || '—'}</p><p><strong>Apariencia:</strong> {character.appearance || '—'}</p><p><strong>Experiencia:</strong> {character.experience || '—'}</p></section>
           {#if editingCharacter}
             <div class="card edit-card">
               <label>Nombre<input bind:value={character.name} on:input={updateCharacter}></label>
@@ -335,7 +356,6 @@
             <section class="card"><h2>Rasgos</h2>{#each character.traits as trait}<div class="trait-line">{trait}</div>{/each}</section>
             <section class="card"><h2>Inventario</h2>{#each character.inventory as item}<div class="inventory-line"><input bind:value={item.name} placeholder="Objeto por definir" on:input={updateCharacter}><small>{item.trait}</small><button class="remove" on:click={() => removeInventoryItem(item.id)}>×</button></div>{/each}<button class="secondary full" on:click={addInventoryItem}>Añadir objeto</button></section>
           </div>
-          <section class="card extra-info"><h2>Datos del personaje</h2><p><strong>Edad:</strong> {character.age || '—'}</p><p><strong>Apariencia:</strong> {character.appearance || '—'}</p><p><strong>Experiencia:</strong> {character.experience || '—'}</p></section>
           <p class="sync-note">{OBR.isAvailable ? 'La ficha se sincroniza con Owlbear Rodeo.' : 'Modo de vista previa: la ficha se guarda en este navegador.'}</p>
         </section>
       {/if}
@@ -435,7 +455,10 @@
   .trait-line, .inventory-line { padding:.45rem 0; border-bottom:1px solid #414448; }
   .inventory-line small { display:block; color:#999; font-size:.72rem; }
   .full { width:100%; margin-top:.7rem; }
-  .extra-info { margin-top:1rem; }
+  .extra-info { margin:0 0 1rem; }
+  .character-states { margin:0 0 1rem; }
+  .state-badges { display:flex; flex-wrap:wrap; gap:.5rem; }
+  .state-badge { display:inline-block; padding:.4rem .75rem; border:1px solid #9b6262; border-radius:5px; background:#492e32; color:#ffd6d6; font-weight:650; }
   .extra-info p { margin:.4rem 0; }
   .gm-content > h1 { margin-bottom:0; }
   .gm-player { border-top:1px solid #444; padding:1rem 0; }
