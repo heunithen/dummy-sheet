@@ -32,7 +32,7 @@ The current MIMPROV rules text does not define equipment for Liderazgo or Superv
 
 The GM view includes a separate tracking panel for player Enfoques, selected Rasgos, Voluntad, States, Sobreesfuerzo, situational Risk reminders, and conflict progress. GM annotations do not edit player sheets.
 
-GM tracking is stored in the GM browser's local storage to keep it private from players. It is not synchronized between different GM devices or browsers.
+GM tracking is stored privately in the GM browser's local storage, separated by Owlbear room. It is not visible to players and is not synchronized between different GM devices or browsers.
 
 ### Owlbear Rodeo synchronization
 
