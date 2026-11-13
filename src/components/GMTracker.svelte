@@ -64,7 +64,7 @@
         const player = $PartyStore.find((entry) => entry.id === id);
         if (!player) return total;
         const raw = snapshot(player).will;
-        const amount = Number.parseInt(String(raw).split("/")[0], 10);
+        const match = String(raw).match(/-?\\d+/);\n        const amount = match ? Number.parseInt(match[0], 10) : 0;
         return total + (Number.isFinite(amount) ? amount : 0);
       }, 0);
       const result = remainingWill === 0
@@ -78,7 +78,7 @@
     }
   }
   function endConflict() {
-    gmTracker.set({ ...$gmTracker, conflict: { ...$gmTracker.conflict, active: false } });
+    gmTracker.set({ ...$gmTracker, conflict: { ...$gmTracker.conflict, active: false, result: "Conflicto finalizado manualmente por el Narrador." } });
   }
 </script>
 
@@ -136,10 +136,10 @@
               <button class="secondary" on:click={() => updatePlayer(player.id, { effortUsed: Math.max(0, tracking.effortUsed - 1) })} disabled={tracking.effortUsed <= 0}>Deshacer</button>
             </div>
             <div class="risk-row">
-              <select value={tracking.risk} on:change={(event) => updatePlayer(player.id, { risk: event.currentTarget.value })}>
+              <select value={tracking.risk} on:change={(event: Event) => updatePlayer(player.id, { risk: (event.currentTarget as HTMLSelectElement).value })}>
                 <option>Sin riesgo</option><option>Riesgo bajo</option><option>Riesgo medio</option><option>Riesgo alto</option>
               </select>
-              <input value={tracking.note} placeholder="Nota del GM" on:change={(event) => updatePlayer(player.id, { note: event.currentTarget.value })} />
+              <input value={tracking.note} placeholder="Nota del GM" on:change={(event: Event) => updatePlayer(player.id, { note: (event.currentTarget as HTMLInputElement).value })} />
             </div>
           </div>
         </article>
