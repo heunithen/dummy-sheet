@@ -607,7 +607,7 @@
           <section class="card roll-result">
             <h2>Resultado</h2>
             <p class="muted">{lastRoll.notation || ''} {lastRoll.summary ? '· ' + lastRoll.summary : ''}</p>
-            <div class="dice-results">{#each lastRoll.dice as die, i}<span class:kept={die === lastRoll.kept && (lastRoll.pool > 0 ? die === Math.max(...lastRoll.dice) : die === Math.min(...lastRoll.dice))} class="die">{die}</span>{/each}</div>
+            <div class="dice-results">{#each lastRoll.dice as die, i}<span class:kept={die === lastRoll.kept && (lastRoll.notation?.includes("kl1") ? die === Math.min(...lastRoll.dice) : die === Math.max(...lastRoll.dice))} class="die">{die}</span>{/each}</div>
             <div class="kept-result">Dado conservado: <strong>{lastRoll.kept}</strong></div>
             <h3>{lastRoll.result}</h3>
             {#if lastRoll.critical}<p>Crítico: recuperas 1 punto de Voluntad.</p>{/if}
