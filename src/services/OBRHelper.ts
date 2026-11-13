@@ -1,22 +1,15 @@
 import OBR from "@owlbear-rodeo/sdk";
 import type { Player } from "@owlbear-rodeo/sdk";
-import { sheet } from '../stores'
-
+import { sheet, gmTracker } from "../stores";
 import { writable, get } from "svelte/store";
 
-let initViewingSheet:any = {
+const SHEET_META_KEY = "com.heunithen.mimprov-dummysheet";
+
+const emptySheet = {
   id: 0,
   name: "",
   notes: "",
-  sections: [
-    {
-      id:0,
-      name: "",
-      stats: [
-        {id: 0, name: "", value: ""}
-      ]
-    }
-  ]
+  sections: []
 };
 
 export const isGM = writable(false);
@@ -24,63 +17,89 @@ export const PartyStore = writable<Player[]>([]);
 export const currentPlayerName = writable<string>("");
 export const currentPlayerId = writable<string>("");
 export const viewingPlayerId = writable<string>("");
-export const ViewingSheet = writable(initViewingSheet);
+export const ViewingSheet = writable<any>(emptySheet);
 
+let ready = false;
+
+function sheetFromPlayer(player: Player) {
+  return player.metadata?.[SHEET_META_KEY] ?? player.metadata?.dummysheet ?? emptySheet;
+}
+
+function refreshViewingSheet() {
+  const selectedId = get(viewingPlayerId);
+  const ownId = get(currentPlayerId);
+  if (selectedId === ownId) {
+    ViewingSheet.set(get(sheet));
+    return;
+  }
+  const player = get(PartyStore).find((entry) => entry.id === selectedId);
+  ViewingSheet.set(player ? sheetFromPlayer(player) : emptySheet);
+}
 
 export async function init() {
+  if (!OBR.isAvailable) return;
+
   OBR.onReady(async () => {
-    PartyStore.set(await OBR.party.getPlayers());
+    const playerId = await OBR.player.getId();
     currentPlayerName.set(await OBR.player.getName());
-    currentPlayerId.set(await OBR.player.getId());
-    viewingPlayerId.set(await OBR.player.getId());
-    isGM.set((await OBR.player.getRole()) === "GM");
-    if (get(isGM)) {
-      initGM();
+    currentPlayerId.set(playerId);
+    viewingPlayerId.set(playerId);
+    const role = await OBR.player.getRole();
+    isGM.set(role === "GM");
+    ready = true;
+
+    if (role === "GM") {
+      await initGM();
     } else {
       initPlayer();
     }
   });
+
   OBR.player.onChange((player) => {
     currentPlayerName.set(player.name);
     currentPlayerId.set(player.id);
+    refreshViewingSheet();
   });
 }
 
-// Initialize GM
 async function initGM() {
+  const trackerKey = `mimprov-gm-tracker:${OBR.room.id}`;
+  const savedTracker = localStorage.getItem(trackerKey);
+  if (savedTracker) {
+    try {
+      gmTracker.set(JSON.parse(savedTracker));
+    } catch (error) {
+      console.warn("No se pudo leer el seguimiento guardado para esta sala.", error);
+    }
+  } else {
+    gmTracker.set({ risk: "Sin riesgo", riskNote: "", players: {}, conflict: { active: false, participants: [], initial: 0, remaining: 0, round: 1, state: "Mermado", result: "" } });
+  }
+  gmTracker.subscribe((tracker) => {
+    localStorage.setItem(trackerKey, JSON.stringify(tracker));
+  });
+
+  PartyStore.set(await OBR.party.getPlayers());
+  refreshViewingSheet();
+
   OBR.party.onChange((party) => {
     PartyStore.set(party);
+    refreshViewingSheet();
   });
 
-  PartyStore.subscribe((party) => {
-    const vId = get(viewingPlayerId);
-    for (const p of party){
-      if (p.id === vId) {
-        ViewingSheet.set(p.metadata.dummysheet)
-      }
-    }
-  });
-
-  viewingPlayerId.subscribe((vId) => {
-    const cId = get(currentPlayerId);
-    const ps = get(PartyStore);
-    const s = get(sheet);
-    if (vId === cId){
-      ViewingSheet.set(s);
-    } else {
-      const vs = ps.find(x => x.id === vId).metadata.dummysheet;
-      ViewingSheet.set(vs);
-    }
-  });
-  
+  viewingPlayerId.subscribe(() => refreshViewingSheet());
+  sheet.subscribe(() => refreshViewingSheet());
 }
 
-async function initPlayer() {
-  sheet.subscribe(function(sheet){
-    OBR.player.onChange((player) => {
-      const vId = get(viewingPlayerId)
-      player.metadata["dummysheet"] = sheet;
-    });
-    OBR.player.setMetadata({dummysheet: sheet});
+function initPlayer() {
+  sheet.subscribe(async (characterSheet) => {
+    if (!ready || get(isGM)) return;
+    try {
+      await OBR.player.setMetadata({
+        [SHEET_META_KEY]: characterSheet,
+        dummysheet: characterSheet
+      });
+    } catch (error) {
+      console.error("No se pudo sincronizar la ficha del personaje.", error);
+    }
   });
 }
