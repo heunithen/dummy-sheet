@@ -473,7 +473,20 @@
           });
           OBR.broadcast.onMessage(DELETE_CHARACTER_CHANNEL, async (event) => {
             const data = event.data as any;
-            if (!data || data.action !== 'DELETE_CHARACTER' || data.playerId !== $currentPlayerId) return;
+            if (!data) return;
+            if (role === 'GM' && data.action === 'PLAYER_DELETE_REQUEST' && data.playerId) {
+              try {
+                const party = await OBR.party.getPlayers();
+                const sender = party.find((p: any) => p.connectionId === event.connectionId);
+                if (sender && sender.role === 'PLAYER' && sender.id === data.playerId) {
+                  await deletePlayerCharacter(sender, true);
+                }
+              } catch (error) {
+                console.error('No se pudo procesar la solicitud de eliminación', error);
+              }
+              return;
+            }
+            if (data.action !== 'DELETE_CHARACTER' || data.playerId !== $currentPlayerId) return;
             try {
               const party = await OBR.party.getPlayers();
               const sender = party.find((p: any) => p.connectionId === event.connectionId);
@@ -483,6 +496,8 @@
               step = 0;
               localStorage.removeItem('mimprov-character-v1');
               await OBR.player.setMetadata({ [DATA_KEY]: clone(character) });
+              magicData = { ...magicData, players: { ...(magicData.players || {}) } };
+              delete magicData.players[$currentPlayerId];
             } catch (error) {
               console.error('No se pudo borrar la ficha del personaje', error);
             }
@@ -624,11 +639,11 @@
     if (!t.states.includes(state) && !t.states.includes('Incapacitado')) t.states = [...t.states, state];
     saveGmTracker();
   }
-  async function deletePlayerCharacter(player: any) {
+  async function deletePlayerCharacter(player: any, alreadyConfirmed = false) {
     const stored = getPlayerCharacter(player);
     if (!stored?.created) return;
     const name = stored.name || player.name;
-    if (!confirm(`¿Borrar la ficha de ${name}? El personaje volverá al estado de creación y el jugador tendrá que crearlo nuevamente.`)) return;
+    if (!alreadyConfirmed && !confirm(`¿Borrar la ficha de ${name}? El personaje volverá al estado de creación y el jugador tendrá que crearlo nuevamente.`)) return;
     try {
       await OBR.broadcast.sendMessage(DELETE_CHARACTER_CHANNEL, {
         action: 'DELETE_CHARACTER',
@@ -639,23 +654,84 @@
       tracker.states = [];
       tracker.overexertionUsed = 0;
       tracker.overexertionNotes = [];
+      const currentMagic = clone(magicData || { players: {} });
+      if (currentMagic.players) delete currentMagic.players[player.id];
+      await OBR.room.setMetadata({ [MAGIC_KEY]: currentMagic });
+      magicData = currentMagic;
       saveGmTracker();
     } catch (error) {
       console.error('No se pudo solicitar el borrado de la ficha', error);
-      alert('No se pudo enviar la solicitud para borrar la ficha. Comprueba que el jugador esté conectado.');
+      alert('No se pudo completar el borrado de la ficha. Comprueba la conexión con Owlbear Rodeo.');
     }
+  }
+
+  async function requestOwnCharacterDeletion() {
+    if (!character.created) return;
+    if (!confirm(`¿Eliminar tu personaje ${character.name || ''}? Se borrarán también tus propuestas y conjuros.`)) return;
+    if (!OBR.isAvailable || !$currentPlayerId) {
+      character = blankCharacter();
+      localStorage.removeItem('mimprov-character-v1');
+      editingCharacter = false;
+      step = 0;
+      return;
+    }
+    try {
+      await OBR.broadcast.sendMessage(DELETE_CHARACTER_CHANNEL, {
+        action: 'PLAYER_DELETE_REQUEST',
+        playerId: $currentPlayerId,
+        requestedAt: Date.now()
+      }, { destination: 'ALL' });
+    } catch (error) {
+      console.error('No se pudo solicitar la eliminación del personaje', error);
+      alert('No se pudo enviar la solicitud. Comprueba tu conexión con Owlbear Rodeo.');
+    }
+  }
+
+  function resolveConflict(outcome: 'decisive' | 'resistance' | 'defeat') {
+    const conflict = gmTracker.conflict || { active: true, danger: 'Bajo', resistance: null };
+    const resistance = Math.max(0, Number(conflict.resistance ?? initialConflictResistance) || 0);
+    if (outcome === 'decisive' || resistance <= 0) {
+      conflict.result = 'Victoria decisiva: la Resistencia llegó a 0.';
+    } else {
+      const remainingWill = partyMembers.reduce((total, player) => {
+        const will = Number(getPlayerCharacter(player)?.will) || 0;
+        return total + Math.max(0, will);
+      }, 0);
+      if (remainingWill >= resistance) {
+        conflict.result = `Victoria por resistencia: ${remainingWill} de Voluntad frente a ${resistance} de Resistencia.`;
+      } else {
+        conflict.result = `Derrota: ${remainingWill} de Voluntad frente a ${resistance} de Resistencia. Todos reciben Incapacitado.`;
+        partyMembers.forEach((player) => {
+          const tracker = playerTracker(player.id);
+          tracker.states = ['Incapacitado'];
+        });
+      }
+    }
+    conflict.active = false;
+    gmTracker.conflict = conflict;
+    saveGmTracker();
   }
 
   function setConflictActive(active: boolean) {
     if (!gmTracker.conflict) gmTracker.conflict = { active: false, danger: 'Bajo', resistance: null };
-    gmTracker.conflict.active = active;
-    saveGmTracker();
+    if (active) {
+      gmTracker.conflict.active = true;
+      gmTracker.conflict.result = '';
+      saveGmTracker();
+      return;
+    }
+    if (gmTracker.conflict.active) resolveConflict('resistance');
+    else {
+      gmTracker.conflict.active = false;
+      saveGmTracker();
+    }
   }
   function adjustConflictResistance(delta: number) {
     if (!gmTracker.conflict) gmTracker.conflict = { danger: 'Bajo', resistance: null };
     const current = gmTracker.conflict.resistance ?? initialConflictResistance;
     gmTracker.conflict.resistance = Math.max(0, current + delta);
-    saveGmTracker();
+    if (gmTracker.conflict.active && gmTracker.conflict.resistance === 0) resolveConflict('decisive');
+    else saveGmTracker();
   }
   function resetConflictResistance() {
     if (!gmTracker.conflict) gmTracker.conflict = { danger: 'Bajo', resistance: null };
@@ -750,7 +826,7 @@
         </section>
       {:else}
         <section class="character-sheet">
-          <header class="sheet-header"><div><div class="eyebrow">PERSONAJE MIMPROV</div><h1>{character.name || 'Sin nombre'}</h1><p>{character.concept}</p></div><button class="secondary" on:click={() => editingCharacter = !editingCharacter}>{editingCharacter ? 'Cerrar edición' : 'Editar ficha'}</button></header>
+          <header class="sheet-header"><div><div class="eyebrow">PERSONAJE MIMPROV</div><h1>{character.name || 'Sin nombre'}</h1><p>{character.concept}</p></div><div class="sheet-header-actions"><button class="secondary" on:click={() => editingCharacter = !editingCharacter}>{editingCharacter ? 'Cerrar edición' : 'Editar ficha'}</button><button class="danger-button" on:click={requestOwnCharacterDeletion}>Eliminar personaje</button></div></header>
           <section class="card extra-info"><h2>Datos del personaje</h2><p><strong>Edad:</strong> {character.age || '—'}</p><p><strong>Apariencia:</strong> {character.appearance || '—'}</p><p><strong>Experiencia:</strong> {character.experience || '—'}</p></section>
           {#if editingCharacter}
             <div class="card edit-card">
@@ -882,6 +958,7 @@
         <p class="muted">Al activar el conflicto, todos los personajes creados quedan involucrados. Sus tiradas fallidas aplican la pérdida de Voluntad según el peligro.</p>
         <button class:active={gmTracker.conflict.active} on:click={() => setConflictActive(!gmTracker.conflict.active)}>{gmTracker.conflict.active ? 'Terminar conflicto' : 'Iniciar conflicto'}</button>
         <p class="muted">{gmTracker.conflict.active ? 'Conflicto activo para todos los personajes.' : 'No hay un conflicto activo.'}</p>
+        {#if gmTracker.conflict.result}<p class="conflict-result">{gmTracker.conflict.result}</p>{/if}
       </section>
       <section class="card">
         <h2>Peligro</h2>
@@ -933,9 +1010,6 @@
           <h2>¿Qué da a cambio?</h2><p class="pact-text">{pact.price}</p><div class="pact-actions">
             <button on:click={() => updateMagicPact(playerId, pact.id, 'accepted')}>Aceptar pacto</button><button class="secondary" on:click={() => updateMagicPact(playerId, pact.id, 'rejected')}>Rechazar</button></div></section>{/each}{/each}
       {#if !Object.values(magicData?.players || {}).some((record) => (record.proposals || []).some((pact) => pact.status === 'pending'))}<section class="card"><p>No hay pactos pendientes de revisión.</p></section>{/if}
-      {#each Object.entries(magicData?.players || {}) as [playerId, record]}{#if (record.proposals || []).some((pact) => pact.status !== 'pending')}<section class="card">
-        <h2>{record.proposals.find((pact) => pact.status !== 'pending')?.playerName || 'Jugador'} · Historial</h2>
-        {#each record.proposals.filter((pact) => pact.status !== 'pending') as pact}<article class="pact-item"><div class="pact-status" class:accepted={pact.status === 'accepted'} class:rejected={pact.status === 'rejected'}>{pact.status === 'accepted' ? 'Aceptado' : 'Rechazado'}</div><h3>Efecto</h3><p>{pact.effect}</p><h3>Precio</h3><p>{pact.price}</p></article>{/each}</section>{/if}{/each}
     </main>
   {:else if activeTab === 'reglamento'}
     <main class="content rules-content">
@@ -1120,6 +1194,9 @@
   .summary { background:#202225; border-radius:6px; padding:1rem; }
   .summary h3 { margin-bottom:.2rem; }
   .sheet-header { display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; margin-bottom:1.2rem; }
+  .sheet-header-actions { display:flex; flex-wrap:wrap; gap:.5rem; }
+  button.danger-button { background:#4b292d; border-color:#9b555d; color:#ffd7d7; }
+  .conflict-result { padding:.8rem 1rem; border:1px solid #8b713e; border-radius:6px; background:#30291d; color:#f2d18e; font-weight:650; }
   .sheet-header h1 { font-size:2rem; }
   .sheet-grid { display:grid; grid-template-columns:1fr; gap:1rem; }
   .export-actions, .modifier-options { display:flex; flex-wrap:wrap; gap:.5rem; }
@@ -1180,7 +1257,8 @@
   @media(max-width:600px) {
     .sheet-grid, .state-grid { grid-template-columns:1fr; }
     .sheet-header { display:block; }
-    .sheet-header button { margin-top:.7rem; }
+    .sheet-header-actions { margin-top:.7rem; }
+    .sheet-header button { margin-top:0; }
     .trait-picker { grid-template-columns:1fr; }
     .trait-picker button { grid-column:1; grid-row:auto; }
   }
