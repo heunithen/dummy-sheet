@@ -210,7 +210,6 @@
     else if (!t.states.includes('Incapacitado')) t.states = [...t.states.filter((s: string) => s !== 'Incapacitado'), stateName];
     saveGmTracker();
   }
-  function setRisk(id: string, risk: string) { playerTracker(id).risk = risk; saveGmTracker(); }
   function setOverexertion(id: string, value: number) {
     playerTracker(id).overexertionUsed = Math.max(0, Math.min(2, value));
     saveGmTracker();
@@ -362,7 +361,6 @@
                 <div class="gm-stats"><span>Voluntad: <b>{getPlayerCharacter(player)?.will} / {getPlayerCharacter(player)?.maxWill}</b></span><span>Enfoques: <b>{APPROACHES.map(a => a + ' ' + (getPlayerCharacter(player)?.approaches?.[a] ?? 0)).join(' · ')}</b></span><span>Rasgos: <b>{getPlayerCharacter(player)?.traits?.join(', ')}</b></span></div>
               {:else}<p class="muted">El jugador todavía no ha creado su ficha.</p>{/if}
               <h4>Estados actuales</h4><div class="state-grid">{#each STATES as state}<label class="check-row"><input type="checkbox" checked={playerTracker(player.id).states.includes(state.name)} on:change={() => toggleState(player.id, state.name)}><span><b>{state.name}</b><small>{state.enfoque}: {state.detail}</small></span></label>{/each}</div>
-              <h4>Riesgo de situación</h4><select value={playerTracker(player.id).risk} on:change={(e) => setRisk(player.id, e.currentTarget.value)}><option>Ninguno</option><option>Bajo</option><option>Medio</option><option>Alto</option></select>
               <h4>Sobreesfuerzo</h4><p class="muted">Puntos disponibles: {2 - playerTracker(player.id).overexertionUsed} / 2</p><div class="stepper"><button on:click={() => setOverexertion(player.id, playerTracker(player.id).overexertionUsed - 1)} disabled={playerTracker(player.id).overexertionUsed <= 0}>−</button><b>{playerTracker(player.id).overexertionUsed} usados</b></div><div class="approach-buttons">{#each APPROACHES as enfoque}<button class="secondary" on:click={() => spendOverexertion(player.id, enfoque)} disabled={playerTracker(player.id).overexertionUsed >= 2}>{enfoque}</button>{/each}</div><small class="muted">Al registrar el gasto, el panel añade el Estado correspondiente al Enfoque utilizado.</small>
             </article>
           {/each}
