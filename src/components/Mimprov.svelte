@@ -326,7 +326,7 @@
               <label>Apariencia<textarea bind:value={character.appearance} on:input={updateCharacter}></textarea></label>
               <label>Experiencia<input bind:value={character.experience} on:input={updateCharacter}></label>
               <h3>Enfoques</h3>{#each APPROACHES as name}<div class="approach-row"><strong>{name}</strong><div class="stepper"><button on:click={() => { character.approaches[name] = Math.max(0, character.approaches[name] - 1); updateCharacter(); }}>−</button><b>{character.approaches[name]}</b><button on:click={() => { character.approaches[name] += 1; updateCharacter(); }}>+</button></div></div>{/each}
-              <h3>Rasgos</h3><p>{character.traits.join(' · ')}</p>
+              <h3>Rasgos</h3>{#each character.traits as trait}<div class="selected-item"><span>{trait}</span><button class="remove" on:click={() => removeTrait(trait)}>Quitar</button></div>{/each}<div class="trait-picker"><select bind:value={traitDraft}><option value="">Añadir Rasgo...</option>{#each TRAITS as trait}<option value={trait}>{trait}</option>{/each}</select>{#if traitDraft === 'Conocedor de...'}<input bind:value={customTraitField} placeholder="¿Conocedor de qué?">{/if}<button on:click={addTrait} disabled={!traitDraft || (traitDraft === 'Conocedor de...' && !customTraitField.trim())}>Añadir</button></div>
               <button on:click={finishEdit}>Guardar cambios</button>
             </div>
           {/if}
