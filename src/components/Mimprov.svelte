@@ -6,6 +6,8 @@
   const DATA_KEY = 'com.heunithen.dummysheet-mimprov/sheet';
   const STATE_KEY = 'com.heunithen.dummysheet-mimprov/player-states';
   const OVEREXERTION_KEY = 'com.heunithen.dummysheet-mimprov/player-overexertion';
+  const CONFLICT_KEY = 'com.heunithen.dummysheet-mimprov/conflict';
+  const EFFORT_REQUEST_CHANNEL = 'com.heunithen.dummysheet-mimprov/spend-effort';
   const DICE_PLUS_SOURCE = 'com.heunithen.dummysheet-mimprov';
   const DELETE_CHARACTER_CHANNEL = 'com.heunithen.dummysheet-mimprov/delete-character';
   const STATES = [
@@ -130,7 +132,9 @@
   let equipmentDraft: string[] = [];
   let editingCharacter = false;
   let activeTab = 'personaje';
-  let gmTracker: any = { players: {}, conflict: { danger: 'Bajo', resistance: null } };
+  let gmTracker: any = { players: {}, conflict: { active: false, danger: 'Bajo', resistance: null } };
+  let conflictActive = false;
+  let conflictDanger = 'Bajo';
   let gmLoaded = false;
   let visibleStates: string[] = [];
   let visibleOverexertionUsed = 0;
@@ -141,7 +145,7 @@
   let rollModifier = 'normal';
   let lastRoll: { dice: number[]; kept: number; pool: number; result: string; critical: boolean; notation?: string; summary?: string } | null = null;
   let dicePlusError = '';
-  let pendingDiceRoll: { rollId: string; pool: number; notation: string } | null = null;
+  let pendingDiceRoll: { rollId: string; pool: number; notation: string; approach: string; effortReroll: boolean; conflictActive: boolean; danger: string } | null = null;
 
   $: approachTotal = APPROACHES.reduce((sum, name) => sum + (Number(approachDraft[name]) || 0), 0);
   $: approachValid = approachTotal === 4 && APPROACHES.every(name => approachDraft[name] >= 0 && approachDraft[name] <= 2);
@@ -232,30 +236,26 @@
     });
   }
 
-  async function rollDice() {
-    if (!OBR.isAvailable || !loaded) {
-      dicePlusError = 'Esta tirada necesita Owlbear Rodeo y la extensión Dice+.';
-      return;
-    }
-    if (pendingDiceRoll) return;
+  async function sendDiceRoll(notation: string, pool: number, approach: string, effortReroll = false) {
+    if (!OBR.isAvailable || !loaded || pendingDiceRoll) return;
     dicePlusError = '';
-    // El chequeo de disponibilidad puede fallar por latencia entre extensiones.
-    // Enviamos la solicitud igualmente: Dice+ responderá por el canal propio de esta extensión.
     try {
       const rollId = `mimprov_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-      pendingDiceRoll = { rollId, pool: baseDicePool, notation: diceNotation };
-      lastRoll = { dice: [], kept: 0, pool: baseDicePool, result: 'Tirando en Dice+…', critical: false, notation: diceNotation };
+      pendingDiceRoll = {
+        rollId, pool, notation, approach, effortReroll,
+        conflictActive, danger: conflictDanger
+      };
+      lastRoll = { dice: [], kept: 0, pool, result: effortReroll ? 'Repitiendo todos los dados…' : 'Tirando en Dice+…', critical: false, notation };
       await OBR.broadcast.sendMessage('dice-plus/roll-request', {
         rollId,
         playerId: await OBR.player.getId(),
         playerName: await OBR.player.getName(),
         rollTarget: 'everyone',
-        diceNotation: diceNotation + ' # MIMPROV',
+        diceNotation: notation + ' # MIMPROV',
         showResults: true,
         timestamp: Date.now(),
         source: DICE_PLUS_SOURCE
       }, { destination: 'ALL' });
-      // Evita dejar el botón bloqueado indefinidamente si Dice+ no responde.
       setTimeout(() => {
         if (pendingDiceRoll?.rollId === rollId) {
           pendingDiceRoll = null;
@@ -268,33 +268,87 @@
       const detail = error instanceof Error
         ? `${error.name}: ${error.message}`
         : (() => { try { return JSON.stringify(error); } catch { return String(error ?? 'Error desconocido'); } })();
-      dicePlusError = `[MIMPROV 1.3.6] Error al enviar la solicitud a Dice+: ${detail || 'sin detalle'}.`;
+      dicePlusError = `[MIMPROV 1.3.7] Error al enviar la solicitud a Dice+: ${detail || 'sin detalle'}.`;
     }
+  }
+
+  async function rollDice() {
+    if (!OBR.isAvailable || !loaded) {
+      dicePlusError = 'Esta tirada necesita Owlbear Rodeo y la extensión Dice+.';
+      return;
+    }
+    if (pendingDiceRoll) return;
+    await sendDiceRoll(diceNotation, baseDicePool, selectedApproach);
+  }
+
+  function stateForApproach(approach: string): string {
+    const stateByApproach: Record<string, string> = {
+      Tenacidad: 'Deprimido', Control: 'Ansioso', Astucia: 'Confundido', Rapidez: 'Mermado'
+    };
+    return stateByApproach[approach] || '';
+  }
+
+  async function spendEffortAndReroll(roll: { notation: string; pool: number; approach: string }) {
+    if (visibleOverexertionUsed >= 1) return false;
+    const state = stateForApproach(roll.approach);
+    try {
+      await OBR.broadcast.sendMessage(EFFORT_REQUEST_CHANNEL, {
+        playerId: await OBR.player.getId(),
+        approach: roll.approach,
+        state,
+        requestedAt: Date.now()
+      }, { destination: 'ALL' });
+      visibleOverexertionUsed = 1;
+      if (state && !visibleStates.includes(state) && !visibleStates.includes('Incapacitado')) visibleStates = [...visibleStates, state];
+      await sendDiceRoll(roll.notation, roll.pool, roll.approach, true);
+      return true;
+    } catch (error) {
+      console.error('No se pudo solicitar el gasto del Punto de Esfuerzo', error);
+      dicePlusError = 'No se pudo registrar el Punto de Esfuerzo con el narrador.';
+      return false;
+    }
+  }
+
+  function applyConflictFailure(active: boolean, danger: string) {
+    if (!active) return;
+    const willLoss: Record<string, number> = { Bajo: 1, Medio: 2, Alto: 3 };
+    const loss = willLoss[danger] ?? 1;
+    adjustWill(-loss);
   }
 
   function handleDicePlusResult(event: any) {
     const data = event.data as any;
     if (!pendingDiceRoll || data?.rollId !== pendingDiceRoll.rollId || !data.result) return;
+    const roll = { ...pendingDiceRoll };
     const dice = (data.result.groups || []).flatMap((group: any) =>
       (group.dice || []).map((die: any) => Number(die.value)).filter((value: number) => Number.isFinite(value))
     );
     const keptDice = (data.result.groups || []).flatMap((group: any) =>
       (group.dice || []).filter((die: any) => die.kept !== false).map((die: any) => Number(die.value)).filter((value: number) => Number.isFinite(value))
     );
-    const kept = keptDice.length ? (pendingDiceRoll.notation.includes('kl1') ? Math.min(...keptDice) : Math.max(...keptDice)) : Number(data.result.totalValue);
+    const kept = keptDice.length ? (roll.notation.includes('kl1') ? Math.min(...keptDice) : Math.max(...keptDice)) : Number(data.result.totalValue);
     const critical = dice.filter((value: number) => value === 6).length >= 2;
-    const result = kept <= 4 ? 'Fracaso' : kept === 5 ? 'Éxito con consecuencia' : 'Éxito limpio';
+    const failed = kept <= 4;
+    const result = failed ? 'Fracaso' : kept === 5 ? 'Éxito con consecuencia' : 'Éxito limpio';
     lastRoll = {
-      dice,
-      kept,
-      pool: pendingDiceRoll.pool,
+      dice, kept, pool: roll.pool,
       result: critical ? 'Éxito crítico' : result,
-      critical,
-      notation: pendingDiceRoll.notation,
-      summary: data.result.rollSummary
+      critical, notation: roll.notation, summary: data.result.rollSummary
     };
     pendingDiceRoll = null;
-    if (critical) adjustWill(1);
+    if (critical) {
+      adjustWill(1);
+      return;
+    }
+    if (!failed) return;
+    if (!roll.effortReroll && visibleOverexertionUsed < 1) {
+      const useEffort = window.confirm('Has fallado la tirada. ¿Quieres gastar tu Punto de Esfuerzo para añadir el Estado correspondiente a este Enfoque y volver a lanzar todos los dados?');
+      if (useEffort) {
+        spendEffortAndReroll(roll);
+        return;
+      }
+    }
+    applyConflictFailure(roll.conflictActive, roll.danger);
   }
 
   function handleDicePlusError(event: any) {
@@ -325,10 +379,30 @@
               visibleStates = Array.isArray(allStates[$currentPlayerId]) ? allStates[$currentPlayerId] : [];
               const allOverexertion = metadata?.[OVEREXERTION_KEY] || {};
               visibleOverexertionUsed = Math.max(0, Math.min(1, Number(allOverexertion[$currentPlayerId]) || 0));
+              const conflict = metadata?.[CONFLICT_KEY] || {};
+              conflictActive = conflict.active === true;
+              conflictDanger = ['Bajo', 'Medio', 'Alto'].includes(conflict.danger) ? conflict.danger : 'Bajo';
             };
             syncStates(await OBR.room.getMetadata());
             OBR.room.onMetadataChange(syncStates);
           }
+          OBR.broadcast.onMessage(EFFORT_REQUEST_CHANNEL, async (event) => {
+            if (role !== 'GM') return;
+            const data = event.data as any;
+            if (!data?.playerId || !data?.approach || !data?.state) return;
+            try {
+              const party = await OBR.party.getPlayers();
+              const sender = party.find((p: any) => p.connectionId === event.connectionId);
+              if (!sender || sender.role !== 'PLAYER' || sender.id !== data.playerId) return;
+              const tracker = playerTracker(sender.id);
+              if (tracker.overexertionUsed >= 1) return;
+              tracker.overexertionUsed = 1;
+              if (!tracker.states.includes(data.state) && !tracker.states.includes('Incapacitado')) tracker.states = [...tracker.states, data.state];
+              saveGmTracker();
+            } catch (error) {
+              console.error('No se pudo registrar el Punto de Esfuerzo', error);
+            }
+          });
           OBR.broadcast.onMessage(DELETE_CHARACTER_CHANNEL, async (event) => {
             const data = event.data as any;
             if (!data || data.action !== 'DELETE_CHARACTER' || data.playerId !== $currentPlayerId) return;
@@ -370,10 +444,13 @@
       gmTracker = raw ? JSON.parse(raw) : { players: {}, conflict: { danger: 'Bajo', resistance: null } };
       if (!gmTracker || typeof gmTracker !== 'object') gmTracker = { players: {}, conflict: { danger: 'Bajo', resistance: null } };
       if (!gmTracker.players || typeof gmTracker.players !== 'object') gmTracker.players = {};
-      if (!gmTracker.conflict || typeof gmTracker.conflict !== 'object') gmTracker.conflict = { danger: 'Bajo', resistance: null };
+      if (!gmTracker.conflict || typeof gmTracker.conflict !== 'object') gmTracker.conflict = { active: false, danger: 'Bajo', resistance: null };
+      if (typeof gmTracker.conflict.active !== 'boolean') gmTracker.conflict.active = false;
       if (!['Bajo', 'Medio', 'Alto'].includes(gmTracker.conflict.danger)) gmTracker.conflict.danger = 'Bajo';
       if (gmTracker.conflict.resistance !== null && !Number.isFinite(Number(gmTracker.conflict.resistance))) gmTracker.conflict.resistance = null;
-    } catch { gmTracker = { players: {}, conflict: { danger: 'Bajo', resistance: null } }; }
+    } catch { gmTracker = { players: {}, conflict: { active: false, danger: 'Bajo', resistance: null } }; }
+    conflictActive = gmTracker.conflict.active === true;
+    conflictDanger = gmTracker.conflict.danger || 'Bajo';
     saveGmTracker();
   }
   function saveGmTracker() {
@@ -387,7 +464,7 @@
         allStates[id] = Array.isArray(tracker.states) ? [...tracker.states] : [];
         allOverexertion[id] = Math.max(0, Math.min(1, Number(tracker.overexertionUsed) || 0));
       });
-      OBR.room.setMetadata({ [STATE_KEY]: allStates, [OVEREXERTION_KEY]: allOverexertion }).catch((error) => {
+      OBR.room.setMetadata({ [STATE_KEY]: allStates, [OVEREXERTION_KEY]: allOverexertion, [CONFLICT_KEY]: clone(gmTracker.conflict) }).catch((error) => {
         console.error('No se pudieron publicar los datos de seguimiento de los personajes', error);
       });
     }
@@ -480,6 +557,11 @@
     }
   }
 
+  function setConflictActive(active: boolean) {
+    if (!gmTracker.conflict) gmTracker.conflict = { active: false, danger: 'Bajo', resistance: null };
+    gmTracker.conflict.active = active;
+    saveGmTracker();
+  }
   function adjustConflictResistance(delta: number) {
     if (!gmTracker.conflict) gmTracker.conflict = { danger: 'Bajo', resistance: null };
     const current = gmTracker.conflict.resistance ?? initialConflictResistance;
@@ -492,7 +574,7 @@
     saveGmTracker();
   }
   function setConflictDanger(danger: string) {
-    if (!gmTracker.conflict) gmTracker.conflict = { danger: 'Bajo', resistance: null };
+    if (!gmTracker.conflict) gmTracker.conflict = { active: false, danger: 'Bajo', resistance: null };
     gmTracker.conflict.danger = danger;
     saveGmTracker();
   }
@@ -576,9 +658,7 @@
       {:else}
         <section class="character-sheet">
           <header class="sheet-header"><div><div class="eyebrow">PERSONAJE MIMPROV</div><h1>{character.name || 'Sin nombre'}</h1><p>{character.concept}</p></div><button class="secondary" on:click={() => editingCharacter = !editingCharacter}>{editingCharacter ? 'Cerrar edición' : 'Editar ficha'}</button></header>
-          {#if visibleStates.length > 0}<section class="card character-states"><h2>Estados actuales</h2><div class="state-badges">{#each visibleStates as state}<span class="state-badge">{state}</span>{/each}</div></section>{/if}
           <section class="card extra-info"><h2>Datos del personaje</h2><p><strong>Edad:</strong> {character.age || '—'}</p><p><strong>Apariencia:</strong> {character.appearance || '—'}</p><p><strong>Experiencia:</strong> {character.experience || '—'}</p></section>
-          <section class="card extra-info"><h2>Sobreesfuerzo</h2><div class="will-value">{1 - visibleOverexertionUsed}<small> / 1 punto disponible</small></div><p class="muted">Punto utilizado: {visibleOverexertionUsed}</p></section>
           {#if editingCharacter}
             <div class="card edit-card">
               <label>Nombre<input bind:value={character.name} on:input={updateCharacter}></label>
@@ -600,10 +680,12 @@
             </div>
           </section>
           <div class="sheet-grid">
-            <section class="card"><h2>Voluntad</h2><div class="will-value">{character.will}<small> / {character.maxWill}</small></div><div class="will-controls"><button on:click={() => adjustWill(-1)} disabled={character.will <= 0}>−</button><button on:click={() => adjustWill(1)} disabled={character.will >= character.maxWill}>+</button></div><p class="muted">Con 0 Voluntad, las tiradas usan 2d6 y conservan el menor.</p></section>
             <section class="card"><h2>Enfoques</h2>{#each APPROACHES as name}<div class="approach-row compact"><div><strong>{name}</strong><small>{APPROACH_DESCRIPTIONS[name].short}</small></div><span class="score">{character.approaches[name]}</span></div>{/each}</section>
             <section class="card"><h2>Rasgos</h2>{#each character.traits as trait}<div class="trait-line"><strong>{trait}</strong><small>{trait.startsWith('Conocedor de ') ? 'Conocedor de...' : trait} </small><p>{trait.startsWith('Conocedor de ') ? 'Conocimientos y experiencia en ' + trait.slice('Conocedor de '.length) + '.' : TRAIT_DESCRIPTIONS[trait]?.short || ''}</p></div>{/each}</section>
-            <section class="card"><h2>Inventario</h2>{#each character.inventory as item}<div class="inventory-line"><input bind:value={item.name} placeholder="Objeto por definir" on:input={updateCharacter}><small>{item.trait}</small><button class="remove" on:click={() => removeInventoryItem(item.id)}>×</button></div>{/each}<button class="secondary full" on:click={addInventoryItem}>Añadir objeto</button></section>
+            <section class="card"><h2>Voluntad</h2><div class="will-value">{character.will}<small> / {character.maxWill}</small></div><div class="will-controls"><button on:click={() => adjustWill(-1)} disabled={character.will <= 0}>−</button><button on:click={() => adjustWill(1)} disabled={character.will >= character.maxWill}>+</button></div><p class="muted">Con 0 Voluntad, las tiradas usan 2d6 y conservan el menor.</p></section>
+            <section class="card extra-info"><h2>Punto de Esfuerzo</h2><div class="will-value">{1 - visibleOverexertionUsed}<small> / 1 punto disponible</small></div><p class="muted">Punto utilizado: {visibleOverexertionUsed}. Se recupera al realizar un descanso.</p></section>
+            <section class="card"><h2>Estados</h2><div class="state-grid">{#each STATES as state}<label class="check-row"><input type="checkbox" checked={visibleStates.includes(state.name)} disabled><span><b>{state.name}</b><small>{state.enfoque}: {state.detail}</small></span></label>{/each}</div></section>
+            <section class="card"><h2>Equipo</h2>{#each character.inventory as item}<div class="inventory-line"><input bind:value={item.name} placeholder="Objeto por definir" on:input={updateCharacter}><small>{item.trait}</small><button class="remove" on:click={() => removeInventoryItem(item.id)}>×</button></div>{/each}<button class="secondary full" on:click={addInventoryItem}>Añadir objeto</button></section>
           </div>
           <p class="sync-note">{OBR.isAvailable ? 'La ficha se sincroniza con Owlbear Rodeo.' : 'Modo de vista previa: la ficha se guarda en este navegador.'}</p>
         </section>
@@ -703,6 +785,12 @@
       {:else}
       <div class="eyebrow">SEGUIMIENTO DEL NARRADOR</div><h1>Conflicto</h1>
       <section class="card">
+        <h2>Estado del conflicto</h2>
+        <p class="muted">Al activar el conflicto, todos los personajes creados quedan involucrados. Sus tiradas fallidas aplican la pérdida de Voluntad según el peligro.</p>
+        <button class:active={gmTracker.conflict.active} on:click={() => setConflictActive(!gmTracker.conflict.active)}>{gmTracker.conflict.active ? 'Terminar conflicto' : 'Iniciar conflicto'}</button>
+        <p class="muted">{gmTracker.conflict.active ? 'Conflicto activo para todos los personajes.' : 'No hay un conflicto activo.'}</p>
+      </section>
+      <section class="card">
         <h2>Peligro</h2>
         <p class="muted">Selecciona el nivel de peligro de la situación.</p>
         <div class="danger-levels">
@@ -722,7 +810,7 @@
           <button class="secondary" on:click={resetConflictResistance}>Restablecer</button>
         </div>
       </section>
-      <p class="sync-note">El seguimiento del conflicto se guarda localmente en este dispositivo y sala.</p>
+      <p class="sync-note">El seguimiento del conflicto se sincroniza con los jugadores de la sala. Fallo: Bajo −1 Voluntad · Medio −2 · Alto −3. El Punto de Esfuerzo puede gastarse una vez para añadir el Estado del Enfoque y repetir todos los dados.</p>
       {/if}
     </main>
   {/if}
