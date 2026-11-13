@@ -207,10 +207,10 @@
     if (!$isGM || !OBR.isAvailable) return;
     const next = clone(magicData || { players: {} }); if (!next.players) next.players = {};
     const record = next.players[playerId] || { proposals: [], spells: [] };
-    const pact = (record.proposals || []).find((item: any) => item.id === pactId);
+    const pact = (record.proposals || []).find((item) => item.id === pactId);
     if (!pact || pact.status !== 'pending') return;
     pact.status = decision; pact.reviewedAt = Date.now();
-    if (decision === 'accepted') { record.spells = Array.isArray(record.spells) ? record.spells : []; if (!record.spells.some((item: any) => item.id === pact.id)) record.spells = [...record.spells, { ...pact }]; }
+    if (decision === 'accepted') { record.spells = Array.isArray(record.spells) ? record.spells : []; if (!record.spells.some((item) => item.id === pact.id)) record.spells = [...record.spells, { ...pact }]; }
     next.players[playerId] = record;
     try { await OBR.room.setMetadata({ [MAGIC_KEY]: next }); magicData = next; }
     catch (error) { console.error('No se pudo actualizar el pacto mágico', error); }
@@ -450,7 +450,7 @@
               const next = clone(current); if (!next.players) next.players = {};
               const record = next.players[sender.id] || { proposals: [], spells: [] };
               record.proposals = Array.isArray(record.proposals) ? record.proposals : [];
-              if (record.proposals.some((item: any) => item.id === data.pact.id)) return;
+              if (record.proposals.some((item) => item.id === data.pact.id)) return;
               record.proposals = [...record.proposals, { id: String(data.pact.id), effect: String(data.pact.effect).trim(), price: String(data.pact.price).trim(), status: 'pending', createdAt: Number(data.pact.createdAt) || Date.now(), playerName: sender.name || data.playerName || 'Jugador' }];
               next.players[sender.id] = record; await OBR.room.setMetadata({ [MAGIC_KEY]: next }); magicData = next;
             } catch (error) { console.error('No se pudo registrar la propuesta de pacto', error); }
@@ -918,7 +918,7 @@
         <textarea bind:value={magicPrice} rows="5" maxlength="4000" placeholder="Describe exactamente qué sacrifica o pierde tu personaje..."></textarea><small class="field-hint">{magicPrice.length} / 4000 caracteres</small>
         <button class="full" on:click={submitMagicPact} disabled={!magicEffect.trim() || !magicPrice.trim()}>Firmar pacto</button>{#if magicMessage}<p class="magic-message">{magicMessage}</p>{/if}</section>
       {#if getMyMagicRecord().proposals?.length}<section class="card"><h2>Mis propuestas</h2>
-        {#each [...getMyMagicRecord().proposals].sort((a: any, b: any) => b.createdAt - a.createdAt) as pact}<article class="pact-item">
+        {#each [...getMyMagicRecord().proposals].sort((a, b) => b.createdAt - a.createdAt) as pact}<article class="pact-item">
           <div class="pact-status" class:pending={pact.status === 'pending'} class:accepted={pact.status === 'accepted'} class:rejected={pact.status === 'rejected'}>{pact.status === 'pending' ? 'Pendiente de revisión' : pact.status === 'accepted' ? 'Aceptado' : 'Rechazado'}</div>
           <h3>¿Qué quieres conseguir?</h3><p>{pact.effect}</p><h3>¿Qué das a cambio?</h3><p>{pact.price}</p></article>{/each}</section>{/if}
       {#if getMyMagicRecord().spells?.length}<section class="card"><h2>Mis conjuros aprobados</h2>
@@ -927,15 +927,15 @@
   {:else if $isGM && activeTab === 'magia-gm'}
     <main class="content magic-content"><div class="eyebrow">REVISIÓN DE PACTOS</div><h1>Magia</h1>
       <p class="magic-intro">Revisa que el efecto esté definido sin ambigüedades y que el sacrificio describa con claridad lo que pierde el personaje. Solo al aceptar el pacto se incorpora a la lista de conjuros del jugador.</p>
-      {#each Object.entries(magicData?.players || {}) as [playerId, record]: [string, any]}
-        {#each (record.proposals || []).filter((pact: any) => pact.status === 'pending') as pact}<section class="card pact-review">
+      {#each Object.entries(magicData?.players || {}) as [playerId, record]}
+        {#each (record.proposals || []).filter((pact) => pact.status === 'pending') as pact}<section class="card pact-review">
           <div class="eyebrow">PROPUESTA DE {pact.playerName || 'JUGADOR'}</div><h2>¿Qué quiere conseguir?</h2><p class="pact-text">{pact.effect}</p>
           <h2>¿Qué da a cambio?</h2><p class="pact-text">{pact.price}</p><div class="pact-actions">
             <button on:click={() => updateMagicPact(playerId, pact.id, 'accepted')}>Aceptar pacto</button><button class="secondary" on:click={() => updateMagicPact(playerId, pact.id, 'rejected')}>Rechazar</button></div></section>{/each}{/each}
-      {#if !Object.values(magicData?.players || {}).some((record: any) => (record.proposals || []).some((pact: any) => pact.status === 'pending'))}<section class="card"><p>No hay pactos pendientes de revisión.</p></section>{/if}
-      {#each Object.entries(magicData?.players || {}) as [playerId, record]: [string, any]}{#if (record.proposals || []).some((pact: any) => pact.status !== 'pending')}<section class="card">
-        <h2>{record.proposals.find((pact: any) => pact.status !== 'pending')?.playerName || 'Jugador'} · Historial</h2>
-        {#each record.proposals.filter((pact: any) => pact.status !== 'pending') as pact}<article class="pact-item"><div class="pact-status" class:accepted={pact.status === 'accepted'} class:rejected={pact.status === 'rejected'}>{pact.status === 'accepted' ? 'Aceptado' : 'Rechazado'}</div><h3>Efecto</h3><p>{pact.effect}</p><h3>Precio</h3><p>{pact.price}</p></article>{/each}</section>{/if}{/each}
+      {#if !Object.values(magicData?.players || {}).some((record) => (record.proposals || []).some((pact) => pact.status === 'pending'))}<section class="card"><p>No hay pactos pendientes de revisión.</p></section>{/if}
+      {#each Object.entries(magicData?.players || {}) as [playerId, record]}{#if (record.proposals || []).some((pact) => pact.status !== 'pending')}<section class="card">
+        <h2>{record.proposals.find((pact) => pact.status !== 'pending')?.playerName || 'Jugador'} · Historial</h2>
+        {#each record.proposals.filter((pact) => pact.status !== 'pending') as pact}<article class="pact-item"><div class="pact-status" class:accepted={pact.status === 'accepted'} class:rejected={pact.status === 'rejected'}>{pact.status === 'accepted' ? 'Aceptado' : 'Rechazado'}</div><h3>Efecto</h3><p>{pact.effect}</p><h3>Precio</h3><p>{pact.price}</p></article>{/each}</section>{/if}{/each}
     </main>
   {:else if activeTab === 'reglamento'}
     <main class="content rules-content">
