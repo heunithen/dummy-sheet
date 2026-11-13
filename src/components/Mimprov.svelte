@@ -5,6 +5,7 @@
 
   const DATA_KEY = 'com.heunithen.dummysheet-mimprov/sheet';
   const STATE_KEY = 'com.heunithen.dummysheet-mimprov/player-states';
+  const OVEREXERTION_KEY = 'com.heunithen.dummysheet-mimprov/player-overexertion';
   const STATES = [
     { name: 'Mermado', enfoque: 'Rapidez', detail: 'Lesión o limitación física.' },
     { name: 'Deprimido', enfoque: 'Tenacidad', detail: 'Enfermedad, intoxicación o debilidad.' },
@@ -58,6 +59,7 @@
   let gmTracker: any = { players: {}, conflict: null };
   let gmLoaded = false;
   let visibleStates: string[] = [];
+  let visibleOverexertionUsed = 0;
   let selectedPlayerId = '';
   let conflictReduction = 1;
 
@@ -116,6 +118,8 @@
             const syncStates = (metadata: any) => {
               const allStates = metadata?.[STATE_KEY] || {};
               visibleStates = Array.isArray(allStates[$currentPlayerId]) ? allStates[$currentPlayerId] : [];
+              const allOverexertion = metadata?.[OVEREXERTION_KEY] || {};
+              visibleOverexertionUsed = Math.max(0, Math.min(2, Number(allOverexertion[$currentPlayerId]) || 0));
             };
             syncStates(await OBR.room.getMetadata());
             OBR.room.onMetadataChange(syncStates);
@@ -150,11 +154,13 @@
     gmTracker = clone(gmTracker);
     if (OBR.isAvailable && $isGM) {
       const allStates: Record<string, string[]> = {};
+      const allOverexertion: Record<string, number> = {};
       Object.entries(gmTracker.players || {}).forEach(([id, tracker]: [string, any]) => {
         allStates[id] = Array.isArray(tracker.states) ? [...tracker.states] : [];
+        allOverexertion[id] = Math.max(0, Math.min(2, Number(tracker.overexertionUsed) || 0));
       });
-      OBR.room.setMetadata({ [STATE_KEY]: allStates }).catch((error) => {
-        console.error('No se pudieron publicar los Estados de los personajes', error);
+      OBR.room.setMetadata({ [STATE_KEY]: allStates, [OVEREXERTION_KEY]: allOverexertion }).catch((error) => {
+        console.error('No se pudieron publicar los datos de seguimiento de los personajes', error);
       });
     }
   }
@@ -342,6 +348,7 @@
           <header class="sheet-header"><div><div class="eyebrow">PERSONAJE MIMPROV</div><h1>{character.name || 'Sin nombre'}</h1><p>{character.concept}</p></div><button class="secondary" on:click={() => editingCharacter = !editingCharacter}>{editingCharacter ? 'Cerrar edición' : 'Editar ficha'}</button></header>
           {#if visibleStates.length > 0}<section class="card character-states"><h2>Estados actuales</h2><div class="state-badges">{#each visibleStates as state}<span class="state-badge">{state}</span>{/each}</div></section>{/if}
           <section class="card extra-info"><h2>Datos del personaje</h2><p><strong>Edad:</strong> {character.age || '—'}</p><p><strong>Apariencia:</strong> {character.appearance || '—'}</p><p><strong>Experiencia:</strong> {character.experience || '—'}</p></section>
+          <section class="card extra-info"><h2>Sobreesfuerzo</h2><div class="will-value">{2 - visibleOverexertionUsed}<small> / 2 puntos disponibles</small></div><p class="muted">Puntos utilizados: {visibleOverexertionUsed}</p></section>
           {#if editingCharacter}
             <div class="card edit-card">
               <label>Nombre<input bind:value={character.name} on:input={updateCharacter}></label>
