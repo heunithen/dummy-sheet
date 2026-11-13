@@ -14,7 +14,7 @@
   let selectedTraits: string[] = [];
 
   $: pointsUsed = Object.values(foci).reduce((sum, value) => sum + value, 0);
-  $: visibleTraits = TRAITS.filter((trait) => !trait.optional || magicEnabled);
+  $: visibleTraits = TRAITS.filter((trait) => !trait.optional || magicEnabled);\n  $: if (!magicEnabled && selectedTraits.includes("Arcano")) selectedTraits = selectedTraits.filter((trait) => trait !== "Arcano");
   $: canCreate = name.trim().length > 0 && concept.trim().length > 0 &&
     pointsUsed === 4 && Object.values(foci).every((value) => value <= 2) &&
     selectedTraits.length === 4 &&
