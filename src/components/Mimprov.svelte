@@ -61,7 +61,6 @@
   let visibleStates: string[] = [];
   let visibleOverexertionUsed = 0;
   let selectedPlayerId = '';
-  let conflictReduction = 1;
 
   $: approachTotal = APPROACHES.reduce((sum, name) => sum + (Number(approachDraft[name]) || 0), 0);
   $: approachValid = approachTotal === 4 && APPROACHES.every(name => approachDraft[name] >= 0 && approachDraft[name] <= 2);
@@ -69,13 +68,8 @@
   $: partyMembers = $PartyStore.filter(p => p.role !== 'GM');
   $: selectedPlayer = partyMembers.find(p => p.id === selectedPlayerId);
   $: selectedCharacter = selectedPlayer?.metadata?.[DATA_KEY] as Character;
-  $: conflictParticipants = gmTracker.conflict?.participants || [];
-  $: conflictWill = conflictParticipants.reduce((sum: number, id: string) => {
-    const p = partyMembers.find(x => x.id === id);
-    const c = p?.metadata?.[DATA_KEY] as Character;
-    const incapacitado = gmTracker.players[id]?.states?.includes('Incapacitado');
-    return sum + (c && !incapacitado ? Number(c.will) || 0 : 0);
-  }, 0);
+  $: createdCharacterCount = partyMembers.filter(p => getPlayerCharacter(p)?.created).length;
+  $: initialConflictResistance = createdCharacterCount * 2;
 
   function clone<T>(value: T): T { return JSON.parse(JSON.stringify(value)); }
   function getStoredCharacter(): Character {
@@ -230,44 +224,19 @@
     if (!t.states.includes(state) && !t.states.includes('Incapacitado')) t.states = [...t.states, state];
     saveGmTracker();
   }
-  function applyConflictFailure(id: string) {
-    const state = gmTracker.conflict?.associatedState;
-    if (!state) return;
-    const t = playerTracker(id);
-    if (!t.states.includes(state) && !t.states.includes('Incapacitado')) t.states = [...t.states, state];
+  function adjustConflictResistance(delta: number) {
+    const current = gmTracker.conflict?.resistance ?? initialConflictResistance;
+    gmTracker.conflict.resistance = Math.max(0, current + delta);
     saveGmTracker();
   }
-  function startConflict() {
-    const ids = partyMembers.filter(p => gmTracker.players[p.id]?.inConflict).map(p => p.id);
-    if (!ids.length) return;
-    gmTracker.conflict = { participants: ids, initialResistance: ids.length * 2, resistance: ids.length * 2, round: 1, active: true, associatedState: '' };
+  function resetConflictResistance() {
+    gmTracker.conflict.resistance = null;
     saveGmTracker();
   }
-  function applyReduction() {
-    if (!gmTracker.conflict?.active) return;
-    gmTracker.conflict.resistance = Math.max(0, gmTracker.conflict.resistance - Math.max(0, Number(conflictReduction) || 0));
+  function setConflictDanger(danger: string) {
+    gmTracker.conflict.danger = danger;
     saveGmTracker();
   }
-  function nextRound() {
-    if (!gmTracker.conflict?.active) return;
-    if (gmTracker.conflict.round === 1) { gmTracker.conflict.round = 2; saveGmTracker(); }
-  }
-  function resolveConflict() {
-    if (!gmTracker.conflict) return;
-    gmTracker.conflict.active = false;
-    gmTracker.conflict.outcome = gmTracker.conflict.resistance <= 0 ? 'Victoria decisiva'
-      : gmTracker.conflict.round === 2 && conflictWill >= gmTracker.conflict.resistance ? 'Victoria por resistencia'
-      : conflictParticipants.every((id: string) => {
-          const p = partyMembers.find(x => x.id === id);
-          const c = p?.metadata?.[DATA_KEY] as Character;
-          return !c || c.will <= 0;
-        }) ? 'Derrota' : 'Conflicto no superado';
-    if (gmTracker.conflict.outcome === 'Derrota') {
-      conflictParticipants.forEach((id: string) => { playerTracker(id).states = ['Incapacitado']; });
-    }
-    saveGmTracker();
-  }
-  function resetConflict() { gmTracker.conflict = null; partyMembers.forEach(p => { if (gmTracker.players[p.id]) gmTracker.players[p.id].inConflict = false; }); saveGmTracker(); }
 </script>
 
 <svelte:head>
@@ -281,7 +250,8 @@
     </nav>
   {:else}
     <nav class="main-tabs">
-      <button class:active={activeTab === 'gm'} on:click={() => { activeTab = 'gm'; }}>Panel GM</button>
+      <button class:active={activeTab === 'gm'} on:click={() => { activeTab = 'gm'; }}>Personajes</button>
+      <button class:active={activeTab === 'conflicto'} on:click={() => { activeTab = 'conflicto'; }}>Conflicto</button>
     </nav>
   {/if}
 
@@ -371,9 +341,10 @@
         </section>
       {/if}
     </main>
-  {:else if $isGM && activeTab === 'gm'}
+  {:else if $isGM && (activeTab === 'gm' || activeTab === 'conflicto')}
     <main class="content gm-content">
-      <div class="eyebrow">HERRAMIENTAS DEL NARRADOR</div><h1>Panel GM</h1>
+      {#if activeTab === 'gm'}
+      <div class="eyebrow">HERRAMIENTAS DEL NARRADOR</div><h1>Personajes</h1>
       <p class="muted">Seguimiento independiente. Estos controles no modifican las fichas de los jugadores.</p>
       <section class="card"><h2>Personajes de la sala</h2>
         {#if partyMembers.length === 0}
@@ -393,25 +364,35 @@
               <h4>Estados actuales</h4><div class="state-grid">{#each STATES as state}<label class="check-row"><input type="checkbox" checked={playerTracker(player.id).states.includes(state.name)} on:change={() => toggleState(player.id, state.name)}><span><b>{state.name}</b><small>{state.enfoque}: {state.detail}</small></span></label>{/each}</div>
               <h4>Riesgo de situación</h4><select value={playerTracker(player.id).risk} on:change={(e) => setRisk(player.id, e.currentTarget.value)}><option>Ninguno</option><option>Bajo</option><option>Medio</option><option>Alto</option></select>
               <h4>Sobreesfuerzo</h4><p class="muted">Puntos disponibles: {2 - playerTracker(player.id).overexertionUsed} / 2</p><div class="stepper"><button on:click={() => setOverexertion(player.id, playerTracker(player.id).overexertionUsed - 1)} disabled={playerTracker(player.id).overexertionUsed <= 0}>−</button><b>{playerTracker(player.id).overexertionUsed} usados</b></div><div class="approach-buttons">{#each APPROACHES as enfoque}<button class="secondary" on:click={() => spendOverexertion(player.id, enfoque)} disabled={playerTracker(player.id).overexertionUsed >= 2}>{enfoque}</button>{/each}</div><small class="muted">Al registrar el gasto, el panel añade el Estado correspondiente al Enfoque utilizado.</small>
-              <h4>Participación en conflicto</h4><label class="check-row"><input type="checkbox" checked={!!playerTracker(player.id).inConflict} on:change={(e) => { playerTracker(player.id).inConflict = e.currentTarget.checked; saveGmTracker(); }}><span>Incluir en el próximo conflicto</span></label>
             </article>
           {/each}
         {/if}
       </section>
-      <section class="card"><h2>Conflicto</h2>
-        {#if !gmTracker.conflict}
-          <p>Marca los participantes en su seguimiento y comienza un conflicto. La Resistencia inicial será 2 por personaje (Voluntad base 4 ÷ 2).</p><button on:click={startConflict} disabled={!partyMembers.some(p => gmTracker.players[p.id]?.inConflict)}>Iniciar conflicto</button>
-        {:else}
-          <div class="conflict-summary"><div><small>Resistencia</small><strong>{gmTracker.conflict.resistance} / {gmTracker.conflict.initialResistance}</strong></div><div><small>Ronda</small><strong>{gmTracker.conflict.round} / 2</strong></div><div><small>Voluntad restante del grupo</small><strong>{conflictWill}</strong></div></div>
-          <p class="muted">Participantes: {conflictParticipants.map((id) => partyMembers.find(p => p.id === id)?.name || 'Jugador').join(', ')}</p><label>Estado asociado al conflicto<select bind:value={gmTracker.conflict.associatedState} on:change={saveGmTracker}><option value="">Seleccionar Estado...</option>{#each STATES.filter(s => s.name !== 'Incapacitado') as state}<option value={state.name}>{state.name}</option>{/each}</select></label><div class="failure-list"><strong>Registrar fracaso (1–4)</strong>{#each conflictParticipants as id}<button class="secondary" on:click={() => applyConflictFailure(id)} disabled={!gmTracker.conflict.associatedState}>{partyMembers.find(p => p.id === id)?.name || 'Jugador'}: aplicar {gmTracker.conflict.associatedState || 'Estado'}</button>{/each}</div>
-          {#if gmTracker.conflict.active}
-            <div class="reduction-row"><label>Éxitos (dados con 6)<input type="number" min="0" bind:value={conflictReduction}></label><button on:click={applyReduction}>Reducir Resistencia</button></div>
-            <div class="wizard-actions"><button class="secondary" on:click={nextRound} disabled={gmTracker.conflict.round >= 2}>Pasar a ronda 2</button><button on:click={resolveConflict} disabled={gmTracker.conflict.resistance > 0 && gmTracker.conflict.round < 2}>Resolver conflicto</button></div>
-          {:else}<h3>Resultado: {gmTracker.conflict.outcome}</h3>{/if}
-          <button class="secondary full" on:click={resetConflict}>Cerrar y reiniciar conflicto</button>
-        {/if}
+      <p class="sync-note">El seguimiento de personajes se guarda localmente en este dispositivo y sala.</p>
+      {:else}
+      <div class="eyebrow">SEGUIMIENTO DEL NARRADOR</div><h1>Conflicto</h1>
+      <section class="card">
+        <h2>Peligro</h2>
+        <p class="muted">Selecciona el nivel de peligro de la situación.</p>
+        <div class="danger-levels">
+          {#each ['Bajo', 'Medio', 'Alto'] as danger}
+            <button class:active={gmTracker.conflict.danger === danger} class="secondary" on:click={() => setConflictDanger(danger)}>{danger}</button>
+          {/each}
+        </div>
       </section>
-      <p class="sync-note">El seguimiento del GM se guarda localmente en este dispositivo y sala. No se publica en las fichas de los jugadores.</p>
+      <section class="card">
+        <h2>Resistencia</h2>
+        <p class="muted">Resistencia inicial: 2 por personaje creado (Voluntad base 4 ÷ 2).</p>
+        <div class="resistance-value">{gmTracker.conflict.resistance ?? initialConflictResistance}</div>
+        <p class="muted">{createdCharacterCount} personaje(s) creado(s) · Resistencia inicial: {initialConflictResistance}</p>
+        <div class="resistance-controls">
+          <button class="secondary" on:click={() => adjustConflictResistance(-1)} disabled={(gmTracker.conflict.resistance ?? initialConflictResistance) <= 0}>−1</button>
+          <button on:click={() => adjustConflictResistance(1)}>+1</button>
+          <button class="secondary" on:click={resetConflictResistance}>Restablecer</button>
+        </div>
+      </section>
+      <p class="sync-note">El seguimiento del conflicto se guarda localmente en este dispositivo y sala.</p>
+      {/if}
     </main>
   {/if}
 </div>
@@ -490,28 +471,18 @@
   .gm-player h4 { color:#d8b66f; margin:1.1rem 0 .4rem; }
   .approach-buttons { display:flex; flex-wrap:wrap; gap:.35rem; margin:.5rem 0; }
   .approach-buttons button { font-size:.75rem; padding:.45rem .6rem; }
-  .failure-list { display:flex; flex-wrap:wrap; gap:.4rem; align-items:center; margin:.8rem 0; }
-  .failure-list strong { width:100%; color:#d8b66f; font-size:.85rem; }
-  .failure-list button { font-size:.78rem; }
   .state-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.4rem; }
   .check-row { display:flex; align-items:flex-start; gap:.6rem; margin:.4rem 0; padding:.5rem; background:#222427; border-radius:5px; }
   .check-row input { width:auto; margin:.2rem 0 0; }
   .check-row small { display:block; color:#999; margin-top:.2rem; }
-  .conflict-summary { display:grid; grid-template-columns:repeat(3,1fr); gap:.6rem; margin:1rem 0; }
-  .conflict-summary div { background:#202225; padding:.8rem; border-radius:6px; }
-  .conflict-summary small, .conflict-summary strong { display:block; }
-  .conflict-summary small { color:#999; font-size:.72rem; }
-  .conflict-summary strong { color:#f2c879; font-size:1.2rem; margin-top:.3rem; }
-  .reduction-row { display:flex; align-items:end; gap:.7rem; }
-  .reduction-row label { flex:1; margin-bottom:0; }
+  .danger-levels, .resistance-controls { display:flex; flex-wrap:wrap; gap:.5rem; }
+  .danger-levels button.active { background:#6d542b; border-color:#d8b66f; color:#fff; }
+  .resistance-value { color:#f2c879; font-size:3rem; font-weight:750; margin:.4rem 0; }
   @media(max-width:600px) {
     .sheet-grid, .state-grid { grid-template-columns:1fr; }
     .sheet-header { display:block; }
     .sheet-header button { margin-top:.7rem; }
     .trait-picker { grid-template-columns:1fr; }
     .trait-picker button { grid-column:1; grid-row:auto; }
-    .conflict-summary { grid-template-columns:1fr; }
-    .reduction-row { display:block; }
-    .reduction-row button { width:100%; margin-top:.6rem; }
   }
 </style>
