@@ -917,9 +917,9 @@
         <p>Describe detalladamente qué pierde, entrega o sacrifica tu personaje para obtener ese efecto. El precio puede ser mecánico o narrativo: una capacidad, un recurso, una posesión, un recuerdo, una obligación, una prohibición, un vínculo u otra pérdida concreta. Explica con precisión en qué consiste y cuándo o cómo se aplica.</p>
         <textarea bind:value={magicPrice} rows="5" maxlength="4000" placeholder="Describe exactamente qué sacrifica o pierde tu personaje..."></textarea><small class="field-hint">{magicPrice.length} / 4000 caracteres</small>
         <button class="full" on:click={submitMagicPact} disabled={!magicEffect.trim() || !magicPrice.trim()}>Firmar pacto</button>{#if magicMessage}<p class="magic-message">{magicMessage}</p>{/if}</section>
-      {#if getMyMagicRecord().proposals?.length}<section class="card"><h2>Mis propuestas</h2>
-        {#each [...getMyMagicRecord().proposals].sort((a, b) => b.createdAt - a.createdAt) as pact}<article class="pact-item">
-          <div class="pact-status" class:pending={pact.status === 'pending'} class:accepted={pact.status === 'accepted'} class:rejected={pact.status === 'rejected'}>{pact.status === 'pending' ? 'Pendiente de revisión' : pact.status === 'accepted' ? 'Aceptado' : 'Rechazado'}</div>
+      {#if getMyMagicRecord().proposals?.some((pact) => pact.status !== 'accepted')}<section class="card"><h2>Mis propuestas</h2>
+        {#each [...getMyMagicRecord().proposals].filter((pact) => pact.status !== 'accepted').sort((a, b) => b.createdAt - a.createdAt) as pact}<article class="pact-item">
+          <div class="pact-status" class:pending={pact.status === 'pending'} class:rejected={pact.status === 'rejected'}>{pact.status === 'pending' ? 'Pendiente de revisión' : 'Rechazado'}</div>
           <h3>¿Qué quieres conseguir?</h3><p>{pact.effect}</p><h3>¿Qué das a cambio?</h3><p>{pact.price}</p></article>{/each}</section>{/if}
       {#if getMyMagicRecord().spells?.length}<section class="card"><h2>Mis conjuros aprobados</h2>
         {#each getMyMagicRecord().spells as pact}<article class="pact-item approved-spell"><div class="pact-status accepted">Pacto aprobado</div><h3>Efecto del conjuro</h3><p>{pact.effect}</p><h3>Precio del pacto</h3><p>{pact.price}</p></article>{/each}</section>{/if}
