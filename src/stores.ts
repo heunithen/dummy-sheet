@@ -180,7 +180,8 @@ export const gmTracker = localStore<Record<string, any>>('mimprov-gm-tracker', {
         initial: 0,
         remaining: 0,
         round: 1,
-        state: "Mermado"
+        state: "Mermado",
+        result: ""
     }
 });
 
