@@ -269,14 +269,17 @@
 </svelte:head>
 
 <div class="app-shell">
-  <nav class="main-tabs">
-    <button class:active={activeTab === 'personaje'} on:click={() => { activeTab = 'personaje'; }}>Personaje</button>
-    {#if $isGM}
+  {#if !$isGM}
+    <nav class="main-tabs">
+      <button class:active={activeTab === 'personaje'} on:click={() => { activeTab = 'personaje'; }}>Personaje</button>
+    </nav>
+  {:else}
+    <nav class="main-tabs">
       <button class:active={activeTab === 'gm'} on:click={() => { activeTab = 'gm'; }}>Panel GM</button>
-    {/if}
-  </nav>
+    </nav>
+  {/if}
 
-  {#if activeTab === 'personaje'}
+  {#if !$isGM && activeTab === 'personaje'}
     <main class="content">
       {#if !character.created}
         <section class="card wizard">
@@ -361,7 +364,7 @@
         </section>
       {/if}
     </main>
-  {:else if activeTab === 'gm' && $isGM}
+  {:else if $isGM && activeTab === 'gm'}
     <main class="content gm-content">
       <div class="eyebrow">HERRAMIENTAS DEL NARRADOR</div><h1>Panel GM</h1>
       <p class="muted">Seguimiento independiente. Estos controles no modifican las fichas de los jugadores.</p>
