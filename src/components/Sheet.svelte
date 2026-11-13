@@ -7,7 +7,7 @@
     import type { DummySheet } from '../types/sheet.type';
 
     // Import stores
-    import { editing } from '../stores'
+    import { editing, sheet as playerSheet } from '../stores'
     
     $: editable = $currentPlayerId === $viewingPlayerId; 
     let player = "";
@@ -23,9 +23,15 @@
         sheet.sections = sheet.sections.filter(t => t.id !== section.id)
     }
 
+    function persistPlayerSheet() {
+      if (editable) {
+        playerSheet.set({ ...sheet, sections: [...sheet.sections] });
+      }
+    }
+
 </script>
 
-<div>
+<div on:input={persistPlayerSheet} on:click={persistPlayerSheet}>
     {#if editable && $editing}
     <h1 bind:innerText={sheet.name} contenteditable="true"> </h1>
     {:else}
