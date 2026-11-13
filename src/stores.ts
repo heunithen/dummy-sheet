@@ -170,7 +170,7 @@ export const editing = writable(false);
 export const sheet = localStore('dummy-sheet', initialSheet);
 export const theme = localStore('dummy-sheet-theme', initialTheme);
 
-export const gmTracker = localStore('mimprov-gm-tracker', {
+export const gmTracker = localStore<Record<string, any>>('mimprov-gm-tracker', {
     risk: "Sin riesgo",
     riskNote: "",
     players: {},
