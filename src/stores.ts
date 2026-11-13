@@ -183,3 +183,5 @@ export const gmTracker = localStore('mimprov-gm-tracker', {
         state: "Mermado"
     }
 });
+
+export const characterCreated = localStore('mimprov-character-created', false);
