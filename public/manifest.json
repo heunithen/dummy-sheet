@@ -7,7 +7,7 @@
     "description": "MIMPROV character creation, editable character sheets and GM session tracking, built on DummySheet.",
     "homepage_url": "https://www.dummysheet.com",
     "action": {
-      "title": "DummySheet",
+      "title": "MIMPROV Sheet",
       "icon": "/icon.svg",
       "popover": "/",
       "height": 1200,
