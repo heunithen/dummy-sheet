@@ -1,15 +1,15 @@
 {
   "name": "DummySheet MIMPROV",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "manifest_version": 1,
-  "icon": "/dummy-sheet/icon.svg",
+  "icon": "https://heunithen.github.io/dummy-sheet/icon.svg",
   "author": "Christian Muñoz",
   "description": "Hoja de personaje personalizable basada en DummySheet, en adaptación para MIMPROV.",
   "homepage_url": "https://github.com/heunithen/dummy-sheet",
   "action": {
     "title": "DummySheet MIMPROV",
-    "icon": "/dummy-sheet/icon.svg",
-    "popover": "/dummy-sheet/",
+    "icon": "https://heunithen.github.io/dummy-sheet/icon.svg",
+    "popover": "https://heunithen.github.io/dummy-sheet/",
     "height": 1200,
     "width": 700
   }
