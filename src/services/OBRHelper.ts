@@ -1,10 +1,9 @@
 import OBR from "@owlbear-rodeo/sdk";
 import type { Player } from "@owlbear-rodeo/sdk";
-import { sheet, gmTracker } from "../stores";
+import { sheet } from "../stores";
 import { writable, get } from "svelte/store";
 
 const SHEET_META_KEY = "com.heunithen.mimprov-dummysheet";
-const GM_META_KEY = "com.heunithen.mimprov-gm-tracker";
 
 const emptySheet = {
   id: 0,
@@ -21,7 +20,6 @@ export const viewingPlayerId = writable<string>("");
 export const ViewingSheet = writable<any>(emptySheet);
 
 let ready = false;
-let applyingRemoteTracker = false;
 
 function sheetFromPlayer(player: Player) {
   return player.metadata?.[SHEET_META_KEY] ?? player.metadata?.dummysheet ?? emptySheet;
@@ -75,34 +73,6 @@ async function initGM() {
 
   viewingPlayerId.subscribe(() => refreshViewingSheet());
   sheet.subscribe(() => refreshViewingSheet());
-
-  const roomMetadata = await OBR.room.getMetadata();
-  const savedTracker = roomMetadata?.[GM_META_KEY];
-  if (savedTracker && typeof savedTracker === "object") {
-    applyingRemoteTracker = true;
-    gmTracker.set(savedTracker);
-    applyingRemoteTracker = false;
-  } else {
-    await OBR.room.setMetadata({ [GM_META_KEY]: get(gmTracker) });
-  }
-
-  OBR.room.onMetadataChange((metadata) => {
-    const nextTracker = metadata?.[GM_META_KEY];
-    if (nextTracker && typeof nextTracker === "object") {
-      applyingRemoteTracker = true;
-      gmTracker.set(nextTracker);
-      applyingRemoteTracker = false;
-    }
-  });
-
-  gmTracker.subscribe(async (tracker) => {
-    if (!ready || applyingRemoteTracker || !get(isGM)) return;
-    try {
-      await OBR.room.setMetadata({ [GM_META_KEY]: tracker });
-    } catch (error) {
-      console.error("No se pudo sincronizar el seguimiento del GM.", error);
-    }
-  });
 }
 
 function initPlayer() {
