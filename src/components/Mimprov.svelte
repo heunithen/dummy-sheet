@@ -774,7 +774,7 @@
               <li>{selectedApproach}: +{selectedApproachScore}d6</li>
               <li>{selectedTrait ? selectedTrait + ': +1d6' : 'Sin Rasgo: +0d6'}</li>
               <li>{selectedStatePenalty ? selectedState + ': −1d6' : 'Estado: sin penalización'}</li>
-              <li>{rollModifier === 'advantage' ? 'Ventaja: añade 1d6 y conserva el mayor' : rollModifier === 'disadvantage' ? (dicePool <= 0 ? 'Desventaja: reduce 1d6; al quedar en 0 dados, tira 2d6 y conserva el menor' : 'Desventaja: resta 1d6 y conserva el mayor') : 'Tirada normal: conserva el mayor'}</li>
+              <li>{forcedLowRoll ? 'Voluntad 0: siempre tira 2d6 y conserva el menor; se ignoran ventaja y desventaja' : rollModifier === 'advantage' ? 'Ventaja: añade 1d6 y conserva el mayor' : rollModifier === 'disadvantage' ? (dicePool <= 0 ? 'Desventaja: reduce 1d6; al quedar en 0 dados, tira 2d6 y conserva el menor' : 'Desventaja: resta 1d6 y conserva el mayor') : 'Tirada normal: conserva el mayor'}</li>
             </ul>
           </div>
           {#if dicePlusError}<p class="error-message">{dicePlusError}</p>{/if}
