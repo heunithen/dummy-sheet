@@ -142,6 +142,7 @@
       const raw = localStorage.getItem('mimprov-gm-v1-' + room);
       gmTracker = raw ? JSON.parse(raw) : { players: {}, conflict: null };
     } catch { gmTracker = { players: {}, conflict: null }; }
+    saveGmTracker();
   }
   function saveGmTracker() {
     const room = OBR.isAvailable ? OBR.room.id : 'local';
