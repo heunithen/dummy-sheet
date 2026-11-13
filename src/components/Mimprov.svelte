@@ -232,6 +232,7 @@
   }
   function playerTracker(id: string) {
     if (!gmTracker.players[id]) gmTracker.players[id] = { states: [], risk: 'Ninguno', overexertionUsed: 0, overexertionNotes: [] };
+    gmTracker.players[id].overexertionUsed = Math.max(0, Math.min(1, Number(gmTracker.players[id].overexertionUsed) || 0));
     return gmTracker.players[id];
   }
   function getPlayerCharacter(player: any): Character | undefined {
