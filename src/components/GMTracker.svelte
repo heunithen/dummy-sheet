@@ -12,11 +12,6 @@
   let conflictSelection: string[] = [];
   let conflictState = "Mermado";
 
-  function readStat(player: any, sectionName: string, statName: string) {
-    const section = player.metadata?.["com.heunithen.mimprov-dummysheet"]?.sections?.find((item: any) => item.name === sectionName)
-      ?? player.metadata?.dummysheet?.sections?.find((item: any) => item.name === sectionName);
-    return section?.stats?.find((stat: any) => stat.name === statName)?.value ?? "";
-  }
   function getSheet(player: any) {
     return player.metadata?.["com.heunithen.mimprov-dummysheet"] ?? player.metadata?.dummysheet;
   }
@@ -38,12 +33,6 @@
       foci: focus.map((item: any) => ({ name: item.name, value: item.value })),
       traits: traits.map((item: any) => item.name)
     };
-  }
-  function ensurePlayer(id: string) {
-    if (!$gmTracker.players[id]) {
-      $gmTracker.players[id] = { states: [], effortUsed: 0, risk: "Sin riesgo", note: "" };
-      gmTracker.set({ ...$gmTracker });
-    }
   }
   function updatePlayer(id: string, patch: any) {
     const current = $gmTracker.players[id] ?? { states: [], effortUsed: 0, risk: "Sin riesgo", note: "" };
@@ -71,7 +60,19 @@
   function nextRound() {
     if (!$gmTracker.conflict?.active) return;
     if ($gmTracker.conflict.round >= 2) {
-      gmTracker.set({ ...$gmTracker, conflict: { ...$gmTracker.conflict, active: false } });
+      const remainingWill = $gmTracker.conflict.participants.reduce((total, id) => {
+        const player = $PartyStore.find((entry) => entry.id === id);
+        if (!player) return total;
+        const raw = snapshot(player).will;
+        const amount = Number.parseInt(String(raw).split("/")[0], 10);
+        return total + (Number.isFinite(amount) ? amount : 0);
+      }, 0);
+      const result = remainingWill === 0
+        ? "Derrota: todos los participantes llegaron a 0 Voluntad. El reglamento indica que reciben Incapacitado."
+        : remainingWill >= $gmTracker.conflict.remaining
+          ? "Victoria por resistencia: la Voluntad restante iguala o supera la Resistencia."
+          : "El grupo no consiguió superar el conflicto al terminar la segunda ronda.";
+      gmTracker.set({ ...$gmTracker, conflict: { ...$gmTracker.conflict, active: false, result } });
     } else {
       gmTracker.set({ ...$gmTracker, conflict: { ...$gmTracker.conflict, round: 2 } });
     }
@@ -148,6 +149,7 @@
 
   <section class="conflict">
     <h2>Seguimiento de conflicto</h2>
+    {#if $gmTracker.conflict?.result}<p class="conflict-result">{$gmTracker.conflict.result}</p>{/if}
     {#if !$gmTracker.conflict?.active}
       <p>Selecciona participantes. La Resistencia inicial equivale a 2 por personaje (Voluntad base 4 ÷ 2).</p>
       <div class="participants">
@@ -204,6 +206,7 @@
   button.danger { background:#8b3030; border-color:#8b3030; color:white; }
   .participants { display:flex; flex-wrap:wrap; gap:.7rem; margin:.8rem 0; }
   .conflict-status { font-size:1.15rem; color:rgb(var(--accent)); }
+  .conflict-result { padding:.7rem; border-left:3px solid rgb(var(--accent)); background:rgba(var(--accent),.08); }
   .buttons { display:flex; gap:.5rem; flex-wrap:wrap; }
   @media(max-width:560px) { header,.columns { display:block; } .risk-row { flex-direction:column; } }
 </style>
