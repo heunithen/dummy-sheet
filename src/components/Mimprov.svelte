@@ -217,7 +217,7 @@
   function startConflict() {
     const ids = partyMembers.filter(p => gmTracker.players[p.id]?.inConflict).map(p => p.id);
     if (!ids.length) return;
-    gmTracker.conflict = { participants: ids, initialResistance: ids.length * 2, resistance: ids.length * 2, round: 1, active: true, associatedState: 'Ansioso' };
+    gmTracker.conflict = { participants: ids, initialResistance: ids.length * 2, resistance: ids.length * 2, round: 1, active: true, associatedState: '' };
     saveGmTracker();
   }
   function applyReduction() {
