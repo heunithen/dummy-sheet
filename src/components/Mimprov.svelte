@@ -11,6 +11,8 @@
   const REST_REQUEST_CHANNEL = 'com.heunithen.dummysheet-mimprov/rest';
   const DICE_PLUS_SOURCE = 'com.heunithen.dummysheet-mimprov';
   const DELETE_CHARACTER_CHANNEL = 'com.heunithen.dummysheet-mimprov/delete-character';
+  const MAGIC_KEY = 'com.heunithen.dummysheet-mimprov/magic-pacts';
+  const MAGIC_SUBMIT_CHANNEL = 'com.heunithen.dummysheet-mimprov/magic-submit';
   const STATES = [
     { name: 'Mermado', enfoque: 'Rapidez', detail: 'Lesión o limitación física.' },
     { name: 'Deprimido', enfoque: 'Tenacidad', detail: 'Enfermedad, intoxicación o debilidad.' },
@@ -133,6 +135,10 @@
   let equipmentDraft: string[] = [];
   let editingCharacter = false;
   let activeTab = 'personaje';
+  let magicData: any = { players: {} };
+  let magicEffect = '';
+  let magicPrice = '';
+  let magicMessage = '';
   let gmTracker: any = { players: {}, conflict: { active: false, danger: 'Bajo', resistance: null } };
   let conflictActive = false;
   let conflictDanger = 'Bajo';
@@ -152,8 +158,8 @@
   $: approachValid = approachTotal === 4 && APPROACHES.every(name => approachDraft[name] >= 0 && approachDraft[name] <= 2);
   $: myPlayer = $PartyStore.find(p => p.id === $currentPlayerId);
   // El rol llega de forma asíncrona desde Owlbear. Asegura una pestaña válida al cambiar de rol.
-  $: if ($isGM && activeTab !== 'gm' && activeTab !== 'conflicto' && activeTab !== 'reglamento') activeTab = 'gm';
-  $: if (!$isGM && (activeTab === 'gm' || activeTab === 'conflicto')) activeTab = 'personaje';
+  $: if ($isGM && activeTab !== 'gm' && activeTab !== 'conflicto' && activeTab !== 'reglamento' && activeTab !== 'magia-gm') activeTab = 'gm';
+  $: if (!$isGM && (activeTab === 'gm' || activeTab === 'conflicto' || activeTab === 'magia-gm')) activeTab = 'personaje';
   $: partyMembers = $PartyStore.filter(p => p.role !== 'GM' && getPlayerCharacter(p)?.created === true);
   $: if ($isGM && partyMembers.length && !partyMembers.some(p => p.id === selectedPlayerId)) selectedPlayerId = partyMembers[0].id;
   $: selectedPlayer = partyMembers.find(p => p.id === selectedPlayerId);
@@ -182,6 +188,33 @@
     }, 180);
   }
   function updateCharacter() { character = clone(character); publishCharacter(); }
+
+  function getMyMagicRecord() {
+    return magicData?.players?.[$currentPlayerId] || { proposals: [], spells: [] };
+  }
+  async function submitMagicPact() {
+    const effect = magicEffect.trim();
+    const price = magicPrice.trim();
+    if (!effect || !price) { magicMessage = 'Completa ambos campos antes de firmar el pacto.'; return; }
+    if (!OBR.isAvailable || !$currentPlayerId || $isGM) { magicMessage = 'Debes estar dentro de una sala de Owlbear Rodeo como jugador para enviar el pacto.'; return; }
+    const pact = { id: 'pact_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8), effect, price, status: 'pending', createdAt: Date.now() };
+    try {
+      await OBR.broadcast.sendMessage(MAGIC_SUBMIT_CHANNEL, { playerId: $currentPlayerId, playerName: myPlayer?.name || character.name || 'Jugador', pact }, { destination: 'ALL' });
+      magicEffect = ''; magicPrice = ''; magicMessage = 'Pacto firmado y enviado al GM para su revisión.';
+    } catch (error) { console.error('No se pudo enviar el pacto mágico', error); magicMessage = 'No se pudo enviar el pacto. Comprueba tu conexión con Owlbear Rodeo.'; }
+  }
+  async function updateMagicPact(playerId: string, pactId: string, decision: 'accepted' | 'rejected') {
+    if (!$isGM || !OBR.isAvailable) return;
+    const next = clone(magicData || { players: {} }); if (!next.players) next.players = {};
+    const record = next.players[playerId] || { proposals: [], spells: [] };
+    const pact = (record.proposals || []).find((item: any) => item.id === pactId);
+    if (!pact || pact.status !== 'pending') return;
+    pact.status = decision; pact.reviewedAt = Date.now();
+    if (decision === 'accepted') { record.spells = Array.isArray(record.spells) ? record.spells : []; if (!record.spells.some((item: any) => item.id === pact.id)) record.spells = [...record.spells, { ...pact }]; }
+    next.players[playerId] = record;
+    try { await OBR.room.setMetadata({ [MAGIC_KEY]: next }); magicData = next; }
+    catch (error) { console.error('No se pudo actualizar el pacto mágico', error); }
+  }
 
   function exportCharacter() {
     const data = JSON.stringify({ format: 'MIMPROV-character', version: 1, character }, null, 2);
@@ -405,6 +438,25 @@
               console.error('No se pudo registrar el Punto de Esfuerzo', error);
             }
           });
+          OBR.broadcast.onMessage(MAGIC_SUBMIT_CHANNEL, async (event) => {
+            if (role !== 'GM') return;
+            const data = event.data as any;
+            if (!data?.playerId || !data?.pact?.id || !data.pact.effect?.trim() || !data.pact.price?.trim()) return;
+            try {
+              const party = await OBR.party.getPlayers();
+              const sender = party.find((p: any) => p.connectionId === event.connectionId);
+              if (!sender || sender.role !== 'PLAYER' || sender.id !== data.playerId) return;
+              const current = (await OBR.room.getMetadata())?.[MAGIC_KEY] || { players: {} };
+              const next = clone(current); if (!next.players) next.players = {};
+              const record = next.players[sender.id] || { proposals: [], spells: [] };
+              record.proposals = Array.isArray(record.proposals) ? record.proposals : [];
+              if (record.proposals.some((item: any) => item.id === data.pact.id)) return;
+              record.proposals = [...record.proposals, { id: String(data.pact.id), effect: String(data.pact.effect).trim(), price: String(data.pact.price).trim(), status: 'pending', createdAt: Number(data.pact.createdAt) || Date.now(), playerName: sender.name || data.playerName || 'Jugador' }];
+              next.players[sender.id] = record; await OBR.room.setMetadata({ [MAGIC_KEY]: next }); magicData = next;
+            } catch (error) { console.error('No se pudo registrar la propuesta de pacto', error); }
+          });
+          OBR.room.onMetadataChange((metadata) => { magicData = metadata?.[MAGIC_KEY] || { players: {} }; });
+          OBR.room.getMetadata().then((metadata) => { magicData = metadata?.[MAGIC_KEY] || { players: {} }; }).catch((error) => console.error('No se pudieron cargar los pactos mágicos', error));
           OBR.broadcast.onMessage(REST_REQUEST_CHANNEL, async (event) => {
             if (role !== 'GM') return;
             const data = event.data as any;
@@ -627,12 +679,14 @@
       <button class:active={activeTab === 'personaje'} on:click={() => { activeTab = 'personaje'; }}>Personaje</button>
       <button class:active={activeTab === 'tiradas'} on:click={() => { activeTab = 'tiradas'; }}>Tiradas</button>
       <button class:active={activeTab === 'reglamento'} on:click={() => { activeTab = 'reglamento'; }}>Reglamento</button>
+      <button class:active={activeTab === 'magia'} on:click={() => { activeTab = 'magia'; }}>Magia</button>
     </nav>
   {:else}
     <nav class="main-tabs">
       <button class:active={activeTab === 'gm'} on:click={() => { activeTab = 'gm'; }}>Personajes</button>
       <button class:active={activeTab === 'conflicto'} on:click={() => { activeTab = 'conflicto'; }}>Conflicto</button>
       <button class:active={activeTab === 'reglamento'} on:click={() => { activeTab = 'reglamento'; }}>Reglamento</button>
+      <button class:active={activeTab === 'magia-gm'} on:click={() => { activeTab = 'magia-gm'; }}>Magia</button>
     </nav>
   {/if}
 
@@ -852,6 +906,37 @@
       <p class="sync-note">El seguimiento del conflicto se sincroniza con los jugadores de la sala. Fallo: Bajo −1 Voluntad · Medio −2 · Alto −3. El Punto de Esfuerzo puede gastarse una vez para añadir el Estado del Enfoque y repetir todos los dados.</p>
       {/if}
     </main>
+  {:else if !$isGM && activeTab === 'magia'}
+    <main class="content magic-content">
+      <div class="eyebrow">PACTOS Y CONDICIONES</div><h1>Magia</h1>
+      <p class="magic-intro">La magia funciona mediante pactos: defines qué quieres conseguir y qué estás dispuesto a entregar a cambio. El GM debe revisar y aprobar cada pacto antes de que puedas utilizarlo.</p>
+      <section class="card"><h2>¿Qué quieres conseguir?</h2>
+        <p>Describe el efecto del conjuro de manera muy específica. Indica exactamente qué hace, sobre quién o qué actúa, a qué distancia, durante cuánto tiempo y bajo qué circunstancias, cuando esos detalles sean relevantes. Evita expresiones vagas, interpretaciones alternativas o dobles lecturas. El texto debe permitir entender exactamente qué puede y qué no puede hacer el conjuro.</p>
+        <textarea bind:value={magicEffect} rows="5" maxlength="4000" placeholder="Describe exactamente el efecto que quieres obtener..."></textarea><small class="field-hint">{magicEffect.length} / 4000 caracteres</small></section>
+      <section class="card"><h2>¿Qué das a cambio?</h2>
+        <p>Describe detalladamente qué pierde, entrega o sacrifica tu personaje para obtener ese efecto. El precio puede ser mecánico o narrativo: una capacidad, un recurso, una posesión, un recuerdo, una obligación, una prohibición, un vínculo u otra pérdida concreta. Explica con precisión en qué consiste y cuándo o cómo se aplica.</p>
+        <textarea bind:value={magicPrice} rows="5" maxlength="4000" placeholder="Describe exactamente qué sacrifica o pierde tu personaje..."></textarea><small class="field-hint">{magicPrice.length} / 4000 caracteres</small>
+        <button class="full" on:click={submitMagicPact} disabled={!magicEffect.trim() || !magicPrice.trim()}>Firmar pacto</button>{#if magicMessage}<p class="magic-message">{magicMessage}</p>{/if}</section>
+      {#if getMyMagicRecord().proposals?.length}<section class="card"><h2>Mis propuestas</h2>
+        {#each [...getMyMagicRecord().proposals].sort((a: any, b: any) => b.createdAt - a.createdAt) as pact}<article class="pact-item">
+          <div class="pact-status" class:pending={pact.status === 'pending'} class:accepted={pact.status === 'accepted'} class:rejected={pact.status === 'rejected'}>{pact.status === 'pending' ? 'Pendiente de revisión' : pact.status === 'accepted' ? 'Aceptado' : 'Rechazado'}</div>
+          <h3>¿Qué quieres conseguir?</h3><p>{pact.effect}</p><h3>¿Qué das a cambio?</h3><p>{pact.price}</p></article>{/each}</section>{/if}
+      {#if getMyMagicRecord().spells?.length}<section class="card"><h2>Mis conjuros aprobados</h2>
+        {#each getMyMagicRecord().spells as pact}<article class="pact-item approved-spell"><div class="pact-status accepted">Pacto aprobado</div><h3>Efecto del conjuro</h3><p>{pact.effect}</p><h3>Precio del pacto</h3><p>{pact.price}</p></article>{/each}</section>{/if}
+    </main>
+  {:else if $isGM && activeTab === 'magia-gm'}
+    <main class="content magic-content"><div class="eyebrow">REVISIÓN DE PACTOS</div><h1>Magia</h1>
+      <p class="magic-intro">Revisa que el efecto esté definido sin ambigüedades y que el sacrificio describa con claridad lo que pierde el personaje. Solo al aceptar el pacto se incorpora a la lista de conjuros del jugador.</p>
+      {#each Object.entries(magicData?.players || {}) as [playerId, record]: [string, any]}
+        {#each (record.proposals || []).filter((pact: any) => pact.status === 'pending') as pact}<section class="card pact-review">
+          <div class="eyebrow">PROPUESTA DE {pact.playerName || 'JUGADOR'}</div><h2>¿Qué quiere conseguir?</h2><p class="pact-text">{pact.effect}</p>
+          <h2>¿Qué da a cambio?</h2><p class="pact-text">{pact.price}</p><div class="pact-actions">
+            <button on:click={() => updateMagicPact(playerId, pact.id, 'accepted')}>Aceptar pacto</button><button class="secondary" on:click={() => updateMagicPact(playerId, pact.id, 'rejected')}>Rechazar</button></div></section>{/each}{/each}
+      {#if !Object.values(magicData?.players || {}).some((record: any) => (record.proposals || []).some((pact: any) => pact.status === 'pending'))}<section class="card"><p>No hay pactos pendientes de revisión.</p></section>{/if}
+      {#each Object.entries(magicData?.players || {}) as [playerId, record]: [string, any]}{#if (record.proposals || []).some((pact: any) => pact.status !== 'pending')}<section class="card">
+        <h2>{record.proposals.find((pact: any) => pact.status !== 'pending')?.playerName || 'Jugador'} · Historial</h2>
+        {#each record.proposals.filter((pact: any) => pact.status !== 'pending') as pact}<article class="pact-item"><div class="pact-status" class:accepted={pact.status === 'accepted'} class:rejected={pact.status === 'rejected'}>{pact.status === 'accepted' ? 'Aceptado' : 'Rechazado'}</div><h3>Efecto</h3><p>{pact.effect}</p><h3>Precio</h3><p>{pact.price}</p></article>{/each}</section>{/if}{/each}
+    </main>
   {:else if activeTab === 'reglamento'}
     <main class="content rules-content">
       <div class="eyebrow">SISTEMA DE JUEGO</div>
@@ -967,6 +1052,19 @@
   .main-tabs button { border:0; border-bottom:3px solid transparent; background:transparent; color:#aaa; padding:1rem 1.2rem; cursor:pointer; }
   .main-tabs button.active { color:#f2c879; border-bottom-color:#d5a64b; }
   .content { width:min(900px,92%); margin:0 auto; padding:2rem 0 4rem; }
+  .magic-content .magic-intro { margin:.3rem 0 1.2rem; line-height:1.7; }
+  .magic-content .field-hint { display:block; color:#999; text-align:right; font-size:.75rem; margin-top:.3rem; }
+  .magic-content textarea { min-height:7rem; line-height:1.55; }
+  .magic-message { color:#f2c879; margin:.8rem 0 0; }
+  .pact-item { border-top:1px solid #45484c; padding:1rem 0; }
+  .pact-item:first-of-type { margin-top:.6rem; }
+  .pact-item h3 { margin:.8rem 0 .25rem; }
+  .pact-item p, .pact-text { white-space:pre-wrap; overflow-wrap:anywhere; line-height:1.65; }
+  .pact-status { display:inline-block; padding:.3rem .6rem; border-radius:4px; font-size:.75rem; font-weight:700; background:#393c40; color:#ddd; }
+  .pact-status.pending { background:#514326; color:#f2d18e; }
+  .pact-status.accepted { background:#294735; color:#a8e0b6; }
+  .pact-status.rejected { background:#4c2d31; color:#f0b2b2; }
+  .pact-actions { display:flex; flex-wrap:wrap; gap:.6rem; margin-top:1rem; }
   .rules-content .rules-intro { margin:.2rem 0 1.2rem; }
   .rules-content .card { padding:1.35rem 1.5rem; }
   .rules-content h2 { margin-bottom:.65rem; }
