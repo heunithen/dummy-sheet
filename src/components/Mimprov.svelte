@@ -268,7 +268,7 @@
       const detail = error instanceof Error
         ? `${error.name}: ${error.message}`
         : (() => { try { return JSON.stringify(error); } catch { return String(error ?? 'Error desconocido'); } })();
-      dicePlusError = `[MIMPROV 1.3.4] Error al enviar la solicitud a Dice+: ${detail || 'sin detalle'}.`;
+      dicePlusError = `[MIMPROV 1.3.6] Error al enviar la solicitud a Dice+: ${detail || 'sin detalle'}.`;
     }
   }
 
