@@ -133,6 +133,11 @@
   let visibleStates: string[] = [];
   let visibleOverexertionUsed = 0;
   let selectedPlayerId = '';
+  let selectedApproach = 'Tenacidad';
+  let selectedTrait = '';
+  let selectedState = '';
+  let rollModifier = 'normal';
+  let lastRoll: { dice: number[]; kept: number; pool: number; result: string; critical: boolean } | null = null;
 
   $: approachTotal = APPROACHES.reduce((sum, name) => sum + (Number(approachDraft[name]) || 0), 0);
   $: approachValid = approachTotal === 4 && APPROACHES.every(name => approachDraft[name] >= 0 && approachDraft[name] <= 2);
@@ -164,6 +169,52 @@
     }, 180);
   }
   function updateCharacter() { character = clone(character); publishCharacter(); }
+
+  function exportCharacter() {
+    const data = JSON.stringify({ format: 'MIMPROV-character', version: 1, character }, null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = (character.name || 'personaje-mimprov').trim().replace(/[^a-z0-9_-]+/gi, '-').toLowerCase() + '.json';
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+  async function importCharacter(event: Event) {
+    const input = event.currentTarget as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    try {
+      const parsed = JSON.parse(await file.text());
+      const incoming = parsed?.format === 'MIMPROV-character' ? parsed.character : parsed;
+      if (!incoming || typeof incoming !== 'object' || !incoming.approaches || !Array.isArray(incoming.traits) || !Array.isArray(incoming.inventory)) {
+        throw new Error('El archivo no contiene una ficha MIMPROV válida.');
+      }
+      character = { ...blankCharacter(), ...incoming, approaches: { ...blankCharacter().approaches, ...incoming.approaches }, created: true };
+      updateCharacter();
+      editingCharacter = false;
+      step = 0;
+    } catch (error) {
+      console.error('No se pudo importar la ficha MIMPROV', error);
+      alert('No se pudo importar el archivo. Selecciona una exportación JSON de MIMPROV.');
+    } finally {
+      input.value = '';
+    }
+  }
+  $: selectedApproachScore = Number(character.approaches?.[selectedApproach] || 0);
+  $: selectedTraitBonus = selectedTrait && character.traits.includes(selectedTrait) ? 1 : 0;
+  $: selectedStatePenalty = selectedState && STATES.find(s => s.name === selectedState && (s.enfoque === selectedApproach || s.enfoque === 'Todos')) ? 1 : 0;
+  $: modifierBonus = rollModifier === 'advantage' ? 1 : rollModifier === 'disadvantage' ? -1 : 0;
+  $: dicePool = selectedApproachScore + selectedTraitBonus + modifierBonus - selectedStatePenalty;
+  function rollDice() {
+    const count = dicePool > 0 ? dicePool : 2;
+    const dice = Array.from({ length: count }, () => Math.floor(Math.random() * 6) + 1);
+    const kept = dicePool > 0 ? Math.max(...dice) : Math.min(...dice);
+    const critical = dice.filter(value => value === 6).length >= 2;
+    const result = kept <= 4 ? 'Fracaso' : kept === 5 ? 'Éxito con consecuencia' : 'Éxito limpio';
+    lastRoll = { dice, kept, pool: dicePool, result: critical ? 'Éxito crítico' : result, critical };
+    if (critical) adjustWill(1);
+  }
 
   onMount(() => {
     character = getStoredCharacter();
@@ -319,6 +370,7 @@
   {#if !$isGM}
     <nav class="main-tabs">
       <button class:active={activeTab === 'personaje'} on:click={() => { activeTab = 'personaje'; }}>Personaje</button>
+      <button class:active={activeTab === 'tiradas'} on:click={() => { activeTab = 'tiradas'; }}>Tiradas</button>
     </nav>
   {:else}
     <nav class="main-tabs">
@@ -403,6 +455,14 @@
               <button on:click={finishEdit}>Guardar cambios</button>
             </div>
           {/if}
+          <section class="card export-tools">
+            <h2>Exportar e importar ficha</h2>
+            <p class="muted">Guarda una copia de tu personaje en un archivo JSON o carga una copia exportada anteriormente.</p>
+            <div class="export-actions">
+              <button on:click={exportCharacter}>Exportar personaje</button>
+              <label class="import-button">Importar personaje<input type="file" accept="application/json,.json" on:change={importCharacter}></label>
+            </div>
+          </section>
           <div class="sheet-grid">
             <section class="card"><h2>Voluntad</h2><div class="will-value">{character.will}<small> / {character.maxWill}</small></div><div class="will-controls"><button on:click={() => adjustWill(-1)} disabled={character.will <= 0}>−</button><button on:click={() => adjustWill(1)} disabled={character.will >= character.maxWill}>+</button></div><p class="muted">Con 0 Voluntad, las tiradas usan 2d6 y conservan el menor.</p></section>
             <section class="card"><h2>Enfoques</h2>{#each APPROACHES as name}<div class="approach-row compact"><div><strong>{name}</strong><small>{APPROACH_DESCRIPTIONS[name].short}</small></div><span class="score">{character.approaches[name]}</span></div>{/each}</section>
@@ -411,6 +471,69 @@
           </div>
           <p class="sync-note">{OBR.isAvailable ? 'La ficha se sincroniza con Owlbear Rodeo.' : 'Modo de vista previa: la ficha se guarda en este navegador.'}</p>
         </section>
+      {/if}
+    </main>
+  {:else if !$isGM && activeTab === 'tiradas'}
+    <main class="content">
+      <div class="eyebrow">CONSTRUCTOR DE POOL</div>
+      <h1>Tiradas</h1>
+      {#if !character.created}
+        <section class="card"><p>Primero debes crear tu personaje para construir una reserva de dados.</p></section>
+      {:else}
+        <section class="card pool-builder">
+          <h2>Construye tu pool</h2>
+          <label>Enfoque
+            <select bind:value={selectedApproach}>
+              {#each APPROACHES as approach}
+                <option value={approach}>{approach} · {character.approaches[approach] || 0}d6</option>
+              {/each}
+            </select>
+          </label>
+          <label>Rasgo
+            <select bind:value={selectedTrait}>
+              <option value="">Sin Rasgo</option>
+              {#each character.traits as trait}
+                <option value={trait}>{trait}</option>
+              {/each}
+            </select>
+          </label>
+          <label>Estado que afecta esta tirada
+            <select bind:value={selectedState}>
+              <option value="">Ninguno</option>
+              {#each STATES as state}
+                <option value={state.name}>{state.name} · {state.enfoque}</option>
+              {/each}
+            </select>
+          </label>
+          <div class="modifier-picker">
+            <span>Modificador</span>
+            <div class="modifier-options">
+              <button class:active={rollModifier === 'normal'} class="secondary" on:click={() => rollModifier = 'normal'}>Normal</button>
+              <button class:active={rollModifier === 'advantage'} class="secondary" on:click={() => rollModifier = 'advantage'}>Ventaja (+1d6)</button>
+              <button class:active={rollModifier === 'disadvantage'} class="secondary" on:click={() => rollModifier = 'disadvantage'}>Desventaja (−1d6)</button>
+            </div>
+          </div>
+          <div class="pool-summary">
+            <div><small>Reserva calculada</small><strong>{dicePool > 0 ? dicePool + 'd6' : '2d6 · conservar menor'}</strong></div>
+            <ul>
+              <li>{selectedApproach}: +{selectedApproachScore}d6</li>
+              <li>{selectedTrait ? selectedTrait + ': +1d6' : 'Sin Rasgo: +0d6'}</li>
+              <li>{selectedStatePenalty ? selectedState + ': −1d6' : 'Estado: sin penalización'}</li>
+              <li>{rollModifier === 'advantage' ? 'Ventaja: +1d6' : rollModifier === 'disadvantage' ? 'Desventaja: −1d6' : 'Sin modificador'}</li>
+            </ul>
+          </div>
+          <button class="roll-button" on:click={rollDice}>Tirar dados</button>
+        </section>
+        {#if lastRoll}
+          <section class="card roll-result">
+            <h2>Resultado</h2>
+            <p class="muted">Reserva aplicada: {lastRoll.pool > 0 ? lastRoll.pool + 'd6, conservar el mayor' : '2d6, conservar el menor'}</p>
+            <div class="dice-results">{#each lastRoll.dice as die, i}<span class:kept={die === lastRoll.kept && (lastRoll.pool > 0 ? die === Math.max(...lastRoll.dice) : die === Math.min(...lastRoll.dice))} class="die">{die}</span>{/each}</div>
+            <div class="kept-result">Dado conservado: <strong>{lastRoll.kept}</strong></div>
+            <h3>{lastRoll.result}</h3>
+            {#if lastRoll.critical}<p>Crítico: recuperas 1 punto de Voluntad.</p>{/if}
+          </section>
+        {/if}
       {/if}
     </main>
   {:else if $isGM && (activeTab === 'gm' || activeTab === 'conflicto')}
@@ -521,6 +644,23 @@
   .sheet-header { display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; margin-bottom:1.2rem; }
   .sheet-header h1 { font-size:2rem; }
   .sheet-grid { display:grid; grid-template-columns:1fr; gap:1rem; }
+  .export-actions, .modifier-options { display:flex; flex-wrap:wrap; gap:.5rem; }
+  .import-button { display:inline-flex; align-items:center; margin:0; padding:.65rem 1rem; border:1px solid #55595e; border-radius:5px; background:#373a3e; color:#eee; cursor:pointer; font-weight:650; }
+  .import-button input { display:none; }
+  .modifier-picker { margin:1rem 0; color:#ddd; }
+  .modifier-options { margin-top:.5rem; }
+  .modifier-options button.active { background:#6d542b; border-color:#d8b66f; color:#fff; }
+  .pool-summary { margin:1rem 0; padding:1rem; border:1px solid #555; border-radius:6px; background:#202225; }
+  .pool-summary small { display:block; color:#aaa; }
+  .pool-summary strong { display:block; color:#f2c879; font-size:1.5rem; margin:.2rem 0 .7rem; }
+  .pool-summary ul { margin:.5rem 0 0; padding-left:1.2rem; color:#bbb; font-size:.85rem; line-height:1.7; }
+  .roll-button { width:100%; margin-top:.5rem; font-size:1rem; }
+  .dice-results { display:flex; flex-wrap:wrap; gap:.5rem; margin:1rem 0; }
+  .die { display:grid; place-items:center; width:2.7rem; height:2.7rem; border:1px solid #777; border-radius:7px; background:#202225; color:#eee; font-size:1.3rem; font-weight:750; }
+  .die.kept { border:2px solid #e0b75e; color:#f2c879; background:#514126; }
+  .kept-result { color:#ccc; margin:.5rem 0; }
+  .kept-result strong { color:#f2c879; font-size:1.5rem; }
+  .roll-result h3 { margin:.8rem 0 .2rem; }
   .sheet-grid .card { margin:0; }
   .will-value { font-size:2.6rem; color:#f2c879; font-weight:700; }
   .will-value small { font-size:1rem; color:#aaa; }
