@@ -15,7 +15,6 @@
 
   $: pointsUsed = Object.values(foci).reduce((sum, value) => sum + value, 0);
   $: visibleTraits = TRAITS.filter((trait) => !trait.optional || magicEnabled);
-  $: if (!magicEnabled && selectedTraits.includes("Arcano")) selectedTraits = selectedTraits.filter((trait) => trait !== "Arcano");
   $: canCreate = name.trim().length > 0 && concept.trim().length > 0 &&
     pointsUsed === 4 && Object.values(foci).every((value) => value <= 2) &&
     selectedTraits.length === 4 &&
@@ -27,7 +26,7 @@
     foci = { ...foci, [focus]: next };
   }
 
-  function toggleTrait(name: string) {
+  function toggleMagic() {\n    magicEnabled = !magicEnabled;\n    if (!magicEnabled) selectedTraits = selectedTraits.filter((trait) => trait !== "Arcano");\n  }\n\n  function toggleTrait(name: string) {
     if (selectedTraits.includes(name)) {
       selectedTraits = selectedTraits.filter((trait) => trait !== name);
     } else if (selectedTraits.length < 4) {
@@ -83,7 +82,7 @@
       <strong>{selectedTraits.length}/4 elegidos</strong>
     </div>
     <p>Escoge cuatro Rasgos. Cada uno aporta un dado cuando es directamente relevante para una acción.</p>
-    <label class="magic"><input type="checkbox" bind:checked={magicEnabled} /> La ambientación incluye magia (habilita Arcano)</label>
+    <label class="magic"><input type="checkbox" checked={magicEnabled} on:change={toggleMagic} /> La ambientación incluye magia (habilita Arcano)</label>
     <div class="traits">
       {#each visibleTraits as trait}
         <label class:selected={selectedTraits.includes(trait.name)} class="trait">
