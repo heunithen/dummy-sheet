@@ -369,11 +369,17 @@
       <div class="eyebrow">HERRAMIENTAS DEL NARRADOR</div><h1>Panel GM</h1>
       <p class="muted">Seguimiento independiente. Estos controles no modifican las fichas de los jugadores.</p>
       <section class="card"><h2>Personajes de la sala</h2>
-        {#if partyMembers.length === 0}<p>No hay jugadores conectados.</p>{/if}
-        {#each partyMembers as player}
-          <article class="gm-player">
-            <div class="gm-player-head"><div><h3>{getPlayerCharacter(player)?.name || player.name}</h3><small>{getPlayerCharacter(player)?.concept || 'Ficha MIMPROV aún no creada'}</small></div><button class="secondary" on:click={() => selectedPlayerId = selectedPlayerId === player.id ? '' : player.id}>{selectedPlayerId === player.id ? 'Cerrar' : 'Seguimiento'}</button></div>
-            {#if selectedPlayerId === player.id}
+        {#if partyMembers.length === 0}
+          <p>No hay jugadores conectados.</p>
+        {:else}
+          <nav class="character-tabs" aria-label="Personajes">
+            {#each partyMembers as player}
+              <button class:active={selectedPlayerId === player.id} on:click={() => selectedPlayerId = player.id}>{getPlayerCharacter(player)?.name || player.name}</button>
+            {/each}
+          </nav>
+          {#each partyMembers.filter(p => p.id === selectedPlayerId) as player}
+            <article class="gm-player">
+              <div class="gm-player-head"><div><h3>{getPlayerCharacter(player)?.name || player.name}</h3><small>{getPlayerCharacter(player)?.concept || 'Ficha MIMPROV aún no creada'}</small></div></div>
               {#if getPlayerCharacter(player)}
                 <div class="gm-stats"><span>Voluntad: <b>{getPlayerCharacter(player)?.will} / {getPlayerCharacter(player)?.maxWill}</b></span><span>Enfoques: <b>{APPROACHES.map(a => a + ' ' + (getPlayerCharacter(player)?.approaches?.[a] ?? 0)).join(' · ')}</b></span><span>Rasgos: <b>{getPlayerCharacter(player)?.traits?.join(', ')}</b></span></div>
               {:else}<p class="muted">El jugador todavía no ha creado su ficha.</p>{/if}
@@ -381,9 +387,9 @@
               <h4>Riesgo de situación</h4><select value={playerTracker(player.id).risk} on:change={(e) => setRisk(player.id, e.currentTarget.value)}><option>Ninguno</option><option>Bajo</option><option>Medio</option><option>Alto</option></select>
               <h4>Sobreesfuerzo</h4><p class="muted">Puntos disponibles: {2 - playerTracker(player.id).overexertionUsed} / 2</p><div class="stepper"><button on:click={() => setOverexertion(player.id, playerTracker(player.id).overexertionUsed - 1)} disabled={playerTracker(player.id).overexertionUsed <= 0}>−</button><b>{playerTracker(player.id).overexertionUsed} usados</b></div><div class="approach-buttons">{#each APPROACHES as enfoque}<button class="secondary" on:click={() => spendOverexertion(player.id, enfoque)} disabled={playerTracker(player.id).overexertionUsed >= 2}>{enfoque}</button>{/each}</div><small class="muted">Al registrar el gasto, el panel añade el Estado correspondiente al Enfoque utilizado.</small>
               <h4>Participación en conflicto</h4><label class="check-row"><input type="checkbox" checked={!!playerTracker(player.id).inConflict} on:change={(e) => { playerTracker(player.id).inConflict = e.currentTarget.checked; saveGmTracker(); }}><span>Incluir en el próximo conflicto</span></label>
-            {/if}
-          </article>
-        {/each}
+            </article>
+          {/each}
+        {/if}
       </section>
       <section class="card"><h2>Conflicto</h2>
         {#if !gmTracker.conflict}
@@ -465,6 +471,9 @@
   .state-badge { display:inline-block; padding:.4rem .75rem; border:1px solid #9b6262; border-radius:5px; background:#492e32; color:#ffd6d6; font-weight:650; }
   .extra-info p { margin:.4rem 0; }
   .gm-content > h1 { margin-bottom:0; }
+  .character-tabs { display:flex; flex-wrap:wrap; gap:.4rem; margin:.8rem 0 1rem; border-bottom:1px solid #444; padding-bottom:.6rem; }
+  .character-tabs button { background:#292929; color:#ddd; border:1px solid #555; border-radius:6px; padding:.55rem .8rem; cursor:pointer; }
+  .character-tabs button.active { background:#6d542b; border-color:#d8b66f; color:#fff; }
   .gm-player { border-top:1px solid #444; padding:1rem 0; }
   .gm-player-head { display:flex; justify-content:space-between; align-items:center; gap:1rem; }
   .gm-player-head h3 { margin:.1rem 0; }
