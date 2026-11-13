@@ -1,10 +1,10 @@
 {
   "name": "DummySheet MIMPROV",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "manifest_version": 1,
   "icon": "https://heunithen.github.io/dummy-sheet/icon.svg",
   "author": "Christian Muñoz",
-  "description": "Hoja de personaje personalizable basada en DummySheet, en adaptación para MIMPROV.",
+  "description": "Ficha MIMPROV para Owlbear Rodeo: creación guiada de personajes y panel de seguimiento del Narrador.",
   "homepage_url": "https://github.com/heunithen/dummy-sheet",
   "action": {
     "title": "DummySheet MIMPROV",
