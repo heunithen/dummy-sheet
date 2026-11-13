@@ -21,8 +21,12 @@
     if (OBR.isAvailable) OBRHelper.init();
   });
 
-  function finishCreation(event) {
+  function finishCreation(event: CustomEvent<any>) {
     $sheet = event.detail;
+    $characterCreated = true;
+  }
+
+  function skipCreation() {
     $characterCreated = true;
   }
 </script>
@@ -50,7 +54,7 @@
         </div>
       {/if}
     {:else if !$characterCreated}
-      <CharacterCreation on:complete={finishCreation} />
+      <CharacterCreation on:complete={finishCreation} on:skip={skipCreation} />
     {:else}
       <Sheet bind:sheet={$sheet} />
     {/if}
