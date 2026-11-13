@@ -61,12 +61,12 @@
   function startConflict() {
     if (conflictSelection.length === 0) return;
     const resistance = conflictSelection.length * 2;
-    gmTracker.set({ ...$gmTracker, conflict: { active: true, participants: [...conflictSelection], initial: resistance, remaining: resistance, round: 1, state: conflictState } });
+    gmTracker.set({ ...$gmTracker, conflict: { active: true, participants: [...conflictSelection], initial: resistance, remaining: resistance, round: 1, state: conflictState, result: "" } });
   }
   function reduceResistance() {
     if (!$gmTracker.conflict?.active) return;
     const remaining = Math.max(0, $gmTracker.conflict.remaining - 1);
-    gmTracker.set({ ...$gmTracker, conflict: { ...$gmTracker.conflict, remaining, active: remaining > 0 } });
+    gmTracker.set({ ...$gmTracker, conflict: { ...$gmTracker.conflict, remaining, active: remaining > 0, result: remaining === 0 ? "Victoria decisiva: la Resistencia llegó a 0." : $gmTracker.conflict.result } });
   }
   function nextRound() {
     if (!$gmTracker.conflict?.active) return;
