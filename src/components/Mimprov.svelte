@@ -6,6 +6,7 @@
   const DATA_KEY = 'com.heunithen.dummysheet-mimprov/sheet';
   const STATE_KEY = 'com.heunithen.dummysheet-mimprov/player-states';
   const OVEREXERTION_KEY = 'com.heunithen.dummysheet-mimprov/player-overexertion';
+  const DICE_PLUS_SOURCE = 'com.heunithen.dummysheet-mimprov';
   const STATES = [
     { name: 'Mermado', enfoque: 'Rapidez', detail: 'Lesión o limitación física.' },
     { name: 'Deprimido', enfoque: 'Tenacidad', detail: 'Enfermedad, intoxicación o debilidad.' },
@@ -137,7 +138,9 @@
   let selectedTrait = '';
   let selectedState = '';
   let rollModifier = 'normal';
-  let lastRoll: { dice: number[]; kept: number; pool: number; result: string; critical: boolean } | null = null;
+  let lastRoll: { dice: number[]; kept: number; pool: number; result: string; critical: boolean; notation?: string; summary?: string } | null = null;
+  let dicePlusError = '';
+  let pendingDiceRoll: { rollId: string; pool: number; notation: string } | null = null;
 
   $: approachTotal = APPROACHES.reduce((sum, name) => sum + (Number(approachDraft[name]) || 0), 0);
   $: approachValid = approachTotal === 4 && APPROACHES.every(name => approachDraft[name] >= 0 && approachDraft[name] <= 2);
@@ -204,16 +207,89 @@
   $: selectedApproachScore = Number(character.approaches?.[selectedApproach] || 0);
   $: selectedTraitBonus = selectedTrait && character.traits.includes(selectedTrait) ? 1 : 0;
   $: selectedStatePenalty = selectedState && STATES.find(s => s.name === selectedState && (s.enfoque === selectedApproach || s.enfoque === 'Todos')) ? 1 : 0;
-  $: modifierBonus = rollModifier === 'advantage' ? 1 : rollModifier === 'disadvantage' ? -1 : 0;
-  $: dicePool = selectedApproachScore + selectedTraitBonus + modifierBonus - selectedStatePenalty;
-  function rollDice() {
-    const count = dicePool > 0 ? dicePool : 2;
-    const dice = Array.from({ length: count }, () => Math.floor(Math.random() * 6) + 1);
-    const kept = dicePool > 0 ? Math.max(...dice) : Math.min(...dice);
-    const critical = dice.filter(value => value === 6).length >= 2;
+  $: baseDicePool = selectedApproachScore + selectedTraitBonus - selectedStatePenalty;
+  $: dicePool = baseDicePool > 0 ? baseDicePool + (rollModifier === 'normal' ? 0 : 1) : 0;
+  $: diceNotation = baseDicePool <= 0 ? '2d6kl1' : `${dicePool}d6${rollModifier === 'disadvantage' ? 'kl1' : 'kh1'}`;
+
+  async function checkDicePlusReady(): Promise<boolean> {
+    const requestId = `mimprov_ready_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+    return new Promise((resolve) => {
+      const unsubscribe = OBR.broadcast.onMessage('dice-plus/isReady', (event) => {
+        const data = event.data as any;
+        if (data?.ready === true && data.requestId === requestId) {
+          unsubscribe();
+          resolve(true);
+        }
+      });
+      OBR.broadcast.sendMessage('dice-plus/isReady', { requestId, timestamp: Date.now() }, { destination: 'ALL' })
+        .catch(() => { unsubscribe(); resolve(false); });
+      setTimeout(() => { unsubscribe(); resolve(false); }, 1500);
+    });
+  }
+
+  async function rollDice() {
+    if (!OBR.isAvailable || !loaded) {
+      dicePlusError = 'Esta tirada necesita Owlbear Rodeo y la extensión Dice+.';
+      return;
+    }
+    if (pendingDiceRoll) return;
+    dicePlusError = '';
+    const ready = await checkDicePlusReady();
+    if (!ready) {
+      dicePlusError = 'No se detectó Dice+. Instala o activa Dice+ en esta sala y vuelve a intentarlo.';
+      return;
+    }
+    try {
+      const rollId = `mimprov_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+      pendingDiceRoll = { rollId, pool: baseDicePool, notation: diceNotation };
+      lastRoll = { dice: [], kept: 0, pool: baseDicePool, result: 'Tirando en Dice+…', critical: false, notation: diceNotation };
+      await OBR.broadcast.sendMessage('dice-plus/roll-request', {
+        rollId,
+        playerId: await OBR.player.getId(),
+        playerName: await OBR.player.getName(),
+        rollTarget: 'everyone',
+        diceNotation: diceNotation + ' # MIMPROV',
+        showResults: true,
+        timestamp: Date.now(),
+        source: DICE_PLUS_SOURCE
+      }, { destination: 'ALL' });
+    } catch (error) {
+      console.error('No se pudo enviar la tirada a Dice+', error);
+      pendingDiceRoll = null;
+      dicePlusError = 'No se pudo enviar la tirada a Dice+. Comprueba que la extensión esté activa.';
+    }
+  }
+
+  function handleDicePlusResult(event: any) {
+    const data = event.data as any;
+    if (!pendingDiceRoll || data?.rollId !== pendingDiceRoll.rollId || !data.result) return;
+    const dice = (data.result.groups || []).flatMap((group: any) =>
+      (group.dice || []).map((die: any) => Number(die.value)).filter((value: number) => Number.isFinite(value))
+    );
+    const keptDice = (data.result.groups || []).flatMap((group: any) =>
+      (group.dice || []).filter((die: any) => die.kept !== false).map((die: any) => Number(die.value)).filter((value: number) => Number.isFinite(value))
+    );
+    const kept = keptDice.length ? (pendingDiceRoll.notation.includes('kl1') ? Math.min(...keptDice) : Math.max(...keptDice)) : Number(data.result.totalValue);
+    const critical = dice.filter((value: number) => value === 6).length >= 2;
     const result = kept <= 4 ? 'Fracaso' : kept === 5 ? 'Éxito con consecuencia' : 'Éxito limpio';
-    lastRoll = { dice, kept, pool: dicePool, result: critical ? 'Éxito crítico' : result, critical };
+    lastRoll = {
+      dice,
+      kept,
+      pool: pendingDiceRoll.pool,
+      result: critical ? 'Éxito crítico' : result,
+      critical,
+      notation: pendingDiceRoll.notation,
+      summary: data.result.rollSummary
+    };
+    pendingDiceRoll = null;
     if (critical) adjustWill(1);
+  }
+
+  function handleDicePlusError(event: any) {
+    const data = event.data as any;
+    if (!pendingDiceRoll || data?.rollId !== pendingDiceRoll.rollId) return;
+    dicePlusError = `Dice+ no pudo realizar la tirada: ${data.error || 'error desconocido'}`;
+    pendingDiceRoll = null;
   }
 
   onMount(() => {
@@ -241,6 +317,8 @@
             syncStates(await OBR.room.getMetadata());
             OBR.room.onMetadataChange(syncStates);
           }
+          OBR.broadcast.onMessage(`${DICE_PLUS_SOURCE}/roll-result`, handleDicePlusResult);
+          OBR.broadcast.onMessage(`${DICE_PLUS_SOURCE}/roll-error`, handleDicePlusError);
           loaded = true;
         } catch (error) {
           console.error('Error al cargar la ficha MIMPROV', error);
@@ -514,20 +592,21 @@
             </div>
           </div>
           <div class="pool-summary">
-            <div><small>Reserva calculada</small><strong>{dicePool > 0 ? dicePool + 'd6' : '2d6 · conservar menor'}</strong></div>
+            <div><small>Notación enviada a Dice+</small><strong>{diceNotation}</strong></div>
             <ul>
               <li>{selectedApproach}: +{selectedApproachScore}d6</li>
               <li>{selectedTrait ? selectedTrait + ': +1d6' : 'Sin Rasgo: +0d6'}</li>
               <li>{selectedStatePenalty ? selectedState + ': −1d6' : 'Estado: sin penalización'}</li>
-              <li>{rollModifier === 'advantage' ? 'Ventaja: +1d6' : rollModifier === 'disadvantage' ? 'Desventaja: −1d6' : 'Sin modificador'}</li>
+              <li>{rollModifier === 'advantage' ? 'Ventaja: añade 1d6 y conserva el mayor' : rollModifier === 'disadvantage' ? 'Desventaja: añade 1d6 y conserva el menor' : 'Tirada normal: conserva el mayor'}</li>
             </ul>
           </div>
-          <button class="roll-button" on:click={rollDice}>Tirar dados</button>
+          {#if dicePlusError}<p class="error-message">{dicePlusError}</p>{/if}
+          <button class="roll-button" disabled={!!pendingDiceRoll} on:click={rollDice}>{pendingDiceRoll ? 'Tirando…' : 'Tirar dados con Dice+'}</button>
         </section>
         {#if lastRoll}
           <section class="card roll-result">
             <h2>Resultado</h2>
-            <p class="muted">Reserva aplicada: {lastRoll.pool > 0 ? lastRoll.pool + 'd6, conservar el mayor' : '2d6, conservar el menor'}</p>
+            <p class="muted">{lastRoll.notation || ''} {lastRoll.summary ? '· ' + lastRoll.summary : ''}</p>
             <div class="dice-results">{#each lastRoll.dice as die, i}<span class:kept={die === lastRoll.kept && (lastRoll.pool > 0 ? die === Math.max(...lastRoll.dice) : die === Math.min(...lastRoll.dice))} class="die">{die}</span>{/each}</div>
             <div class="kept-result">Dado conservado: <strong>{lastRoll.kept}</strong></div>
             <h3>{lastRoll.result}</h3>
@@ -655,6 +734,8 @@
   .pool-summary strong { display:block; color:#f2c879; font-size:1.5rem; margin:.2rem 0 .7rem; }
   .pool-summary ul { margin:.5rem 0 0; padding-left:1.2rem; color:#bbb; font-size:.85rem; line-height:1.7; }
   .roll-button { width:100%; margin-top:.5rem; font-size:1rem; }
+  .roll-button:disabled { opacity:.6; cursor:wait; }
+  .error-message { color:#f0a0a0; margin:.7rem 0; }
   .dice-results { display:flex; flex-wrap:wrap; gap:.5rem; margin:1rem 0; }
   .die { display:grid; place-items:center; width:2.7rem; height:2.7rem; border:1px solid #777; border-radius:7px; background:#202225; color:#eee; font-size:1.3rem; font-weight:750; }
   .die.kept { border:2px solid #e0b75e; color:#f2c879; background:#514126; }
