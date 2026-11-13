@@ -1,10 +1,10 @@
 {
-    "name": "DummySheet",
-    "version": "1.0.0",
+    "name": "MIMPROV Sheet",
+    "version": "1.1.0",
     "manifest_version": 1,
     "icon": "/icon.svg",
     "author": "kurara ara",
-    "description": "A dummy-simple customisable character sheet.",
+    "description": "MIMPROV character creation, editable character sheets and GM session tracking, built on DummySheet.",
     "homepage_url": "https://www.dummysheet.com",
     "action": {
       "title": "DummySheet",
