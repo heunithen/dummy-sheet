@@ -26,7 +26,12 @@
     foci = { ...foci, [focus]: next };
   }
 
-  function toggleMagic() {\n    magicEnabled = !magicEnabled;\n    if (!magicEnabled) selectedTraits = selectedTraits.filter((trait) => trait !== "Arcano");\n  }\n\n  function toggleTrait(name: string) {
+  function toggleMagic() {
+    magicEnabled = !magicEnabled;
+    if (!magicEnabled) selectedTraits = selectedTraits.filter((trait) => trait !== "Arcano");
+  }
+
+  function toggleTrait(name: string) {
     if (selectedTraits.includes(name)) {
       selectedTraits = selectedTraits.filter((trait) => trait !== name);
     } else if (selectedTraits.length < 4) {
