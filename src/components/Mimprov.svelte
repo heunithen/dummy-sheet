@@ -145,6 +145,9 @@
     if (!gmTracker.players[id]) gmTracker.players[id] = { states: [], risk: 'Ninguno', overexertionUsed: 0, overexertionNotes: [] };
     return gmTracker.players[id];
   }
+  function getPlayerCharacter(player: any): Character | undefined {
+    return player?.metadata?.[DATA_KEY] as Character | undefined;
+  }
 
   function startCreation() { step = 0; character = blankCharacter(); approachDraft = { Tenacidad: 1, Control: 1, Astucia: 1, Rapidez: 1 }; }
   function nextStep() {
@@ -339,18 +342,16 @@
       <section class="card"><h2>Personajes de la sala</h2>
         {#if partyMembers.length === 0}<p>No hay jugadores conectados.</p>{/if}
         {#each partyMembers as player}
-          {@const c = player.metadata?.[DATA_KEY] as Character}
-          {@const t = playerTracker(player.id)}
           <article class="gm-player">
-            <div class="gm-player-head"><div><h3>{c?.name || player.name}</h3><small>{c?.concept || 'Ficha MIMPROV aún no creada'}</small></div><button class="secondary" on:click={() => selectedPlayerId = selectedPlayerId === player.id ? '' : player.id}>{selectedPlayerId === player.id ? 'Cerrar' : 'Seguimiento'}</button></div>
+            <div class="gm-player-head"><div><h3>{getPlayerCharacter(player)?.name || player.name}</h3><small>{getPlayerCharacter(player)?.concept || 'Ficha MIMPROV aún no creada'}</small></div><button class="secondary" on:click={() => selectedPlayerId = selectedPlayerId === player.id ? '' : player.id}>{selectedPlayerId === player.id ? 'Cerrar' : 'Seguimiento'}</button></div>
             {#if selectedPlayerId === player.id}
-              {#if c}
-                <div class="gm-stats"><span>Voluntad: <b>{c.will} / {c.maxWill}</b></span><span>Enfoques: <b>{APPROACHES.map(a => a + ' ' + c.approaches[a]).join(' · ')}</b></span><span>Rasgos: <b>{c.traits.join(', ')}</b></span></div>
+              {#if getPlayerCharacter(player)}
+                <div class="gm-stats"><span>Voluntad: <b>{getPlayerCharacter(player).will} / {getPlayerCharacter(player).maxWill}</b></span><span>Enfoques: <b>{APPROACHES.map(a => a + ' ' + getPlayerCharacter(player).approaches[a]).join(' · ')}</b></span><span>Rasgos: <b>{getPlayerCharacter(player).traits.join(', ')}</b></span></div>
               {:else}<p class="muted">El jugador todavía no ha creado su ficha.</p>{/if}
-              <h4>Estados actuales</h4><div class="state-grid">{#each STATES as state}<label class="check-row"><input type="checkbox" checked={t.states.includes(state.name)} on:change={() => toggleState(player.id, state.name)}><span><b>{state.name}</b><small>{state.enfoque}: {state.detail}</small></span></label>{/each}</div>
-              <h4>Riesgo de situación</h4><select value={t.risk} on:change={(e) => setRisk(player.id, e.currentTarget.value)}><option>Ninguno</option><option>Bajo</option><option>Medio</option><option>Alto</option></select>
-              <h4>Sobreesfuerzo</h4><p class="muted">Puntos disponibles: {2 - t.overexertionUsed} / 2</p><div class="stepper"><button on:click={() => setOverexertion(player.id, t.overexertionUsed - 1)} disabled={t.overexertionUsed <= 0}>−</button><b>{t.overexertionUsed} usados</b></div><div class="approach-buttons">{#each APPROACHES as enfoque}<button class="secondary" on:click={() => spendOverexertion(player.id, enfoque)} disabled={t.overexertionUsed >= 2}>{enfoque}</button>{/each}</div><small class="muted">Al registrar el gasto, el panel añade el Estado correspondiente al Enfoque utilizado.</small>
-              <h4>Participación en conflicto</h4><label class="check-row"><input type="checkbox" checked={!!t.inConflict} on:change={(e) => { t.inConflict = e.currentTarget.checked; saveGmTracker(); }}><span>Incluir en el próximo conflicto</span></label>
+              <h4>Estados actuales</h4><div class="state-grid">{#each STATES as state}<label class="check-row"><input type="checkbox" checked={playerTracker(player.id).states.includes(state.name)} on:change={() => toggleState(player.id, state.name)}><span><b>{state.name}</b><small>{state.enfoque}: {state.detail}</small></span></label>{/each}</div>
+              <h4>Riesgo de situación</h4><select value={playerTracker(player.id).risk} on:change={(e) => setRisk(player.id, e.currentTarget.value)}><option>Ninguno</option><option>Bajo</option><option>Medio</option><option>Alto</option></select>
+              <h4>Sobreesfuerzo</h4><p class="muted">Puntos disponibles: {2 - playerTracker(player.id).overexertionUsed} / 2</p><div class="stepper"><button on:click={() => setOverexertion(player.id, playerTracker(player.id).overexertionUsed - 1)} disabled={playerTracker(player.id).overexertionUsed <= 0}>−</button><b>{playerTracker(player.id).overexertionUsed} usados</b></div><div class="approach-buttons">{#each APPROACHES as enfoque}<button class="secondary" on:click={() => spendOverexertion(player.id, enfoque)} disabled={playerTracker(player.id).overexertionUsed >= 2}>{enfoque}</button>{/each}</div><small class="muted">Al registrar el gasto, el panel añade el Estado correspondiente al Enfoque utilizado.</small>
+              <h4>Participación en conflicto</h4><label class="check-row"><input type="checkbox" checked={!!playerTracker(player.id).inConflict} on:change={(e) => { t.inConflict = e.currentTarget.checked; saveGmTracker(); }}><span>Incluir en el próximo conflicto</span></label>
             {/if}
           </article>
         {/each}
