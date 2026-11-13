@@ -12,7 +12,9 @@
   const DICE_PLUS_SOURCE = 'com.heunithen.dummysheet-mimprov';
   const DELETE_CHARACTER_CHANNEL = 'com.heunithen.dummysheet-mimprov/delete-character';
   const MAGIC_KEY = 'com.heunithen.dummysheet-mimprov/magic-pacts';
+  const PLAYER_MAGIC_KEY = 'com.heunithen.dummysheet-mimprov/player-magic';
   const MAGIC_SUBMIT_CHANNEL = 'com.heunithen.dummysheet-mimprov/magic-submit';
+  const MAGIC_APPROVED_CHANNEL = 'com.heunithen.dummysheet-mimprov/magic-approved';
   const STATES = [
     { name: 'Mermado', enfoque: 'Rapidez', detail: 'Lesión o limitación física.' },
     { name: 'Deprimido', enfoque: 'Tenacidad', detail: 'Enfermedad, intoxicación o debilidad.' },
@@ -136,6 +138,7 @@
   let editingCharacter = false;
   let activeTab = 'personaje';
   let magicData: any = { players: {} };
+  let playerMagicRecord: any = { spells: [] };
   let magicEffect = '';
   let magicPrice = '';
   let magicMessage = '';
@@ -190,7 +193,10 @@
   function updateCharacter() { character = clone(character); publishCharacter(); }
 
   function getMyMagicRecord() {
-    return magicData?.players?.[$currentPlayerId] || { proposals: [], spells: [] };
+    return {
+      proposals: magicData?.players?.[$currentPlayerId]?.proposals || [],
+      spells: playerMagicRecord?.spells || []
+    };
   }
   async function submitMagicPact() {
     const effect = magicEffect.trim();
@@ -206,14 +212,24 @@
   async function updateMagicPact(playerId: string, pactId: string, decision: 'accepted' | 'rejected') {
     if (!$isGM || !OBR.isAvailable) return;
     const next = clone(magicData || { players: {} }); if (!next.players) next.players = {};
-    const record = next.players[playerId] || { proposals: [], spells: [] };
+    const record = next.players[playerId] || { proposals: [] };
     const pact = (record.proposals || []).find((item) => item.id === pactId);
     if (!pact || pact.status !== 'pending') return;
-    pact.status = decision; pact.reviewedAt = Date.now();
-    if (decision === 'accepted') { record.spells = Array.isArray(record.spells) ? record.spells : []; if (!record.spells.some((item) => item.id === pact.id)) record.spells = [...record.spells, { ...pact }]; }
-    next.players[playerId] = record;
+    if (decision === 'accepted') {
+      try {
+        await OBR.broadcast.sendMessage(MAGIC_APPROVED_CHANNEL, {
+          playerId, pact: { ...pact, status: 'accepted', reviewedAt: Date.now() }
+        }, { destination: 'ALL' });
+      } catch (error) {
+        console.error('No se pudo entregar el conjuro aprobado al jugador', error);
+        return;
+      }
+    }
+    record.proposals = (record.proposals || []).filter((item) => item.id !== pactId);
+    if (record.proposals.length) next.players[playerId] = record;
+    else delete next.players[playerId];
     try { await OBR.room.setMetadata({ [MAGIC_KEY]: next }); magicData = next; }
-    catch (error) { console.error('No se pudo actualizar el pacto mágico', error); }
+    catch (error) { console.error('No se pudo retirar la propuesta revisada', error); }
   }
 
   function exportCharacter() {
@@ -409,6 +425,7 @@
             }
           }
           if (role === 'PLAYER') {
+            playerMagicRecord = metadata?.[PLAYER_MAGIC_KEY] || { spells: [] };
             const syncStates = (metadata: any) => {
               const allStates = metadata?.[STATE_KEY] || {};
               visibleStates = Array.isArray(allStates[$currentPlayerId]) ? allStates[$currentPlayerId] : [];
@@ -455,6 +472,15 @@
               next.players[sender.id] = record; await OBR.room.setMetadata({ [MAGIC_KEY]: next }); magicData = next;
             } catch (error) { console.error('No se pudo registrar la propuesta de pacto', error); }
           });
+          OBR.broadcast.onMessage(MAGIC_APPROVED_CHANNEL, async (event) => {
+            const data = event.data as any;
+            if (role !== 'PLAYER' || data?.playerId !== $currentPlayerId || !data?.pact?.id) return;
+            const spells = Array.isArray(playerMagicRecord?.spells) ? [...playerMagicRecord.spells] : [];
+            if (!spells.some((item) => item.id === data.pact.id)) spells.push(data.pact);
+            playerMagicRecord = { spells };
+            try { await OBR.player.setMetadata({ [PLAYER_MAGIC_KEY]: playerMagicRecord }); }
+            catch (error) { console.error('No se pudo guardar el conjuro en la ficha del jugador', error); }
+          });
           OBR.room.onMetadataChange((metadata) => { magicData = metadata?.[MAGIC_KEY] || { players: {} }; });
           OBR.room.getMetadata().then((metadata) => { magicData = metadata?.[MAGIC_KEY] || { players: {} }; }).catch((error) => console.error('No se pudieron cargar los pactos mágicos', error));
           OBR.broadcast.onMessage(REST_REQUEST_CHANNEL, async (event) => {
@@ -495,7 +521,8 @@
               editingCharacter = false;
               step = 0;
               localStorage.removeItem('mimprov-character-v1');
-              await OBR.player.setMetadata({ [DATA_KEY]: clone(character) });
+              await OBR.player.setMetadata({ [DATA_KEY]: clone(character), [PLAYER_MAGIC_KEY]: { spells: [] } });
+              playerMagicRecord = { spells: [] };
               magicData = { ...magicData, players: { ...(magicData.players || {}) } };
               delete magicData.players[$currentPlayerId];
             } catch (error) {
