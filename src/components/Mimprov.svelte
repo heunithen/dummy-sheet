@@ -197,7 +197,7 @@
   $: approachValid = approachTotal === 4 && APPROACHES.every(name => approachDraft[name] >= 0 && approachDraft[name] <= 2);
   $: myPlayer = $PartyStore.find(p => p.id === $currentPlayerId);
   // El rol llega de forma asíncrona desde Owlbear. Asegura una pestaña válida al cambiar de rol.
-  $: if ($isGM && activeTab !== 'gm' && activeTab !== 'conflicto' && activeTab !== 'reglamento' && activeTab !== 'magia-gm' && activeTab !== 'lineas-velos') activeTab = 'gm';
+  $: if ($isGM && activeTab !== 'gm' && activeTab !== 'conflicto' && activeTab !== 'reglamento' && activeTab !== 'magia-gm' && activeTab !== 'lineas-velos' && activeTab !== 'pnj') activeTab = 'gm';
   $: if (!$isGM && (activeTab === 'gm' || activeTab === 'conflicto' || activeTab === 'magia-gm')) activeTab = 'personaje';
   $: partyMembers = $PartyStore.filter(p => p.role !== 'GM' && getPlayerCharacter(p)?.created === true);
   $: if ($isGM && partyMembers.length && !partyMembers.some(p => p.id === selectedPlayerId)) selectedPlayerId = partyMembers[0].id;
@@ -922,6 +922,7 @@
       <button class:active={activeTab === 'reglamento'} on:click={() => { activeTab = 'reglamento'; }}>Reglamento</button>
       <button class:active={activeTab === 'magia-gm'} on:click={() => { activeTab = 'magia-gm'; }}>Magia</button>
       <button class:active={activeTab === 'lineas-velos'} on:click={() => { activeTab = 'lineas-velos'; }}>Líneas y velos</button>
+      <button class:active={activeTab === 'pnj'} on:click={() => { activeTab = 'pnj'; }}>PNJ</button>
     </nav>
   {/if}
 
@@ -1119,26 +1120,6 @@
       {#if activeTab === 'gm'}
       <div class="eyebrow">HERRAMIENTAS DEL NARRADOR</div><h1>Personajes</h1>
       <p class="muted">Seguimiento independiente. Estos controles no modifican las fichas de los jugadores.</p>
-      <section class="card gm-npc-section">
-        <h2>Personajes no jugadores</h2>
-        <p class="muted">Un personaje de cada género. Solo se muestra su nombre, apariencia y personalidad; no se revela su ocupación ni su función.</p>
-        <div class="gm-npc-list">
-          {#each gmNpcCharacters as npc (npc.genre)}
-            <article class="gm-npc-card">
-              <div class="gm-npc-heading">
-                <div><small>{GM_NPC_GENRES.find((item) => item.id === npc.genre)?.label}</small><h3>{npc.name}</h3></div>
-                <button class="secondary gm-npc-reroll" aria-label="Generar otro personaje del mismo género" title="Generar otro personaje del mismo género" on:click={() => rerollGmNpc(npc.genre)}>🎲</button>
-              </div>
-              <p><strong>Apariencia:</strong> {npc.appearance}</p>
-              <p><strong>Personalidad:</strong> {npc.personality}</p>
-            </article>
-          {/each}
-        </div>
-      </section>
-      <section class="card gm-npc-notes">
-        <h3>Notas del narrador</h3>
-        <textarea rows="4" bind:value={gmNpcNotes} on:input={saveGmNpcNotes} placeholder="Anota aquí ideas, detalles o información relacionada con estos personajes..."></textarea>
-      </section>
             <section class="card"><h2>Personajes de la sala</h2>
         {#if partyMembers.length === 0}
           <p>No hay personajes creados en la sala.</p>
@@ -1230,6 +1211,32 @@
         <label for="player-notes">Mis notas</label>
         <textarea id="player-notes" class="player-notes" bind:value={character.notes} on:input={updateCharacter} placeholder="Escribe aquí tus notas de la partida..." rows="18"></textarea>
         <small class="muted">Guardado automático.</small>
+      </section>
+    </main>
+  {:else if $isGM && activeTab === 'pnj'}
+    <main class="content gm-content">
+      <div class="eyebrow">HERRAMIENTAS DEL NARRADOR</div>
+      <h1>Personajes no jugadores</h1>
+      <p class="muted">Cinco personajes aleatorios, uno de cada género. Solo se muestra su nombre, apariencia y personalidad; no se revela su ocupación ni su función.</p>
+      <section class="card gm-npc-section">
+        <h2>Personajes no jugadores</h2>
+        <p class="muted">Un personaje de cada género. Solo se muestra su nombre, apariencia y personalidad; no se revela su ocupación ni su función.</p>
+        <div class="gm-npc-list">
+          {#each gmNpcCharacters as npc (npc.genre)}
+            <article class="gm-npc-card">
+              <div class="gm-npc-heading">
+                <div><small>{GM_NPC_GENRES.find((item) => item.id === npc.genre)?.label}</small><h3>{npc.name}</h3></div>
+                <button class="secondary gm-npc-reroll" aria-label="Generar otro personaje del mismo género" title="Generar otro personaje del mismo género" on:click={() => rerollGmNpc(npc.genre)}>🎲</button>
+              </div>
+              <p><strong>Apariencia:</strong> {npc.appearance}</p>
+              <p><strong>Personalidad:</strong> {npc.personality}</p>
+            </article>
+          {/each}
+        </div>
+      </section>
+      <section class="card gm-npc-notes">
+        <h3>Notas del narrador</h3>
+        <textarea rows="4" bind:value={gmNpcNotes} on:input={saveGmNpcNotes} placeholder="Anota aquí ideas, detalles o información relacionada con estos personajes..."></textarea>
       </section>
     </main>
   {:else if activeTab === 'lineas-velos'}
