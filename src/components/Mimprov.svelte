@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import OBR from '@owlbear-rodeo/sdk';
   import { PartyStore, currentPlayerId, isGM } from '../services/OBRHelper';
+  import { getNameOptions } from '../data/name-library';
 
   const DATA_KEY = 'com.heunithen.dummysheet-mimprov/sheet';
   const STATE_KEY = 'com.heunithen.dummysheet-mimprov/player-states';
@@ -131,6 +132,14 @@
   let character: Character = blankCharacter();
   let loaded = false;
   let step = 0;
+  let nameStyle = 'fantasy';
+  let nameGender = 'masculine';
+  $: nameOptions = getNameOptions(nameStyle, nameGender);
+  function generateRandomName() {
+    if (!nameOptions.length) return;
+    character.name = nameOptions[Math.floor(Math.random() * nameOptions.length)];
+    updateCharacter();
+  }
   let approachDraft: Record<string, number> = { Tenacidad: 0, Control: 0, Astucia: 0, Rapidez: 0 };
   let traitDraft = '';
   let customTraitField = '';
@@ -802,7 +811,20 @@
           <div class="progress"><span style="width:{(step + 1) * 12.5}%"></span></div>
           {#if step === 0}
             <h1>¿Cómo se llama tu personaje?</h1>
-            <label>Nombre<input bind:value={character.name} placeholder="Nombre del personaje"></label>
+            <label>Nombre<input bind:value={character.name} list="mimprov-name-options" placeholder="Nombre del personaje"></label>
+            <datalist id="mimprov-name-options">
+              {#each nameOptions as option}<option value={option}></option>{/each}
+            </datalist>
+            <div class="name-generator">
+              <label>Ambientación<select bind:value={nameStyle}>
+                <option value="fantasy">Fantasía</option><option value="contemporary">Contemporánea</option><option value="futuristic">Futurista</option>
+              </select></label>
+              <label>Tipo de nombre<select bind:value={nameGender}>
+                <option value="masculine">Hombre</option><option value="feminine">Mujer</option><option value="unisex">Unisex</option>
+              </select></label>
+              <button type="button" class="name-dice" on:click={generateRandomName} aria-label="Generar nombre aleatorio">🎲 Generar nombre</button>
+            </div>
+            <small class="muted">Puedes escribir un nombre, elegir una sugerencia al escribir o generar uno al azar con el dado.</small>
           {:else if step === 1}
             <h1>¿Cuál es su concepto?</h1>
             <p>Escribe una frase que describa quién es y qué lo caracteriza.</p>
@@ -1210,6 +1232,10 @@
   .total-points { margin-top:1rem; color:#e1a5a5; font-weight:650; }
   .total-points.valid { color:#9bc99b; }
   .trait-picker { display:grid; grid-template-columns:1fr auto; gap:.5rem; align-items:end; }
+  .name-generator { display:grid; grid-template-columns:1fr 1fr auto; gap:.55rem; align-items:end; margin:.2rem 0 .6rem; }
+  .name-generator label { margin:.5rem 0; }
+  .name-dice { min-height:2.65rem; white-space:nowrap; }
+  @media(max-width:600px) { .name-generator { grid-template-columns:1fr 1fr; } .name-dice { grid-column:1 / -1; } }
   .trait-picker select { grid-column:1; }
   .trait-picker input { grid-column:1; }
   .trait-picker button { grid-column:2; grid-row:1; }
