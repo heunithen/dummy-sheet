@@ -1241,7 +1241,7 @@
         <h2>Líneas</h2>
         <p>Temas o contenidos que no deben aparecer en la partida. Se excluyen por completo.</p>
         <label for="shared-lines">Límites acordados</label>
-        <textarea id="shared-lines" class="shared-safety-text" rows="8" bind:value={linesVeils.lines} on:input={(event) => updateLinesVeils('lines', (event.currentTarget as HTMLTextAreaElement).value)} placeholder="Escribe aquí los temas que no deben aparecer en la partida..."></textarea>
+        <textarea id="shared-lines" class="shared-safety-text" rows="8" bind:value={linesVeils.lines} on:input={(event) => updateLinesVeils('lines', event.currentTarget.value)} placeholder="Escribe aquí los temas que no deben aparecer en la partida..."></textarea>
       </section>
       <section class="card">
         <h2>Velos</h2>
