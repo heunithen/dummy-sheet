@@ -121,12 +121,12 @@
 
   type Item = { id: number; name: string; trait: string };
   type Character = {
-    name: string; concept: string; age: string; appearance: string; experience: string;
+    name: string; concept: string; age: string; appearance: string; experience: string; notes: string;
     approaches: Record<string, number>; traits: string[]; inventory: Item[];
     will: number; maxWill: number; created: boolean;
   };
   const blankCharacter = (): Character => ({
-    name: '', concept: '', age: '', appearance: '', experience: '',
+    name: '', concept: '', age: '', appearance: '', experience: '', notes: '',
     approaches: { Tenacidad: 0, Control: 0, Astucia: 0, Rapidez: 0 },
     traits: [], inventory: [], will: 4, maxWill: 4, created: false
   });
@@ -812,6 +812,7 @@
       <button class:active={activeTab === 'tiradas'} on:click={() => { activeTab = 'tiradas'; }}>Tiradas</button>
       <button class:active={activeTab === 'reglamento'} on:click={() => { activeTab = 'reglamento'; }}>Reglamento</button>
       <button class:active={activeTab === 'magia'} on:click={() => { activeTab = 'magia'; }}>Magia</button>
+      <button class:active={activeTab === 'notas'} on:click={() => { activeTab = 'notas'; }}>Notas</button>
     </nav>
   {:else}
     <nav class="main-tabs">
@@ -1106,6 +1107,17 @@
             <button on:click={() => updateMagicPact(playerId, pact.id, 'accepted')}>Aceptar pacto</button><button class="secondary" on:click={() => updateMagicPact(playerId, pact.id, 'rejected')}>Rechazar</button></div></section>{/each}{/each}
       {#if !Object.values(magicData?.players || {}).some((record) => (record.proposals || []).some((pact) => pact.status === 'pending'))}<section class="card"><p>No hay pactos pendientes de revisión.</p></section>{/if}
     </main>
+  {:else if !$isGM && activeTab === 'notas'}
+    <main class="content notes-content">
+      <div class="eyebrow">CUADERNO DE PARTIDA</div>
+      <h1>Notas</h1>
+      <p class="notes-intro">Anota pistas, nombres, lugares, acontecimientos o cualquier detalle importante de la partida. Tus notas se guardan automáticamente y quedan asociadas a tu jugador.</p>
+      <section class="card">
+        <label for="player-notes">Mis notas</label>
+        <textarea id="player-notes" class="player-notes" bind:value={character.notes} on:input={updateCharacter} placeholder="Escribe aquí tus notas de la partida..." rows="18"></textarea>
+        <small class="muted">Guardado automático.</small>
+      </section>
+    </main>
   {:else if activeTab === 'reglamento'}
     <main class="content rules-content">
       <div class="eyebrow">SISTEMA DE JUEGO</div>
@@ -1222,6 +1234,8 @@
   .main-tabs button.active { color:#f2c879; border-bottom-color:#d5a64b; }
   .content { width:min(900px,92%); margin:0 auto; padding:2rem 0 4rem; }
   .magic-content .magic-intro { margin:.3rem 0 1.2rem; line-height:1.7; }
+  .notes-intro { margin:.3rem 0 1.2rem; line-height:1.7; }
+  .player-notes { min-height:24rem; line-height:1.65; resize:vertical; }
   .magic-content .field-hint { display:block; color:#999; text-align:right; font-size:.75rem; margin-top:.3rem; }
   .magic-content textarea { min-height:7rem; line-height:1.55; }
   .magic-message { color:#f2c879; margin:.8rem 0 0; }
