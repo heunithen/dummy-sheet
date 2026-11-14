@@ -834,7 +834,7 @@
           <div class="progress"><span style="width:{(step + 1) * 12.5}%"></span></div>
           {#if step === 0}
             <h1>¿Cómo se llama tu personaje?</h1>
-            <label>Nombre<input bind:value={character.name} list="mimprov-name-options" placeholder="Nombre del personaje"></label>
+            <label>Nombre y apellido<input bind:value={character.name} list="mimprov-name-options" placeholder="Nombre del personaje"></label>
             <datalist id="mimprov-name-options">
               {#each nameOptions as option}<option value={option}></option>{/each}
             </datalist>
@@ -847,7 +847,7 @@
               </select></label>
               <button type="button" class="name-dice" on:click={generateRandomName} aria-label="Generar nombre aleatorio">🎲 Generar nombre</button>
             </div>
-            <small class="muted">Puedes escribir un nombre, elegir una sugerencia al escribir o generar uno al azar con el dado.</small>
+            <small class="muted">Puedes escribir el nombre completo o generar un nombre y apellido aleatorios.</small>
           {:else if step === 1}
             <h1>¿Cuál es su concepto?</h1>
             <p>Escribe una frase que describa quién es y qué lo caracteriza.</p>
@@ -1296,6 +1296,10 @@
   .concept-generator { grid-template-columns:1fr auto; }
   .name-generator label { margin:.5rem 0; }
   .name-dice { min-height:2.65rem; white-space:nowrap; }
+  .appearance-options { display:grid; gap:.45rem; max-height:18rem; overflow-y:auto; margin:.8rem 0 1rem; padding:.7rem; border:1px solid #484b50; border-radius:6px; background:#202225; }
+  .appearance-options > strong { color:#e8c47f; font-size:.88rem; }
+  .appearance-options button { width:100%; text-align:left; white-space:normal; line-height:1.4; background:#303338; color:#ddd; border-color:#55595e; font-weight:450; }
+  .appearance-options button.chosen { background:#514126; border-color:#d8b66f; color:#fff0c9; }
   @media(max-width:600px) { .name-generator { grid-template-columns:1fr 1fr; } .concept-generator { grid-template-columns:1fr; } .name-dice { grid-column:1 / -1; } }
   .trait-picker select { grid-column:1; }
   .trait-picker input { grid-column:1; }
