@@ -4,7 +4,7 @@
   import { PartyStore, currentPlayerId, isGM } from '../services/OBRHelper';
   import { getNameOptions, getSurnameOptions } from '../data/name-library';
   import { getConceptOptions } from '../data/concept-library';
-  import { APPEARANCE_AGES, getAppearanceOptions, type AppearanceAge, type AppearanceGender } from '../data/appearance-library';
+  import { APPEARANCE_AGES, getRandomAppearance, type AppearanceAge, type AppearanceGender } from '../data/appearance-library';
 
   const DATA_KEY = 'com.heunithen.dummysheet-mimprov/sheet';
   const STATE_KEY = 'com.heunithen.dummysheet-mimprov/player-states';
@@ -149,13 +149,11 @@
   $: conceptOptions = getConceptOptions(conceptGenre);
   let appearanceAge: AppearanceAge = 'young';
   let appearanceGender: AppearanceGender = 'male';
-  $: appearanceOptions = getAppearanceOptions(appearanceAge, appearanceGender);
   function syncAppearanceAge() {
     character.age = APPEARANCE_AGES.find((age) => age.value === appearanceAge)?.label || '';
   }
   function generateRandomAppearance() {
-    if (!appearanceOptions.length) return;
-    character.appearance = appearanceOptions[Math.floor(Math.random() * appearanceOptions.length)];
+    character.appearance = getRandomAppearance(appearanceAge, appearanceGender);
     updateCharacter();
   }
   function generateRandomConcept() {
@@ -874,14 +872,8 @@
               </select></label>
               <button type="button" class="name-dice" on:click={generateRandomAppearance}>🎲 Generar apariencia</button>
             </div>
-            <div class="appearance-options" aria-label="Descripciones de apariencia disponibles">
-              <strong>Descripciones disponibles</strong>
-              {#each appearanceOptions as option, index}
-                <button type="button" class:chosen={character.appearance === option} on:click={() => { character.appearance = option; updateCharacter(); }}>{option}</button>
-              {/each}
-            </div>
-            <label>Apariencia<textarea bind:value={character.appearance} rows="3" placeholder="Descripción física y vestimenta"></textarea></label>
-            <small class="muted">Las descripciones aparecen aquí según la edad y el género seleccionados. Puedes elegir una, generar otra al azar o escribir tu propia descripción.</small>
+            <label>Descripción física<textarea bind:value={character.appearance} rows="3" placeholder="La descripción completa aparecerá aquí. También puedes escribirla o modificarla."></textarea></label>
+            <small class="muted">Cada generación combina al azar rasgos independientes —piel, ojos, cabello, rostro y complexión— en una sola descripción. La selección de rasgos ocurre internamente.</small>
           {:else if step === 4}
             <h1>Distribuye sus Enfoques</h1>
             <p>Reparte exactamente 4 puntos. Cada Enfoque puede tener entre 0 y 2 puntos.</p>
