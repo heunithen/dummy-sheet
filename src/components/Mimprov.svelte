@@ -835,10 +835,11 @@
           {:else if step === 1}
             <h1>¿Cuál es su concepto?</h1>
             <p>Escribe una frase que describa quién es y qué lo caracteriza.</p>
-            <label>Concepto<textarea bind:value={character.concept} list="mimprov-concept-options" rows="3" placeholder="Una exploradora que busca rutas seguras entre ciudades aisladas..."></textarea></label>
-            <datalist id="mimprov-concept-options">
-              {#each conceptOptions as option}<option value={option}></option>{/each}
-            </datalist>
+            <label>Concepto<textarea bind:value={character.concept} rows="3" placeholder="Una exploradora que busca rutas seguras entre ciudades aisladas..."></textarea></label>
+            <label>Sugerencias de concepto<select on:change={(event) => { if (event.currentTarget.value) character.concept = event.currentTarget.value; }}>
+              <option value="">Elegir una sugerencia...</option>
+              {#each conceptOptions as option}<option value={option}>{option}</option>{/each}
+            </select></label>
             <div class="name-generator concept-generator">
               <label>Género narrativo<select bind:value={conceptGenre}>
                 <option value="fantasy">Fantasía</option><option value="scifi">Ciencia ficción</option><option value="horror">Terror</option><option value="modern">Contemporáneo / urbano</option><option value="postapocalyptic">Postapocalíptico</option>
