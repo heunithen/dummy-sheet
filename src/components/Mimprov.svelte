@@ -4,6 +4,7 @@
   import { PartyStore, currentPlayerId, isGM } from '../services/OBRHelper';
   import { getNameOptions } from '../data/name-library';
   import { getConceptOptions } from '../data/concept-library';
+  import { APPEARANCE_AGES, getAppearanceOptions, type AppearanceAge, type AppearanceGender } from '../data/appearance-library';
 
   const DATA_KEY = 'com.heunithen.dummysheet-mimprov/sheet';
   const STATE_KEY = 'com.heunithen.dummysheet-mimprov/player-states';
@@ -143,6 +144,17 @@
   }
   let conceptGenre = 'fantasy';
   $: conceptOptions = getConceptOptions(conceptGenre);
+  let appearanceAge: AppearanceAge = 'young';
+  let appearanceGender: AppearanceGender = 'male';
+  $: appearanceOptions = getAppearanceOptions(appearanceAge, appearanceGender);
+  function syncAppearanceAge() {
+    character.age = APPEARANCE_AGES.find((age) => age.value === appearanceAge)?.label || '';
+  }
+  function generateRandomAppearance() {
+    if (!appearanceOptions.length) return;
+    character.appearance = appearanceOptions[Math.floor(Math.random() * appearanceOptions.length)];
+    updateCharacter();
+  }
   function generateRandomConcept() {
     if (!conceptOptions.length) return;
     character.concept = conceptOptions[Math.floor(Math.random() * conceptOptions.length)];
@@ -852,7 +864,22 @@
             <label>Edad<input bind:value={character.age} placeholder="Edad o rango aproximado"></label>
           {:else if step === 3}
             <h1>¿Cómo es su apariencia?</h1>
+            <p>Elige un rango de edad y si el personaje es hombre o mujer para recibir descripciones físicas generales que puedas usar o modificar.</p>
+            <div class="name-generator">
+              <label>Rango de edad<select bind:value={appearanceAge} on:change={syncAppearanceAge}>
+                {#each APPEARANCE_AGES as age}<option value={age.value}>{age.label}</option>{/each}
+              </select></label>
+              <label>Género<select bind:value={appearanceGender}>
+                <option value="male">Hombre</option><option value="female">Mujer</option>
+              </select></label>
+              <button type="button" class="name-dice" on:click={generateRandomAppearance}>🎲 Generar apariencia</button>
+            </div>
+            <label>Sugerencias de apariencia<select on:change={(event) => { if (event.currentTarget.value) character.appearance = event.currentTarget.value; }}>
+              <option value="">Elegir una descripción...</option>
+              {#each appearanceOptions as option}<option value={option}>{option}</option>{/each}
+            </select></label>
             <label>Apariencia<textarea bind:value={character.appearance} rows="3" placeholder="Descripción física y vestimenta"></textarea></label>
+            <small class="muted">Puedes elegir una sugerencia, generar una al azar o escribir tu propia descripción. Todas son editables.</small>
           {:else if step === 4}
             <h1>Distribuye sus Enfoques</h1>
             <p>Reparte exactamente 4 puntos. Cada Enfoque puede tener entre 0 y 2 puntos.</p>
