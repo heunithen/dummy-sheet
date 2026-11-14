@@ -175,7 +175,7 @@ export function getAppearanceOptions(age: AppearanceAge, gender: AppearanceGende
     for (let j = 0; j < data.hair.length; j++) {
       const build = data.build[(i + j) % data.build.length];
       const bearing = data.bearing[(i * 2 + j) % data.bearing.length];
-      results.push(`Un ${person} de ${data.face[i]}, ${data.hair[j]}, ${build} y ${bearing}.`);
+      results.push(`${gender === 'female' ? 'Una' : 'Un'} ${person} de ${data.face[i]}, ${data.hair[j]}, ${build} y ${bearing}.`);
     }
   }
   return results.slice(0, 25);
