@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import OBR from '@owlbear-rodeo/sdk';
   import { PartyStore, currentPlayerId, isGM } from '../services/OBRHelper';
-  import { getNameOptions } from '../data/name-library';
+  import { getNameOptions, getSurnameOptions } from '../data/name-library';
   import { getConceptOptions } from '../data/concept-library';
   import { APPEARANCE_AGES, getAppearanceOptions, type AppearanceAge, type AppearanceGender } from '../data/appearance-library';
 
@@ -138,8 +138,11 @@
   let nameGender = 'masculine';
   $: nameOptions = getNameOptions(nameStyle, nameGender);
   function generateRandomName() {
-    if (!nameOptions.length) return;
-    character.name = nameOptions[Math.floor(Math.random() * nameOptions.length)];
+    const surnames = getSurnameOptions(nameStyle);
+    if (!nameOptions.length || !surnames.length) return;
+    const firstName = nameOptions[Math.floor(Math.random() * nameOptions.length)];
+    const surname = surnames[Math.floor(Math.random() * surnames.length)];
+    character.name = `${firstName} ${surname}`;
     updateCharacter();
   }
   let conceptGenre = 'fantasy';
@@ -849,17 +852,13 @@
             <h1>¿Cuál es su concepto?</h1>
             <p>Escribe una frase que describa quién es y qué lo caracteriza.</p>
             <label>Concepto<textarea bind:value={character.concept} rows="3" placeholder="Una exploradora que busca rutas seguras entre ciudades aisladas..."></textarea></label>
-            <label>Sugerencias de concepto<select on:change={(event) => { if (event.currentTarget.value) character.concept = event.currentTarget.value; }}>
-              <option value="">Elegir una sugerencia...</option>
-              {#each conceptOptions as option}<option value={option}>{option}</option>{/each}
-            </select></label>
             <div class="name-generator concept-generator">
               <label>Género narrativo<select bind:value={conceptGenre}>
                 <option value="fantasy">Fantasía</option><option value="scifi">Ciencia ficción</option><option value="horror">Terror</option><option value="modern">Contemporáneo / urbano</option><option value="postapocalyptic">Postapocalíptico</option>
               </select></label>
               <button type="button" class="name-dice" on:click={generateRandomConcept} aria-label="Generar concepto aleatorio">🎲 Generar concepto</button>
             </div>
-            <small class="muted">Elige un género para ver sugerencias o genera una frase aleatoria. Puedes editarla libremente.</small>
+            <small class="muted">Elige un género y genera una frase aleatoria. Puedes editarla libremente.</small>
           {:else if step === 2}
             <h1>¿Qué edad tiene?</h1>
             <label>Edad<input bind:value={character.age} placeholder="Edad o rango aproximado"></label>
@@ -875,12 +874,14 @@
               </select></label>
               <button type="button" class="name-dice" on:click={generateRandomAppearance}>🎲 Generar apariencia</button>
             </div>
-            <label>Sugerencias de apariencia<select on:change={(event) => { if (event.currentTarget.value) character.appearance = event.currentTarget.value; }}>
-              <option value="">Elegir una descripción...</option>
-              {#each appearanceOptions as option}<option value={option}>{option}</option>{/each}
-            </select></label>
+            <div class="appearance-options" aria-label="Descripciones de apariencia disponibles">
+              <strong>Descripciones disponibles</strong>
+              {#each appearanceOptions as option, index}
+                <button type="button" class:chosen={character.appearance === option} on:click={() => { character.appearance = option; updateCharacter(); }}>{option}</button>
+              {/each}
+            </div>
             <label>Apariencia<textarea bind:value={character.appearance} rows="3" placeholder="Descripción física y vestimenta"></textarea></label>
-            <small class="muted">Puedes elegir una sugerencia, generar una al azar o escribir tu propia descripción. Todas son editables.</small>
+            <small class="muted">Las descripciones aparecen aquí según la edad y el género seleccionados. Puedes elegir una, generar otra al azar o escribir tu propia descripción.</small>
           {:else if step === 4}
             <h1>Distribuye sus Enfoques</h1>
             <p>Reparte exactamente 4 puntos. Cada Enfoque puede tener entre 0 y 2 puntos.</p>
