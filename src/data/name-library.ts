@@ -86,3 +86,40 @@ export function getNameOptions(style: string, gender: string): string[] {
   if (style === "futuristic") return combine(base, futuristicEndings);
   return [...new Set(base)].sort((a,b) => a.localeCompare(b, "es"));
 }
+
+
+const contemporarySurnames = [
+  "Muñoz","González","Rojas","Díaz","Pérez","Soto","Contreras","Silva","Martínez","Sepúlveda",
+  "Fuentes","Gómez","Torres","Vargas","Castro","Álvarez","Romero","Navarro","Herrera","Medina",
+  "Schmidt","Schneider","Fischer","Weber","Meyer","Wagner","Becker","Hoffmann","Schulz","Bauer",
+  "Smith","Brown","Taylor","Wilson","Davies","Evans","Miller","Anderson","Clark","Walker",
+  "Martin","Bernard","Dubois","Thomas","Robert","Richard","Petit","Durand","Leroy","Moreau",
+  "Rossi","Russo","Ferrari","Esposito","Bianchi","Romano","Colombo","Ricci","Marino","Greco",
+  "Silva","Santos","Ferreira","Pereira","Oliveira","Costa","Rodrigues","Martins","Sousa","Almeida",
+  "Jansen","de Vries","Bakker","Visser","Smit","Meijer","de Jong","Mulder","Bos","Vos",
+  "Andersson","Johansson","Karlsson","Nilsson","Eriksson","Lindberg","Hansen","Nielsen","Larsen","Berg",
+  "Novák","Svoboda","Dvořák","Černý","Kowalski","Nowak","Horváth","Nagy","Popescu","Ionescu"
+];
+const fantasySurnameRoots = [
+  "Alder","Ash","Black","Bright","Dawn","Dusk","Elder","Ember","Fallow","Frost","Gold","Green",
+  "Hallow","Iron","Moon","Night","Oak","Raven","Silver","Storm","Thorn","Vale","Winter","Wyrm"
+];
+const fantasySurnameEnds = [
+  "bane","brook","caller","crest","fall","field","flame","ford","guard","hall","heart","keep",
+  "mantle","mere","more","ridge","shade","shield","song","spire","stone","thorn","walker","watch"
+];
+const futuristicSurnames = [
+  "Vex","Kade","Nox","Strix","Quell","Stryker","Voss","Korr","Zane","Rhyse","Kest","Dray",
+  "Axon","Cairn","Drex","Halix","Juno","Krynn","Mordax","Nero","Orlov","Pryce","Rax","Soren",
+  "Talon","Veyr","Xant","Zorin","Ardent","Cobalt","Daxon","Echelon","Kross","Novak","Riven"
+];
+
+export function getSurnameOptions(style: string): string[] {
+  if (style === "fantasy") {
+    return fantasySurnameRoots.flatMap((root) =>
+      fantasySurnameEnds.map((ending) => root + ending)
+    );
+  }
+  if (style === "futuristic") return futuristicSurnames;
+  return contemporarySurnames;
+}
