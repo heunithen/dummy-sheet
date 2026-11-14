@@ -3,6 +3,7 @@
   import OBR from '@owlbear-rodeo/sdk';
   import { PartyStore, currentPlayerId, isGM } from '../services/OBRHelper';
   import { getNameOptions } from '../data/name-library';
+  import { getConceptOptions } from '../data/concept-library';
 
   const DATA_KEY = 'com.heunithen.dummysheet-mimprov/sheet';
   const STATE_KEY = 'com.heunithen.dummysheet-mimprov/player-states';
@@ -139,6 +140,12 @@
     if (!nameOptions.length) return;
     character.name = nameOptions[Math.floor(Math.random() * nameOptions.length)];
     updateCharacter();
+  }
+  let conceptGenre = 'fantasy';
+  $: conceptOptions = getConceptOptions(conceptGenre);
+  function generateRandomConcept() {
+    if (!conceptOptions.length) return;
+    character.concept = conceptOptions[Math.floor(Math.random() * conceptOptions.length)];
   }
   let approachDraft: Record<string, number> = { Tenacidad: 0, Control: 0, Astucia: 0, Rapidez: 0 };
   let traitDraft = '';
@@ -828,7 +835,17 @@
           {:else if step === 1}
             <h1>¿Cuál es su concepto?</h1>
             <p>Escribe una frase que describa quién es y qué lo caracteriza.</p>
-            <label>Concepto<textarea bind:value={character.concept} rows="3" placeholder="Un exsoldado que ahora protege caravanas..."></textarea></label>
+            <label>Concepto<textarea bind:value={character.concept} list="mimprov-concept-options" rows="3" placeholder="Una exploradora que busca rutas seguras entre ciudades aisladas..."></textarea></label>
+            <datalist id="mimprov-concept-options">
+              {#each conceptOptions as option}<option value={option}></option>{/each}
+            </datalist>
+            <div class="name-generator concept-generator">
+              <label>Género narrativo<select bind:value={conceptGenre}>
+                <option value="fantasy">Fantasía</option><option value="scifi">Ciencia ficción</option><option value="horror">Terror</option><option value="modern">Contemporáneo / urbano</option><option value="postapocalyptic">Postapocalíptico</option>
+              </select></label>
+              <button type="button" class="name-dice" on:click={generateRandomConcept} aria-label="Generar concepto aleatorio">🎲 Generar concepto</button>
+            </div>
+            <small class="muted">Elige un género para ver sugerencias o genera una frase aleatoria. Puedes editarla libremente.</small>
           {:else if step === 2}
             <h1>¿Qué edad tiene?</h1>
             <label>Edad<input bind:value={character.age} placeholder="Edad o rango aproximado"></label>
@@ -1233,9 +1250,10 @@
   .total-points.valid { color:#9bc99b; }
   .trait-picker { display:grid; grid-template-columns:1fr auto; gap:.5rem; align-items:end; }
   .name-generator { display:grid; grid-template-columns:1fr 1fr auto; gap:.55rem; align-items:end; margin:.2rem 0 .6rem; }
+  .concept-generator { grid-template-columns:1fr auto; }
   .name-generator label { margin:.5rem 0; }
   .name-dice { min-height:2.65rem; white-space:nowrap; }
-  @media(max-width:600px) { .name-generator { grid-template-columns:1fr 1fr; } .name-dice { grid-column:1 / -1; } }
+  @media(max-width:600px) { .name-generator { grid-template-columns:1fr 1fr; } .concept-generator { grid-template-columns:1fr; } .name-dice { grid-column:1 / -1; } }
   .trait-picker select { grid-column:1; }
   .trait-picker input { grid-column:1; }
   .trait-picker button { grid-column:2; grid-row:1; }
