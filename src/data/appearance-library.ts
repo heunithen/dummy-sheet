@@ -1,7 +1,7 @@
 type AppearanceAge = 'child' | 'teen' | 'young' | 'adult' | 'older';
 type AppearanceGender = 'male' | 'female';
 
-const DATA: Record<AppearanceAge, { person: Record<AppearanceGender, string>; face: string[]; hair: string[]; build: string[]; bearing: string[] }> = {
+const DATA: Record<AppearanceAge, { person: Record<AppearanceGender, string>; face: string[]; hair: string[]; build: string[]; bearing: string[]; impression: string[] }> = {
   "child": {
     "person": {
       "male": "niño",
@@ -171,11 +171,12 @@ export function getAppearanceOptions(age: AppearanceAge, gender: AppearanceGende
   const data = DATA[age] || DATA.adult;
   const person = data.person[gender] || data.person.male;
   const results: string[] = [];
+  const impressions = ['de aspecto atractivo y facciones armoniosas', 'de rasgos poco agraciados y aspecto corriente', 'de apariencia llamativa y difícil de olvidar', 'de aspecto común, sin rasgos especialmente destacados', 'de facciones toscas y aspecto descuidado'];
   for (let i = 0; i < data.face.length; i++) {
     for (let j = 0; j < data.hair.length; j++) {
       const build = data.build[(i + j) % data.build.length];
       const bearing = data.bearing[(i * 2 + j) % data.bearing.length];
-      results.push(`${gender === 'female' ? 'Una' : 'Un'} ${person} de ${data.face[i]}, ${data.hair[j]}, ${build} y ${bearing}.`);
+      results.push(`${gender === 'female' ? 'Una' : 'Un'} ${person} de ${data.face[i]}, ${data.hair[j]}, ${build}, ${bearing} y ${impressions[(i + j) % impressions.length]}.`);
     }
   }
   return results.slice(0, 25);
