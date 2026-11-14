@@ -5,6 +5,7 @@
   import { getNameOptions, getSurnameOptions } from '../data/name-library';
   import { getConceptOptions } from '../data/concept-library';
   import { APPEARANCE_AGES, getRandomAppearance, type AppearanceAge, type AppearanceGender } from '../data/appearance-library';
+  import { GM_NPC_GENRES, getRandomGmNpcPersonality, type GmNpcGenre } from '../data/gm-npc-library';
 
   const DATA_KEY = 'com.heunithen.dummysheet-mimprov/sheet';
   const STATE_KEY = 'com.heunithen.dummysheet-mimprov/player-states';
@@ -175,6 +176,8 @@
   let conflictActive = false;
   let conflictDanger = 'Bajo';
   let gmLoaded = false;
+  type GmNpc = { genre: GmNpcGenre; name: string; appearance: string; personality: string };
+  let gmNpcCharacters: GmNpc[] = [];
   let visibleStates: string[] = [];
   let visibleOverexertionUsed = 0;
   let selectedPlayerId = '';
@@ -577,7 +580,53 @@
     }
   });
 
+  function createGmNpc(genre: GmNpcGenre): GmNpc {
+    const genreConfig = GM_NPC_GENRES.find((item) => item.id === genre) || GM_NPC_GENRES[0];
+    const gender = Math.random() < 0.5 ? 'masculine' : 'feminine';
+    const appearanceGender: AppearanceGender = gender === 'feminine' ? 'female' : 'male';
+    const age = APPEARANCE_AGES[Math.floor(Math.random() * APPEARANCE_AGES.length)].value;
+    const firstNames = getNameOptions(genreConfig.nameStyle, gender);
+    const surnames = getSurnameOptions(genreConfig.nameStyle);
+    const firstName = firstNames[Math.floor(Math.random() * firstNames.length)] || 'Alex';
+    const surname = surnames[Math.floor(Math.random() * surnames.length)] || 'Silva';
+    return {
+      genre,
+      name: `${firstName} ${surname}`,
+      appearance: getRandomAppearance(age, appearanceGender),
+      personality: getRandomGmNpcPersonality(genre)
+    };
+  }
+
+  function saveGmNpcCharacters() {
+    const room = OBR.isAvailable ? OBR.room.id : 'local';
+    localStorage.setItem('mimprov-gm-npcs-v1-' + room, JSON.stringify(gmNpcCharacters));
+  }
+
+  function loadGmNpcCharacters() {
+    const room = OBR.isAvailable ? OBR.room.id : 'local';
+    const key = 'mimprov-gm-npcs-v1-' + room;
+    try {
+      const raw = localStorage.getItem(key);
+      const stored = raw ? JSON.parse(raw) : [];
+      const valid = Array.isArray(stored) && GM_NPC_GENRES.every((genre) =>
+        stored.some((npc: any) => npc?.genre === genre.id && npc.name && npc.appearance && npc.personality)
+      );
+      gmNpcCharacters = valid
+        ? GM_NPC_GENRES.map((genre) => stored.find((npc: GmNpc) => npc.genre === genre.id))
+        : GM_NPC_GENRES.map((genre) => createGmNpc(genre.id));
+    } catch {
+      gmNpcCharacters = GM_NPC_GENRES.map((genre) => createGmNpc(genre.id));
+    }
+    saveGmNpcCharacters();
+  }
+
+  function rerollGmNpc(genre: GmNpcGenre) {
+    gmNpcCharacters = gmNpcCharacters.map((npc) => npc.genre === genre ? createGmNpc(genre) : npc);
+    saveGmNpcCharacters();
+  }
+
   function loadGmTracker() {
+    loadGmNpcCharacters();
     try {
       const room = OBR.isAvailable ? OBR.room.id : 'local';
       const raw = localStorage.getItem('mimprov-gm-v1-' + room);
@@ -1018,6 +1067,22 @@
       {#if activeTab === 'gm'}
       <div class="eyebrow">HERRAMIENTAS DEL NARRADOR</div><h1>Personajes</h1>
       <p class="muted">Seguimiento independiente. Estos controles no modifican las fichas de los jugadores.</p>
+      <section class="card gm-npc-section">
+        <h2>Personajes no jugadores</h2>
+        <p class="muted">Un personaje de cada género. Solo se muestra su nombre, apariencia y personalidad; no se revela su ocupación ni su función.</p>
+        <div class="gm-npc-list">
+          {#each gmNpcCharacters as npc (npc.genre)}
+            <article class="gm-npc-card">
+              <div class="gm-npc-heading">
+                <div><small>{GM_NPC_GENRES.find((item) => item.id === npc.genre)?.label}</small><h3>{npc.name}</h3></div>
+                <button class="secondary gm-npc-reroll" aria-label="Generar otro personaje del mismo género" title="Generar otro personaje del mismo género" on:click={() => rerollGmNpc(npc.genre)}>🎲</button>
+              </div>
+              <p><strong>Apariencia:</strong> {npc.appearance}</p>
+              <p><strong>Personalidad:</strong> {npc.personality}</p>
+            </article>
+          {/each}
+        </div>
+      </section>
       <section class="card"><h2>Personajes de la sala</h2>
         {#if partyMembers.length === 0}
           <p>No hay personajes creados en la sala.</p>
@@ -1346,6 +1411,14 @@
   .state-badge { display:inline-block; padding:.4rem .75rem; border:1px solid #9b6262; border-radius:5px; background:#492e32; color:#ffd6d6; font-weight:650; }
   .extra-info p { margin:.4rem 0; }
   .gm-content > h1 { margin-bottom:0; }
+  .gm-npc-list { display:grid; gap:.7rem; }
+  .gm-npc-card { padding:.9rem; border:1px solid #484b50; border-radius:7px; background:#222427; }
+  .gm-npc-heading { display:flex; align-items:center; justify-content:space-between; gap:1rem; }
+  .gm-npc-heading small { color:#c19a54; letter-spacing:.08em; text-transform:uppercase; font-size:.7rem; font-weight:700; }
+  .gm-npc-heading h3 { margin:.2rem 0 .5rem; }
+  .gm-npc-card p { margin:.45rem 0 0; line-height:1.6; }
+  .gm-npc-card p strong { color:#e8c47f; }
+  .gm-npc-reroll { width:2.6rem; height:2.6rem; padding:0; font-size:1.2rem; }
   .character-tabs { display:flex; flex-wrap:wrap; gap:.4rem; margin:.8rem 0 1rem; border-bottom:1px solid #444; padding-bottom:.6rem; }
   .character-tabs button { background:#292929; color:#ddd; border:1px solid #555; border-radius:6px; padding:.55rem .8rem; cursor:pointer; }
   .character-tabs button.active { background:#6d542b; border-color:#d8b66f; color:#fff; }
