@@ -1247,7 +1247,7 @@
         <h2>Velos</h2>
         <p>Temas que pueden existir en la historia, pero que no se describen en detalle ni se representan directamente. Se dejan fuera de escena.</p>
         <label for="shared-veils">Contenidos que quedan fuera de escena</label>
-        <textarea id="shared-veils" class="shared-safety-text" rows="8" bind:value={linesVeils.veils} on:input={(event) => updateLinesVeils('veils', (event.currentTarget as HTMLTextAreaElement).value)} placeholder="Escribe aquí los temas que pueden existir, pero deben quedar fuera de escena..."></textarea>
+        <textarea id="shared-veils" class="shared-safety-text" rows="8" bind:value={linesVeils.veils} on:input={(event) => updateLinesVeils('veils', event.currentTarget.value)} placeholder="Escribe aquí los temas que pueden existir, pero deben quedar fuera de escena..."></textarea>
       </section>
       <p class="sync-note">Los cambios se comparten con todos los participantes de la sala y cualquiera puede editarlos o eliminarlos.</p>
     </main>
