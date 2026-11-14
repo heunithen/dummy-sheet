@@ -19,6 +19,8 @@
   const PLAYER_MAGIC_KEY = 'com.heunithen.dummysheet-mimprov/player-magic';
   const MAGIC_SUBMIT_CHANNEL = 'com.heunithen.dummysheet-mimprov/magic-submit';
   const MAGIC_APPROVED_CHANNEL = 'com.heunithen.dummysheet-mimprov/magic-approved';
+  const LINES_VEILS_KEY = 'com.heunithen.dummysheet-mimprov/lines-veils';
+  const LINES_VEILS_REQUEST_CHANNEL = 'com.heunithen.dummysheet-mimprov/lines-veils-update';
   const STATES = [
     { name: 'Mermado', enfoque: 'Rapidez', detail: 'Lesión o limitación física.' },
     { name: 'Deprimido', enfoque: 'Tenacidad', detail: 'Enfermedad, intoxicación o debilidad.' },
@@ -179,6 +181,7 @@
   type GmNpc = { genre: GmNpcGenre; name: string; appearance: string; personality: string };
   let gmNpcCharacters: GmNpc[] = [];
   let gmNpcNotes = '';
+  let linesVeils: { lines: string; veils: string } = { lines: '', veils: '' };
   let visibleStates: string[] = [];
   let visibleOverexertionUsed = 0;
   let selectedPlayerId = '';
@@ -194,7 +197,7 @@
   $: approachValid = approachTotal === 4 && APPROACHES.every(name => approachDraft[name] >= 0 && approachDraft[name] <= 2);
   $: myPlayer = $PartyStore.find(p => p.id === $currentPlayerId);
   // El rol llega de forma asíncrona desde Owlbear. Asegura una pestaña válida al cambiar de rol.
-  $: if ($isGM && activeTab !== 'gm' && activeTab !== 'conflicto' && activeTab !== 'reglamento' && activeTab !== 'magia-gm') activeTab = 'gm';
+  $: if ($isGM && activeTab !== 'gm' && activeTab !== 'conflicto' && activeTab !== 'reglamento' && activeTab !== 'magia-gm' && activeTab !== 'lineas-velos') activeTab = 'gm';
   $: if (!$isGM && (activeTab === 'gm' || activeTab === 'conflicto' || activeTab === 'magia-gm')) activeTab = 'personaje';
   $: partyMembers = $PartyStore.filter(p => p.role !== 'GM' && getPlayerCharacter(p)?.created === true);
   $: if ($isGM && partyMembers.length && !partyMembers.some(p => p.id === selectedPlayerId)) selectedPlayerId = partyMembers[0].id;
@@ -449,6 +452,28 @@
       OBR.onReady(async () => {
         try {
           const role = await OBR.player.getRole();
+          const syncLinesVeils = (metadata: any) => {
+            const shared = metadata?.[LINES_VEILS_KEY] || { lines: '', veils: '' };
+            linesVeils = { lines: String(shared.lines || ''), veils: String(shared.veils || '') };
+            const room = OBR.room.id;
+            localStorage.setItem('mimprov-lines-veils-v1-' + room, JSON.stringify(linesVeils));
+          };
+          syncLinesVeils(await OBR.room.getMetadata());
+          OBR.room.onMetadataChange(syncLinesVeils);
+          OBR.broadcast.onMessage(LINES_VEILS_REQUEST_CHANNEL, async (event) => {
+            if (role !== 'GM') return;
+            const data = event.data as any;
+            if (!data || !['lines', 'veils'].includes(data.field) || typeof data.value !== 'string') return;
+            try {
+              const party = await OBR.party.getPlayers();
+              const sender = party.find((p: any) => p.connectionId === event.connectionId);
+              if (!sender || (sender.role !== 'PLAYER' && sender.role !== 'GM')) return;
+              const current = (await OBR.room.getMetadata())?.[LINES_VEILS_KEY] || { lines: '', veils: '' };
+              await OBR.room.setMetadata({ [LINES_VEILS_KEY]: { ...current, [data.field]: data.value.slice(0, 20000) } });
+            } catch (error) {
+              console.error('No se pudieron sincronizar las líneas y velos', error);
+            }
+          });
           if (role === 'PLAYER') {
             const metadata = await OBR.player.getMetadata();
             if (metadata[DATA_KEY]) {
@@ -601,6 +626,19 @@
   function saveGmNpcCharacters() {
     const room = OBR.isAvailable ? OBR.room.id : 'local';
     localStorage.setItem('mimprov-gm-npcs-v1-' + room, JSON.stringify(gmNpcCharacters));
+  }
+
+  function updateLinesVeils(field: 'lines' | 'veils', value: string) {
+    linesVeils = { ...linesVeils, [field]: value };
+    if (!OBR.isAvailable) {
+      localStorage.setItem('mimprov-lines-veils-local', JSON.stringify(linesVeils));
+      return;
+    }
+    if ($isGM) {
+      OBR.room.setMetadata({ [LINES_VEILS_KEY]: { ...linesVeils } }).catch((error) => console.error('No se pudieron guardar las líneas y velos', error));
+    } else {
+      OBR.broadcast.sendMessage(LINES_VEILS_REQUEST_CHANNEL, { field, value }).catch((error) => console.error('No se pudo enviar el cambio de líneas y velos', error));
+    }
   }
 
   function loadGmNpcNotes() {
@@ -875,6 +913,7 @@
       <button class:active={activeTab === 'reglamento'} on:click={() => { activeTab = 'reglamento'; }}>Reglamento</button>
       <button class:active={activeTab === 'magia'} on:click={() => { activeTab = 'magia'; }}>Magia</button>
       <button class:active={activeTab === 'notas'} on:click={() => { activeTab = 'notas'; }}>Notas</button>
+      <button class:active={activeTab === 'lineas-velos'} on:click={() => { activeTab = 'lineas-velos'; }}>Líneas y velos</button>
     </nav>
   {:else}
     <nav class="main-tabs">
@@ -882,6 +921,7 @@
       <button class:active={activeTab === 'conflicto'} on:click={() => { activeTab = 'conflicto'; }}>Conflicto</button>
       <button class:active={activeTab === 'reglamento'} on:click={() => { activeTab = 'reglamento'; }}>Reglamento</button>
       <button class:active={activeTab === 'magia-gm'} on:click={() => { activeTab = 'magia-gm'; }}>Magia</button>
+      <button class:active={activeTab === 'lineas-velos'} on:click={() => { activeTab = 'lineas-velos'; }}>Líneas y velos</button>
     </nav>
   {/if}
 
@@ -1192,6 +1232,25 @@
         <small class="muted">Guardado automático.</small>
       </section>
     </main>
+  {:else if activeTab === 'lineas-velos'}
+    <main class="content lines-veils-content">
+      <div class="eyebrow">ACUERDOS DE SEGURIDAD DE LA PARTIDA</div>
+      <h1>Líneas y velos</h1>
+      <p class="notes-intro">Estos acuerdos son compartidos por toda la mesa. Cualquier participante puede leerlos, añadir contenido, modificarlo o borrarlo en cualquier momento.</p>
+      <section class="card">
+        <h2>Líneas</h2>
+        <p>Temas o contenidos que no deben aparecer en la partida. Se excluyen por completo.</p>
+        <label for="shared-lines">Límites acordados</label>
+        <textarea id="shared-lines" class="shared-safety-text" rows="8" bind:value={linesVeils.lines} on:input={(event) => updateLinesVeils('lines', (event.currentTarget as HTMLTextAreaElement).value)} placeholder="Escribe aquí los temas que no deben aparecer en la partida..."></textarea>
+      </section>
+      <section class="card">
+        <h2>Velos</h2>
+        <p>Temas que pueden existir en la historia, pero que no se describen en detalle ni se representan directamente. Se dejan fuera de escena.</p>
+        <label for="shared-veils">Contenidos que quedan fuera de escena</label>
+        <textarea id="shared-veils" class="shared-safety-text" rows="8" bind:value={linesVeils.veils} on:input={(event) => updateLinesVeils('veils', (event.currentTarget as HTMLTextAreaElement).value)} placeholder="Escribe aquí los temas que pueden existir, pero deben quedar fuera de escena..."></textarea>
+      </section>
+      <p class="sync-note">Los cambios se comparten con todos los participantes de la sala y cualquiera puede editarlos o eliminarlos.</p>
+    </main>
   {:else if activeTab === 'reglamento'}
     <main class="content rules-content">
       <div class="eyebrow">SISTEMA DE JUEGO</div>
@@ -1310,6 +1369,7 @@
   .magic-content .magic-intro { margin:.3rem 0 1.2rem; line-height:1.7; }
   .notes-intro { margin:.3rem 0 1.2rem; line-height:1.7; }
   .player-notes { min-height:24rem; line-height:1.65; resize:vertical; }
+  .shared-safety-text { min-height:12rem; line-height:1.65; resize:vertical; }
   .magic-content .field-hint { display:block; color:#999; text-align:right; font-size:.75rem; margin-top:.3rem; }
   .magic-content textarea { min-height:7rem; line-height:1.55; }
   .magic-message { color:#f2c879; margin:.8rem 0 0; }
