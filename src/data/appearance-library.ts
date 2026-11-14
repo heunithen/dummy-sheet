@@ -1,7 +1,7 @@
-type AppearanceAge = 'child' | 'teen' | 'young' | 'adult' | 'older';
-type AppearanceGender = 'male' | 'female';
+export type AppearanceAge = 'child' | 'teen' | 'young' | 'adult' | 'older';
+export type AppearanceGender = 'male' | 'female';
 
-const DATA: Record<AppearanceAge, { person: Record<AppearanceGender, string>; face: string[]; hair: string[]; build: string[]; bearing: string[]; impression: string[] }> = {
+const DATA: Record<AppearanceAge, { person: Record<AppearanceGender, string>; face: string[]; hair: string[]; build: string[]; bearing: string[] }> = {
   "child": {
     "person": {
       "male": "niño",
