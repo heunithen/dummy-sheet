@@ -178,6 +178,7 @@
   let gmLoaded = false;
   type GmNpc = { genre: GmNpcGenre; name: string; appearance: string; personality: string };
   let gmNpcCharacters: GmNpc[] = [];
+  let gmNpcNotes = '';
   let visibleStates: string[] = [];
   let visibleOverexertionUsed = 0;
   let selectedPlayerId = '';
@@ -602,6 +603,16 @@
     localStorage.setItem('mimprov-gm-npcs-v1-' + room, JSON.stringify(gmNpcCharacters));
   }
 
+  function loadGmNpcNotes() {
+    const room = OBR.isAvailable ? OBR.room.id : 'local';
+    gmNpcNotes = localStorage.getItem('mimprov-gm-npc-notes-v1-' + room) || '';
+  }
+
+  function saveGmNpcNotes() {
+    const room = OBR.isAvailable ? OBR.room.id : 'local';
+    localStorage.setItem('mimprov-gm-npc-notes-v1-' + room, gmNpcNotes);
+  }
+
   function loadGmNpcCharacters() {
     const room = OBR.isAvailable ? OBR.room.id : 'local';
     const key = 'mimprov-gm-npcs-v1-' + room;
@@ -627,6 +638,7 @@
 
   function loadGmTracker() {
     loadGmNpcCharacters();
+    loadGmNpcNotes();
     try {
       const room = OBR.isAvailable ? OBR.room.id : 'local';
       const raw = localStorage.getItem('mimprov-gm-v1-' + room);
@@ -1083,7 +1095,11 @@
           {/each}
         </div>
       </section>
-      <section class="card"><h2>Personajes de la sala</h2>
+      <section class="card gm-npc-notes">
+        <h3>Notas del narrador</h3>
+        <textarea rows="4" bind:value={gmNpcNotes} on:input={saveGmNpcNotes} placeholder="Anota aquí ideas, detalles o información relacionada con estos personajes..."></textarea>
+      </section>
+            <section class="card"><h2>Personajes de la sala</h2>
         {#if partyMembers.length === 0}
           <p>No hay personajes creados en la sala.</p>
         {:else}
@@ -1419,6 +1435,8 @@
   .gm-npc-card p { margin:.45rem 0 0; line-height:1.6; }
   .gm-npc-card p strong { color:#e8c47f; }
   .gm-npc-reroll { width:2.6rem; height:2.6rem; padding:0; font-size:1.2rem; }
+  .gm-npc-notes h3 { margin:0 0 .6rem; }
+  .gm-npc-notes textarea { width:100%; min-height:5.5rem; resize:vertical; box-sizing:border-box; }
   .character-tabs { display:flex; flex-wrap:wrap; gap:.4rem; margin:.8rem 0 1rem; border-bottom:1px solid #444; padding-bottom:.6rem; }
   .character-tabs button { background:#292929; color:#ddd; border:1px solid #555; border-radius:6px; padding:.55rem .8rem; cursor:pointer; }
   .character-tabs button.active { background:#6d542b; border-color:#d8b66f; color:#fff; }
