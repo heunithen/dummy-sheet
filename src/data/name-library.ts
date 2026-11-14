@@ -61,7 +61,7 @@ const names = {
       // Chile y Sudamérica
       "Ángel","Cruz","Dani","Fran","Gael","Guadalupe","Jazmín","Joa","Luz","Mar","Paz","René","Sol","Trinidad"
     ]
-  }
+  },
   futuristic: {
     masculine: ["Axton","Bex","Caelix","Cirox","Dax","Dextro","Eon","Evex","Jax","Kaiden","Kairo","Kellan","Kovax","Lex","Maddox","Nex","Orion","Pax","Quillon","Raze","Rex","Soren","Talon","Tarek","Tavian","Vex","Xander","Zarek","Zayden","Zenon","Arko","Brax","Caden","Darian","Eryx","Juno","Kade","Kian","Lazlo","Nero","Nyx","Oryn","Riven","Sylar","Teyo","Valk","Xavian","Yarik","Zeno","Zyron"],
     feminine: ["Astra","Aven","Azura","Bexley","Cyra","Dara","Echo","Elix","Eris","Ione","Jexa","Kaia","Kira","Lumi","Lyric","Mira","Nexa","Nova","Nyra","Onyxia","Oria","Rhea","Ryn","Sable","Sera","Siri","Tala","Vega","Vexa","Xara","Yuna","Zara","Aella","Ari","Calyx","Delya","Evara","Iris","Kora","Lexa","Maven","Nira","Oona","Rivena","Solara","Taryn","Vanya","Xenia","Yara","Zyra"],
