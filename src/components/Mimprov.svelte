@@ -341,7 +341,11 @@
   }
   $: selectedApproachScore = Number(character.approaches?.[selectedApproach] || 0);
   $: selectedTraitBonus = selectedTrait && character.traits.includes(selectedTrait) ? 1 : 0;
-  $: selectedStatePenalty = selectedState && STATES.find(s => s.name === selectedState && (s.enfoque === selectedApproach || s.enfoque === 'Todos')) ? 1 : 0;
+  $: selectedState = visibleStates.find((stateName) => {
+    const state = STATES.find((item) => item.name === stateName);
+    return !!state && (state.enfoque === selectedApproach || state.enfoque === 'Todos');
+  }) || '';
+  $: selectedStatePenalty = selectedState ? 1 : 0;
   $: baseDicePool = selectedApproachScore + selectedTraitBonus - selectedStatePenalty;
   $: dicePool = baseDicePool + (rollModifier === 'advantage' ? 1 : rollModifier === 'disadvantage' ? -1 : 0);
   $: forcedLowRoll = Number(character.will) <= 0;
@@ -1123,14 +1127,11 @@
               {/each}
             </select>
           </label>
-          <label>Estado que afecta esta tirada
-            <select bind:value={selectedState}>
-              <option value="">Ninguno</option>
-              {#each STATES as state}
-                <option value={state.name}>{state.name} · {state.enfoque}</option>
-              {/each}
-            </select>
-          </label>
+          <div class="modifier-picker">
+            <span>Estados activos</span>
+            <p class="muted">{#if visibleStates.length}{visibleStates.join(' · ')}{:else}No tienes Estados asignados.{/if}</p>
+            <p class="muted">{#if selectedStatePenalty}{selectedState}: −1d6 aplicado automáticamente a {selectedApproach}.{:else}Ningún Estado afecta a {selectedApproach}.{/if}</p>
+          </div>
           <div class="modifier-picker">
             <span>Modificador</span>
             <div class="modifier-options">
