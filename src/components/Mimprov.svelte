@@ -124,12 +124,12 @@
 
   type Item = { id: number; name: string; trait: string };
   type Character = {
-    name: string; concept: string; age: string; appearance: string; experience: string; notes: string;
+    name: string; concept: string; age: string; appearance: string; experience: string; notes: string; portrait?: string;
     approaches: Record<string, number>; traits: string[]; inventory: Item[];
     will: number; maxWill: number; created: boolean;
   };
   const blankCharacter = (): Character => ({
-    name: '', concept: '', age: '', appearance: '', experience: '', notes: '',
+    name: '', concept: '', age: '', appearance: '', experience: '', notes: '', portrait: '',
     approaches: { Tenacidad: 0, Control: 0, Astucia: 0, Rapidez: 0 },
     traits: [], inventory: [], will: 4, maxWill: 4, created: false
   });
@@ -229,6 +229,44 @@
     }, 180);
   }
   function updateCharacter() { character = clone(character); publishCharacter(); }
+
+  async function uploadCharacterPortrait(event: Event) {
+    const input = event.currentTarget as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    try {
+      if (!file.type.startsWith('image/')) throw new Error('Selecciona un archivo de imagen.');
+      const sourceUrl = URL.createObjectURL(file);
+      const image = new Image();
+      await new Promise<void>((resolve, reject) => {
+        image.onload = () => resolve();
+        image.onerror = () => reject(new Error('No se pudo leer la imagen.'));
+        image.src = sourceUrl;
+      });
+      const canvas = document.createElement('canvas');
+      canvas.width = 512;
+      canvas.height = 512;
+      const context = canvas.getContext('2d');
+      if (!context) throw new Error('No se pudo procesar la imagen.');
+      const cropSize = Math.min(image.naturalWidth, image.naturalHeight);
+      const sx = (image.naturalWidth - cropSize) / 2;
+      const sy = (image.naturalHeight - cropSize) / 2;
+      context.drawImage(image, sx, sy, cropSize, cropSize, 0, 0, 512, 512);
+      character.portrait = canvas.toDataURL('image/webp', 0.86);
+      URL.revokeObjectURL(sourceUrl);
+      updateCharacter();
+    } catch (error) {
+      console.error('No se pudo cargar el retrato del personaje', error);
+      alert(error instanceof Error ? error.message : 'No se pudo procesar la imagen.');
+    } finally {
+      input.value = '';
+    }
+  }
+
+  function removeCharacterPortrait() {
+    character.portrait = '';
+    updateCharacter();
+  }
 
   function getMyMagicRecord() {
     return {
@@ -1027,7 +1065,7 @@
         </section>
       {:else}
         <section class="character-sheet">
-          <header class="sheet-header"><div><div class="eyebrow">PERSONAJE MIMPROV</div><h1>{character.name || 'Sin nombre'}</h1><p>{character.concept}</p></div><div class="sheet-header-actions"><button class="secondary" on:click={() => editingCharacter = !editingCharacter}>{editingCharacter ? 'Cerrar edición' : 'Editar ficha'}</button><button class="danger-button" on:click={requestOwnCharacterDeletion}>Eliminar personaje</button></div></header>
+          <header class="sheet-header"><div class="sheet-title-group"><div class="character-portrait-wrap">{#if character.portrait}<img class="character-portrait" src={character.portrait} alt="Retrato de {character.name || 'personaje'}">{:else}<div class="character-portrait character-portrait-empty" aria-label="Sin retrato">?</div>{/if}</div><div class="sheet-title"><div class="eyebrow">PERSONAJE MIMPROV</div><h1>{character.name || 'Sin nombre'}</h1><p>{character.concept}</p><div class="portrait-actions"><label class="import-button portrait-upload">Subir imagen<input type="file" accept="image/*" on:change={uploadCharacterPortrait}></label>{#if character.portrait}<button class="secondary" on:click={removeCharacterPortrait}>Quitar imagen</button>{/if}<small>Imagen cuadrada de 512 × 512 px.</small></div></div></div><div class="sheet-header-actions"><button class="secondary" on:click={() => editingCharacter = !editingCharacter}>{editingCharacter ? 'Cerrar edición' : 'Editar ficha'}</button><button class="danger-button" on:click={requestOwnCharacterDeletion}>Eliminar personaje</button></div></header>
           <section class="card extra-info"><h2>Datos del personaje</h2><p><strong>Edad:</strong> {character.age || '—'}</p><p><strong>Apariencia:</strong> {character.appearance || '—'}</p><p><strong>Experiencia:</strong> {character.experience || '—'}</p></section>
           {#if editingCharacter}
             <div class="card edit-card">
@@ -1141,7 +1179,7 @@
           </nav>
           {#each partyMembers.filter(p => p.id === selectedPlayerId) as player}
             <article class="gm-player">
-              <div class="gm-player-head"><div><h3>{getPlayerCharacter(player)?.name || player.name}</h3><small>{getPlayerCharacter(player)?.created ? getPlayerCharacter(player)?.concept : 'Ficha MIMPROV aún no creada'}</small></div>{#if getPlayerCharacter(player)?.created}<button class="danger-button" on:click={() => deletePlayerCharacter(player)}>Borrar personaje</button>{/if}</div>
+              <div class="gm-player-head"><div class="gm-player-identity">{#if getPlayerCharacter(player)?.portrait}<img class="gm-player-portrait" src={getPlayerCharacter(player)?.portrait} alt="Retrato de {getPlayerCharacter(player)?.name || player.name}">{/if}<div><h3>{getPlayerCharacter(player)?.name || player.name}</h3><small>{getPlayerCharacter(player)?.created ? getPlayerCharacter(player)?.concept : 'Ficha MIMPROV aún no creada'}</small></div></div>{#if getPlayerCharacter(player)?.created}<button class="danger-button" on:click={() => deletePlayerCharacter(player)}>Borrar personaje</button>{/if}</div>
               {#if getPlayerCharacter(player)?.created}
                 <div class="gm-stats"><span>Voluntad: <b>{getPlayerCharacter(player)?.will} / {getPlayerCharacter(player)?.maxWill}</b></span><span>Enfoques: <b>{APPROACHES.map(a => a + ' ' + (getPlayerCharacter(player)?.approaches?.[a] ?? 0)).join(' · ')}</b></span><span>Rasgos: <b>{getPlayerCharacter(player)?.traits?.join(', ')}</b></span></div>
               {:else}<p class="muted">El jugador todavía no ha creado su ficha.</p>{/if}
@@ -1467,6 +1505,17 @@
   .summary { background:#202225; border-radius:6px; padding:1rem; }
   .summary h3 { margin-bottom:.2rem; }
   .sheet-header { display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; margin-bottom:1.2rem; }
+  .sheet-title-group { display:flex; align-items:center; gap:1rem; min-width:0; }
+  .sheet-title { min-width:0; }
+  .sheet-title h1 { overflow-wrap:anywhere; }
+  .character-portrait-wrap { flex:0 0 112px; }
+  .character-portrait { display:block; width:112px; height:112px; object-fit:cover; border-radius:9px; border:1px solid #806638; background:#202225; }
+  .character-portrait-empty { display:grid; place-items:center; color:#806638; font-size:2.2rem; font-weight:700; }
+  .portrait-actions { display:flex; align-items:center; flex-wrap:wrap; gap:.5rem; margin-top:.5rem; }
+  .portrait-actions small { color:#999; font-size:.75rem; }
+  .portrait-upload { margin:0; }
+  .gm-player-identity { display:flex; align-items:center; gap:.8rem; min-width:0; }
+  .gm-player-portrait { width:52px; height:52px; object-fit:cover; border-radius:6px; border:1px solid #806638; }
   .sheet-header-actions { display:flex; flex-wrap:wrap; gap:.5rem; }
   button.danger-button { background:#4b292d; border-color:#9b555d; color:#ffd7d7; }
   .conflict-result { padding:.8rem 1rem; border:1px solid #8b713e; border-radius:6px; background:#30291d; color:#f2d18e; font-weight:650; }
@@ -1539,7 +1588,7 @@
   .resistance-value { color:#f2c879; font-size:3rem; font-weight:750; margin:.4rem 0; }
   @media(max-width:600px) {
     .sheet-grid, .state-grid { grid-template-columns:1fr; }
-    .sheet-header { display:block; }
+    .sheet-header { display:block; } .sheet-title-group { align-items:flex-start; } .character-portrait-wrap { flex-basis:76px; } .character-portrait { width:76px; height:76px; }
     .sheet-header-actions { margin-top:.7rem; }
     .sheet-header button { margin-top:0; }
     .trait-picker { grid-template-columns:1fr; }
