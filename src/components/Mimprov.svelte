@@ -383,7 +383,7 @@
   $: baseDicePool = selectedApproachScore + selectedTraitBonus - selectedStatePenalty;
   $: dicePool = baseDicePool + (rollModifier === 'advantage' ? 1 : rollModifier === 'disadvantage' ? -1 : 0);
   $: forcedLowRoll = Number(character.will) <= 0;
-  $: diceNotation = forcedLowRoll || dicePool <= 0 ? '2d6kl1' : `${dicePool}d6kh1`;
+  $: diceNotation = forcedLowRoll || dicePool <= 0 ? '2d6{FitD dice}kl1' : `${dicePool}d6{FitD dice}kh1`;
 
   async function checkDicePlusReady(): Promise<boolean> {
     const requestId = `mimprov_ready_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
@@ -1176,7 +1176,7 @@
             </div>
           </div>
           <div class="pool-summary">
-            <div><small>Notación enviada a Dice+</small><strong>{diceNotation}</strong></div>
+            <div><small>Notación enviada a Dice+</small><strong>{diceNotation}</strong><small class="muted">Dado visual: FitD dice. Debe estar importado en la colección de Dice+ de cada jugador.</small></div>
             <ul>
               <li>{selectedApproach}: +{selectedApproachScore}d6</li>
               <li>{selectedTrait ? selectedTrait + ': +1d6' : 'Sin Rasgo: +0d6'}</li>
