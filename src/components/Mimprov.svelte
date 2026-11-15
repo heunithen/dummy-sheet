@@ -180,6 +180,7 @@
   let gmLoaded = false;
   type GmNpc = { genre: GmNpcGenre; name: string; appearance: string; personality: string };
   let gmNpcCharacters: GmNpc[] = [];
+  let selectedGmNpcGenre: GmNpcGenre = 'fantasy';
   let gmNpcNotes = '';
   let linesVeils: { lines: string; veils: string } = { lines: '', veils: '' };
   let visibleStates: string[] = [];
@@ -651,26 +652,40 @@
     localStorage.setItem('mimprov-gm-npc-notes-v1-' + room, gmNpcNotes);
   }
 
+  function saveGmNpcCharacters() {
+    const room = OBR.isAvailable ? OBR.room.id : 'local';
+    localStorage.setItem('mimprov-gm-npcs-v1-' + room, JSON.stringify(gmNpcCharacters));
+    localStorage.setItem('mimprov-gm-npc-genre-v1-' + room, selectedGmNpcGenre);
+  }
+
   function loadGmNpcCharacters() {
     const room = OBR.isAvailable ? OBR.room.id : 'local';
     const key = 'mimprov-gm-npcs-v1-' + room;
     try {
+      const savedGenre = localStorage.getItem('mimprov-gm-npc-genre-v1-' + room) as GmNpcGenre | null;
+      selectedGmNpcGenre = GM_NPC_GENRES.some((genre) => genre.id === savedGenre) ? savedGenre! : 'fantasy';
       const raw = localStorage.getItem(key);
       const stored = raw ? JSON.parse(raw) : [];
-      const valid = Array.isArray(stored) && GM_NPC_GENRES.every((genre) =>
-        stored.some((npc: any) => npc?.genre === genre.id && npc.name && npc.appearance && npc.personality)
+      const valid = Array.isArray(stored) && stored.length === 5 && stored.every((npc: any) =>
+        npc?.genre === selectedGmNpcGenre && npc.name && npc.appearance && npc.personality
       );
       gmNpcCharacters = valid
-        ? GM_NPC_GENRES.map((genre) => stored.find((npc: GmNpc) => npc.genre === genre.id))
-        : GM_NPC_GENRES.map((genre) => createGmNpc(genre.id));
+        ? stored
+        : Array.from({ length: 5 }, () => createGmNpc(selectedGmNpcGenre));
     } catch {
-      gmNpcCharacters = GM_NPC_GENRES.map((genre) => createGmNpc(genre.id));
+      selectedGmNpcGenre = 'fantasy';
+      gmNpcCharacters = Array.from({ length: 5 }, () => createGmNpc(selectedGmNpcGenre));
     }
     saveGmNpcCharacters();
   }
 
-  function rerollGmNpc(genre: GmNpcGenre) {
-    gmNpcCharacters = gmNpcCharacters.map((npc) => npc.genre === genre ? createGmNpc(genre) : npc);
+  function changeGmNpcGenre() {
+    gmNpcCharacters = Array.from({ length: 5 }, () => createGmNpc(selectedGmNpcGenre));
+    saveGmNpcCharacters();
+  }
+
+  function rerollGmNpc(index: number) {
+    gmNpcCharacters = gmNpcCharacters.map((npc, i) => i === index ? createGmNpc(selectedGmNpcGenre) : npc);
     saveGmNpcCharacters();
   }
 
@@ -1217,16 +1232,20 @@
     <main class="content gm-content">
       <div class="eyebrow">HERRAMIENTAS DEL NARRADOR</div>
       <h1>Personajes no jugadores</h1>
-      <p class="muted">Cinco personajes aleatorios, uno de cada género. Solo se muestra su nombre, apariencia y personalidad; no se revela su ocupación ni su función.</p>
+      <p class="muted">Elige una ambientación para generar cinco personajes no jugadores aleatorios de ese mismo estilo. Puedes reemplazar cada personaje de manera individual.</p>
       <section class="card gm-npc-section">
-        <h2>Personajes no jugadores</h2>
-        <p class="muted">Un personaje de cada género. Solo se muestra su nombre, apariencia y personalidad; no se revela su ocupación ni su función.</p>
+        <label for="gm-npc-genre">Ambientación</label>
+        <select id="gm-npc-genre" bind:value={selectedGmNpcGenre} on:change={changeGmNpcGenre}>
+          {#each GM_NPC_GENRES as genre}
+            <option value={genre.id}>{genre.label}</option>
+          {/each}
+        </select>
         <div class="gm-npc-list">
-          {#each gmNpcCharacters as npc (npc.genre)}
+          {#each gmNpcCharacters as npc, index (index)}
             <article class="gm-npc-card">
               <div class="gm-npc-heading">
-                <div><small>{GM_NPC_GENRES.find((item) => item.id === npc.genre)?.label}</small><h3>{npc.name}</h3></div>
-                <button class="secondary gm-npc-reroll" aria-label="Generar otro personaje del mismo género" title="Generar otro personaje del mismo género" on:click={() => rerollGmNpc(npc.genre)}>🎲</button>
+                <div><small>{GM_NPC_GENRES.find((item) => item.id === selectedGmNpcGenre)?.label} · PNJ {index + 1}</small><h3>{npc.name}</h3></div>
+                <button class="secondary gm-npc-reroll" aria-label="Generar otro personaje" title="Generar otro personaje de la misma ambientación" on:click={() => rerollGmNpc(index)}>🎲</button>
               </div>
               <p><strong>Apariencia:</strong> {npc.appearance}</p>
               <p><strong>Personalidad:</strong> {npc.personality}</p>
