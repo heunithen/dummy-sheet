@@ -624,11 +624,6 @@
     };
   }
 
-  function saveGmNpcCharacters() {
-    const room = OBR.isAvailable ? OBR.room.id : 'local';
-    localStorage.setItem('mimprov-gm-npcs-v1-' + room, JSON.stringify(gmNpcCharacters));
-  }
-
   function updateLinesVeils(field: 'lines' | 'veils', value: string) {
     linesVeils = { ...linesVeils, [field]: value };
     if (!OBR.isAvailable) {
