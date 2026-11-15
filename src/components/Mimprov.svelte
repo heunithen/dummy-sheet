@@ -1128,11 +1128,6 @@
             </select>
           </label>
           <div class="modifier-picker">
-            <span>Estados activos</span>
-            <p class="muted">{#if visibleStates.length}{visibleStates.join(' · ')}{:else}No tienes Estados asignados.{/if}</p>
-            <p class="muted">{#if selectedStatePenalty}{selectedState}: −1d6 aplicado automáticamente a {selectedApproach}.{:else}Ningún Estado afecta a {selectedApproach}.{/if}</p>
-          </div>
-          <div class="modifier-picker">
             <span>Modificador</span>
             <div class="modifier-options">
               <button class:active={rollModifier === 'normal'} class="secondary" on:click={() => rollModifier = 'normal'}>Normal</button>
@@ -1145,7 +1140,6 @@
             <ul>
               <li>{selectedApproach}: +{selectedApproachScore}d6</li>
               <li>{selectedTrait ? selectedTrait + ': +1d6' : 'Sin Rasgo: +0d6'}</li>
-              <li>{selectedStatePenalty ? selectedState + ': −1d6' : 'Estado: sin penalización'}</li>
               <li>{forcedLowRoll ? 'Voluntad 0: siempre tira 2d6 y conserva el menor; se ignoran ventaja y desventaja' : rollModifier === 'advantage' ? 'Ventaja: añade 1d6 y conserva el mayor' : rollModifier === 'disadvantage' ? (dicePool <= 0 ? 'Desventaja: reduce 1d6; al quedar en 0 dados, tira 2d6 y conserva el menor' : 'Desventaja: resta 1d6 y conserva el mayor') : 'Tirada normal: conserva el mayor'}</li>
             </ul>
           </div>
@@ -1348,7 +1342,7 @@
           <div><strong>6</strong><span>Éxito limpio</span></div>
         </div>
         <p>Si en una tirada aparecen dos o más resultados de 6, obtienes un <strong>éxito crítico</strong> y recuperas 1 punto de Voluntad, sin superar tu máximo.</p>
-        <p class="muted">Los Estados activos no se aplican automáticamente a la tirada: el jugador debe seleccionar el Estado pertinente. Solo corresponde la penalización cuando afecta al Enfoque utilizado.</p>
+        <p class="muted">Los Estados asignados por el narrador aplican automáticamente −1d6 cuando afectan al Enfoque utilizado. El jugador no puede seleccionar ni añadir Estados manualmente a la tirada.</p>
       </section>
 
       <section class="card">
