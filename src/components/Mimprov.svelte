@@ -190,7 +190,9 @@
   let selectedTrait = '';
   let selectedState = '';
   let rollModifier = 'normal';
-  let lastRoll: { dice: number[]; kept: number; pool: number; result: string; critical: boolean; notation?: string; summary?: string } | null = null;
+  let lastRoll: { dice: number[]; kept: number; pool: number; result: string; critical: boolean; notation?: string; summary?: string; approach?: string } | null = null;
+  let rollHistory: Array<{ id: string; timestamp: number; approach: string; dice: number[]; kept: number; result: string; critical: boolean; notation: string }> = [];
+  let rollHistoryKey = '';
   let dicePlusError = '';
   let pendingDiceRoll: { rollId: string; pool: number; notation: string; approach: string; effortReroll: boolean; conflictActive: boolean; danger: string } | null = null;
 
@@ -209,6 +211,38 @@
   $: if ($isGM && gmTracker.conflict?.active && partyMembers.length > 0 && partyMembers.every((player) => (Number(getPlayerCharacter(player)?.will) || 0) <= 0)) resolveConflict('defeat');
 
   function clone<T>(value: T): T { return JSON.parse(JSON.stringify(value)); }
+  function loadRollHistory() {
+    if (!rollHistoryKey) return;
+    try {
+      const saved = JSON.parse(localStorage.getItem(rollHistoryKey) || '[]');
+      rollHistory = Array.isArray(saved) ? saved.slice(0, 50) : [];
+    } catch { rollHistory = []; }
+  }
+  function saveRollHistory() {
+    if (!rollHistoryKey) return;
+    try { localStorage.setItem(rollHistoryKey, JSON.stringify(rollHistory.slice(0, 50))); }
+    catch (error) { console.error('No se pudo guardar el registro de tiradas', error); }
+  }
+  function recordRoll(roll: { approach: string; notation: string }, dice: number[], kept: number, result: string, critical: boolean) {
+    const entry = {
+      id: `roll_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      timestamp: Date.now(), approach: roll.approach, dice: [...dice], kept, result, critical, notation: roll.notation
+    };
+    rollHistory = [entry, ...rollHistory].slice(0, 50);
+    saveRollHistory();
+  }
+  function clearRollHistory() {
+    if (!rollHistory.length) return;
+    if (!window.confirm('¿Borrar todo el registro de tiradas?')) return;
+    rollHistory = [];
+    saveRollHistory();
+  }
+  function resultDescription(result: string) {
+    if (result === 'Éxito con consecuencia') return 'Tienes éxito en lo que intentaste, pero algo empeora o surge una complicación.';
+    if (result === 'Éxito limpio' || result === 'Éxito crítico') return 'Consigues lo que intentaste sin sufrir una consecuencia adicional.';
+    if (result === 'Fracaso') return 'No consigues lo que intentaste y la situación puede empeorar.';
+    return '';
+  }
   function getStoredCharacter(): Character {
     try {
       const raw = localStorage.getItem('mimprov-character-v1');
@@ -461,11 +495,13 @@
     const critical = dice.filter((value: number) => value === 6).length >= 2;
     const failed = kept <= 4;
     const result = failed ? 'Fracaso' : kept === 5 ? 'Éxito con consecuencia' : 'Éxito limpio';
+    const finalResult = critical ? 'Éxito crítico' : result;
     lastRoll = {
       dice, kept, pool: roll.pool,
-      result: critical ? 'Éxito crítico' : result,
-      critical, notation: roll.notation, summary: data.result.rollSummary
+      result: finalResult,
+      critical, notation: roll.notation, summary: data.result.rollSummary, approach: roll.approach
     };
+    recordRoll(roll, dice, kept, finalResult, critical);
     pendingDiceRoll = null;
     if (critical) {
       adjustWill(1);
@@ -495,6 +531,10 @@
       OBR.onReady(async () => {
         try {
           const role = await OBR.player.getRole();
+          const roomId = OBR.room.id || 'default';
+          const playerId = await OBR.player.getId();
+          rollHistoryKey = `mimprov-roll-history-v1-${roomId}-${playerId}`;
+          loadRollHistory();
           const syncLinesVeils = (metadata: any) => {
             const shared = metadata?.[LINES_VEILS_KEY] || { lines: '', veils: '' };
             linesVeils = { lines: String(shared.lines || ''), veils: String(shared.veils || '') };
@@ -1147,15 +1187,36 @@
           <button class="roll-button" disabled={!!pendingDiceRoll} on:click={rollDice}>{pendingDiceRoll ? 'Tirando…' : 'Tirar dados con Dice+'}</button>
         </section>
         {#if lastRoll}
-          <section class="card roll-result">
-            <h2>Resultado</h2>
-            <p class="muted">{lastRoll.notation || ''} {lastRoll.summary ? '· ' + lastRoll.summary : ''}</p>
+          <section class="card roll-result" class:failure={lastRoll.result === 'Fracaso'} class:consequence={lastRoll.result === 'Éxito con consecuencia'} class:success={lastRoll.result === 'Éxito limpio'} class:critical={lastRoll.result === 'Éxito crítico'}>
+            <div class="roll-result-heading">
+              <div><span class="result-kicker">RESULTADO DE LA TIRADA</span><h2>{lastRoll.result}</h2></div>
+              {#if lastRoll.approach}<span class="result-approach">{lastRoll.approach}</span>{/if}
+            </div>
+            <p class="result-description">{resultDescription(lastRoll.result)}</p>
             <div class="dice-results">{#each lastRoll.dice as die, i}<span class:kept={die === lastRoll.kept && (lastRoll.notation?.includes("kl1") ? die === Math.min(...lastRoll.dice) : die === Math.max(...lastRoll.dice))} class="die">{die}</span>{/each}</div>
             <div class="kept-result">Dado conservado: <strong>{lastRoll.kept}</strong></div>
-            <h3>{lastRoll.result}</h3>
-            {#if lastRoll.critical}<p>Crítico: recuperas 1 punto de Voluntad.</p>{/if}
+            {#if lastRoll.critical}<p class="critical-reward">Éxito crítico: recuperas 1 punto de Voluntad.</p>{/if}
+            {#if lastRoll.summary}<p class="muted">{lastRoll.summary}</p>{/if}
           </section>
         {/if}
+        <section class="card roll-history">
+          <div class="history-heading"><div><h2>Registro de tiradas</h2><p class="muted">Se conservan las últimas 50 tiradas de este personaje en esta sala.</p></div><button class="secondary clear-history" on:click={clearRollHistory} disabled={!rollHistory.length}>Borrar registro</button></div>
+          {#if rollHistory.length}
+            <div class="history-list">
+              {#each rollHistory as entry}
+                <article class="history-entry">
+                  <div class="history-meta"><strong>{entry.result}</strong><span>{entry.approach}</span><time>{new Date(entry.timestamp).toLocaleString('es-CL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</time></div>
+                  <div class="history-dice">{#each entry.dice as die}<span class:kept={die === entry.kept && (entry.notation?.includes('kl1') ? die === Math.min(...entry.dice) : die === Math.max(...entry.dice))} class="die small-die">{die}</span>{/each}<span class="history-kept">Conservado: {entry.kept}</span></div>
+                </article>
+              {/each}
+            </div>
+          {:else}
+            <p class="muted">Todavía no hay tiradas registradas.</p>
+          {/if}
+          <div class="result-thresholds">
+            <span><b>1–4</b> Fallo</span><span><b>5</b> Éxito con consecuencia</span><span><b>6</b> Éxito limpio</span><span><b>2 o más 6</b> Éxito crítico</span>
+          </div>
+        </section>
       {/if}
     </main>
   {:else if $isGM && (activeTab === 'gm' || activeTab === 'conflicto')}
@@ -1529,6 +1590,36 @@
   .roll-button { width:100%; margin-top:.5rem; font-size:1rem; }
   .roll-button:disabled { opacity:.6; cursor:wait; }
   .error-message { color:#f0a0a0; margin:.7rem 0; }
+
+  .roll-result { border:1px solid #a88443; background:linear-gradient(145deg,#29251d,#222427 65%); }
+  .roll-result.failure { border-color:#a65353; background:linear-gradient(145deg,#352123,#222427 70%); }
+  .roll-result.consequence { border-color:#b58a43; }
+  .roll-result.success, .roll-result.critical { border-color:#548b68; background:linear-gradient(145deg,#1e3027,#222427 70%); }
+  .roll-result-heading,.history-heading,.history-meta { display:flex; align-items:center; justify-content:space-between; gap:1rem; }
+  .roll-result-heading h2 { margin:.2rem 0 0; font-size:1.55rem; }
+  .result-kicker { color:#c5a66a; font-size:.68rem; font-weight:800; letter-spacing:.12em; }
+  .result-approach { border:1px solid #555; border-radius:99px; padding:.3rem .7rem; color:#ccc; font-size:.78rem; }
+  .result-description { margin:.65rem 0; color:#e2d7c4; line-height:1.55; }
+  .roll-result.failure .result-description { color:#f0baba; }
+  .roll-result.success .result-description,.roll-result.critical .result-description { color:#bce3c7; }
+  .critical-reward { color:#bce3c7; font-weight:700; }
+  .roll-history { margin-top:1rem; }
+  .history-heading { align-items:flex-start; }
+  .history-heading h2 { margin:0; }
+  .history-heading p { margin:.25rem 0 0; }
+  .clear-history { white-space:nowrap; padding:.5rem .7rem; font-size:.78rem; }
+  .clear-history:disabled { opacity:.4; cursor:not-allowed; }
+  .history-list { display:grid; gap:.65rem; margin-top:1rem; }
+  .history-entry { border-top:1px solid #414448; padding:.7rem 0 .2rem; }
+  .history-meta { flex-wrap:wrap; }
+  .history-meta strong { color:#e5c47f; }
+  .history-meta span,.history-meta time { color:#999; font-size:.76rem; }
+  .history-dice { display:flex; align-items:center; flex-wrap:wrap; gap:.35rem; margin-top:.55rem; }
+  .small-die { width:1.8rem; height:1.8rem; border-radius:5px; font-size:.95rem; }
+  .history-kept { margin-left:.35rem; color:#aaa; font-size:.76rem; }
+  .result-thresholds { display:flex; flex-wrap:wrap; gap:.5rem 1rem; border-top:1px solid #414448; margin-top:1rem; padding-top:.8rem; color:#aaa; font-size:.75rem; }
+  .result-thresholds b { color:#e2c27d; }
+
   .dice-results { display:flex; flex-wrap:wrap; gap:.5rem; margin:1rem 0; }
   .die { display:grid; place-items:center; width:2.7rem; height:2.7rem; border:1px solid #777; border-radius:7px; background:#202225; color:#eee; font-size:1.3rem; font-weight:750; }
   .die.kept { border:2px solid #e0b75e; color:#f2c879; background:#514126; }
