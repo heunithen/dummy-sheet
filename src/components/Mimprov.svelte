@@ -879,7 +879,13 @@
     character.inventory = character.inventory.filter(i => i.id !== id);
     updateCharacter();
   }
-  function finishEdit() { updateCharacter(); editingCharacter = false; }
+  function finishEdit() {
+    if (!characterApproachesValid) {
+      alert('Los Enfoques deben sumar exactamente 4 puntos y ninguno puede superar 2.');
+      return;
+    }
+    updateCharacter(); editingCharacter = false;
+  }
   function adjustWill(delta: number) { character.will = Math.max(0, Math.min(character.maxWill, character.will + delta)); updateCharacter(); }
   async function restCharacter() {
     try {
@@ -915,7 +921,7 @@
   }
   function spendOverexertion(id: string, enfoque: string) {
     const t = playerTracker(id);
-    if (t.overexertionUsed >= 1) return;
+    if (t.overexertionUsed >= 1 || t.states.includes('Incapacitado')) return;
     const stateByApproach: Record<string, string> = { Tenacidad: 'Deprimido', Disciplina: 'Ansioso', Ingenio: 'Confundido', Instinto: 'Mermado' };
     const state = stateByApproach[enfoque];
     t.overexertionUsed += 1;
@@ -1153,7 +1159,7 @@
               <label>Edad<input bind:value={character.age} on:input={updateCharacter}></label>
               <label>Apariencia<textarea bind:value={character.appearance} on:input={updateCharacter}></textarea></label>
               <label>Experiencia<input bind:value={character.experience} on:input={updateCharacter}></label>
-              <h3>Enfoques</h3>{#each APPROACHES as name}<div class="approach-row"><strong>{name}</strong><div class="stepper"><button on:click={() => setCharacterApproach(name, character.approaches[name] - 1)} disabled={character.approaches[name] <= 0}>−</button><b>{character.approaches[name]}</b><button on:click={() => setCharacterApproach(name, character.approaches[name] + 1)} disabled={character.approaches[name] >= 2 || characterApproachTotal >= 4}>+</button></div></div>{/each}
+              <h3>Enfoques</h3><p class="muted">Puntos distribuidos: {characterApproachTotal} / 4. Máximo 2 por Enfoque.</p>{#each APPROACHES as name}<div class="approach-row"><strong>{name}</strong><div class="stepper"><button on:click={() => setCharacterApproach(name, character.approaches[name] - 1)} disabled={character.approaches[name] <= 0}>−</button><b>{character.approaches[name]}</b><button on:click={() => setCharacterApproach(name, character.approaches[name] + 1)} disabled={character.approaches[name] >= 2 || characterApproachTotal >= 4}>+</button></div></div>{/each}
               <h3>Rasgos</h3>{#each character.traits as trait}<div class="selected-item"><span>{trait}</span><button class="remove" on:click={() => removeTrait(trait)}>Quitar</button></div>{/each}<div class="trait-picker"><select bind:value={traitDraft}><option value="">Añadir Rasgo...</option>{#each TRAITS as trait}<option value={trait} disabled={character.traits.includes(trait) || character.traits.length >= 4}>{trait}</option>{/each}</select>{#if traitDraft === 'Conocedor de...'}<input bind:value={customTraitField} placeholder="¿Conocedor de qué?">{/if}<button on:click={addTrait} disabled={!traitDraft || (traitDraft === 'Conocedor de...' && !customTraitField.trim())}>Añadir</button></div>
               <button on:click={finishEdit}>Guardar cambios</button>
             </div>
@@ -1276,7 +1282,7 @@
                 <div class="gm-stats"><span>Voluntad: <b>{getPlayerCharacter(player)?.will} / {getPlayerCharacter(player)?.maxWill}</b></span><span>Enfoques: <b>{APPROACHES.map(a => a + ' ' + (getPlayerCharacter(player)?.approaches?.[a] ?? 0)).join(' · ')}</b></span><span>Rasgos: <b>{getPlayerCharacter(player)?.traits?.join(', ')}</b></span></div>
               {:else}<p class="muted">El jugador todavía no ha creado su ficha.</p>{/if}
               <h4>Estados actuales</h4><div class="state-grid">{#each STATES as state}<label class="check-row"><input type="checkbox" checked={playerTracker(player.id).states.includes(state.name)} on:change={() => toggleState(player.id, state.name)}><span><b>{state.name}</b><small>{state.enfoque}: {state.detail}</small></span></label>{/each}</div>
-              <h4>Sobreesfuerzo</h4><p class="muted">Puntos disponibles: {1 - playerTracker(player.id).overexertionUsed} / 1</p><div class="stepper"><b>{playerTracker(player.id).overexertionUsed} usado</b></div><div class="approach-buttons">{#each APPROACHES as enfoque}<button class="secondary" on:click={() => spendOverexertion(player.id, enfoque)} disabled={playerTracker(player.id).overexertionUsed >= 1}>{enfoque}</button>{/each}</div><small class="muted">Al gastar el punto, el panel añade el Estado correspondiente al Enfoque utilizado. Se recupera al realizar un descanso.</small>
+              <h4>Sobreesfuerzo</h4><p class="muted">Puntos disponibles: {1 - playerTracker(player.id).overexertionUsed} / 1</p><div class="stepper"><b>{playerTracker(player.id).overexertionUsed} usado</b></div><div class="approach-buttons">{#each APPROACHES as enfoque}<button class="secondary" on:click={() => spendOverexertion(player.id, enfoque)} disabled={playerTracker(player.id).overexertionUsed >= 1 || playerTracker(player.id).states.includes('Incapacitado')}>{enfoque}</button>{/each}</div><small class="muted">Al gastar el punto, el panel añade el Estado correspondiente al Enfoque utilizado. Se recupera al realizar un descanso.</small>
             </article>
           {/each}
         {/if}
