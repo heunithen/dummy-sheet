@@ -130,7 +130,7 @@
   };
   const blankCharacter = (): Character => ({
     name: '', concept: '', age: '', appearance: '', experience: '', notes: '', portrait: '',
-    approaches: { Tenacidad: 0, Disciplina: 0, Ingenio: 0, Instinto: 0 },
+    approaches: { Tenacidad: 0, Disciplina: 0, Instinto: 0, Ingenio: 0 },
     traits: [], inventory: [], will: 4, maxWill: 4, created: false
   });
 
@@ -139,8 +139,8 @@
     return {
       Tenacidad: Number(source.Tenacidad) || 0,
       Disciplina: Number(source.Disciplina ?? source.Control) || 0,
-      Ingenio: Number(source.Ingenio ?? source.Astucia) || 0,
-      Instinto: Number(source.Instinto ?? source.Rapidez) || 0
+      Instinto: Number(source.Instinto ?? source.Rapidez) || 0,
+      Ingenio: Number(source.Ingenio ?? source.Astucia) || 0
     };
   }
 
@@ -173,7 +173,7 @@
     if (!conceptOptions.length) return;
     character.concept = conceptOptions[Math.floor(Math.random() * conceptOptions.length)];
   }
-  let approachDraft: Record<string, number> = { Tenacidad: 0, Disciplina: 0, Ingenio: 0, Instinto: 0 };
+  let approachDraft: Record<string, number> = { Tenacidad: 0, Disciplina: 0, Instinto: 0, Ingenio: 0 };
   let traitDraft = '';
   let customTraitField = '';
   let equipmentDraft: string[] = [];
@@ -823,7 +823,7 @@
     return stored ? { ...stored, approaches: normalizeApproaches(stored.approaches) } : undefined;
   }
 
-  function startCreation() { step = 0; character = blankCharacter(); approachDraft = { Tenacidad: 0, Disciplina: 0, Ingenio: 0, Instinto: 0 }; }
+  function startCreation() { step = 0; character = blankCharacter(); approachDraft = { Tenacidad: 0, Disciplina: 0, Instinto: 0, Ingenio: 0 }; }
   function nextStep() {
     if (step === 1 && !character.concept.trim()) return;
     if (step === 4 && !approachValid) return;
