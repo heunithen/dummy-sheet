@@ -28,7 +28,7 @@
     { name: 'Confundido', enfoque: 'Ingenio', detail: 'Percepción o pensamiento alterados.' },
     { name: 'Incapacitado', enfoque: 'Todos', detail: 'Fuera de acción; requiere resolución narrativa.' }
   ];
-  const APPROACHES = ['Tenacidad', 'Disciplina', 'Ingenio', 'Instinto'];
+  const APPROACHES = ['Tenacidad', 'Disciplina', 'Instinto', 'Ingenio'];
   const TRAITS = [
     'Atlético', 'Conocedor de...', 'Espadachín', 'Investigador', 'Furtivo',
     'Intimidante', 'Liderazgo', 'Maestro Chasquilla', 'Observador',
@@ -819,7 +819,8 @@
     return gmTracker.players[id];
   }
   function getPlayerCharacter(player: any): Character | undefined {
-    return player?.metadata?.[DATA_KEY] as Character | undefined;
+    const stored = player?.metadata?.[DATA_KEY] as Character | undefined;
+    return stored ? { ...stored, approaches: normalizeApproaches(stored.approaches) } : undefined;
   }
 
   function startCreation() { step = 0; character = blankCharacter(); approachDraft = { Tenacidad: 0, Disciplina: 0, Ingenio: 0, Instinto: 0 }; }
@@ -1389,7 +1390,7 @@
         <h2>1. Creación de personajes</h2>
         <p>Cada personaje se define mediante su nombre, concepto, edad, apariencia, cuatro Enfoques, cuatro Rasgos y su equipo.</p>
         <ul>
-          <li><strong>Enfoques:</strong> distribuye exactamente 4 puntos entre Tenacidad, Disciplina, Ingenio y Instinto. Cada Enfoque puede tener entre 0 y 2 puntos.</li>
+          <li><strong>Enfoques:</strong> distribuye exactamente 4 puntos entre Tenacidad, Disciplina, Instinto e Ingenio. Cada Enfoque puede tener entre 0 y 2 puntos.</li>
           <li><strong>Rasgos:</strong> escoge cuatro. Cada Rasgo aporta +1 dado cuando resulta directamente relevante para la acción.</li>
           <li><strong>Equipo:</strong> cada Rasgo proporciona tres espacios de objetos asociados. Debes completar al menos 12 objetos para terminar la creación.</li>
           <li><strong>Voluntad:</strong> comienzas con 4 puntos y tu máximo inicial también es 4.</li>
