@@ -117,9 +117,9 @@
     'Peleador': ['Guantes de combate', 'Vendas para las manos', 'Protector corporal ligero'],
     'Persuasivo': ['Vestimenta apropiada para negociar', 'Documento o credencial de presentación', 'Objeto de intercambio o cortesía'],
     'Tirador': ['Arco', 'Carcaj', 'Flechas'],
-    'Investigador': ['', '', ''],
-    'Liderazgo': ['', '', ''],
-    'Superviviente': ['', '', '']
+    'Investigador': ['Libreta de notas', 'Lápiz', 'Lupa'],
+    'Liderazgo': ['Insignia de autoridad', 'Silbato', 'Mapa del grupo'],
+    'Superviviente': ['Cantimplora', 'Pedernal y yesca', 'Manta de viaje']
   };
 
   type Item = { id: number; name: string; trait: string };
@@ -392,6 +392,13 @@
     return !!state && (state.enfoque === selectedApproach || state.enfoque === 'Todos');
   }) || '';
   $: selectedStatePenalty = selectedState ? 1 : 0;
+  $: isIncapacitated = visibleStates.includes('Incapacitado');
+  $: characterApproachTotal = APPROACHES.reduce((sum, name) => sum + (Number(character.approaches?.[name]) || 0), 0);
+  $: characterApproachesValid = characterApproachTotal === 4 && APPROACHES.every(name => Number(character.approaches?.[name]) >= 0 && Number(character.approaches?.[name]) <= 2);
+  $: inventoryValid = character.traits.length === 4 && character.traits.every(trait => {
+    const items = character.inventory.filter(item => item.trait === trait);
+    return items.length === 3 && items.every(item => typeof item.name === 'string' && item.name.trim().length > 0);
+  }) && character.inventory.filter(item => item.trait === 'Personal').every(item => typeof item.name === 'string' && item.name.trim().length > 0);
   $: baseDicePool = selectedApproachScore + selectedTraitBonus - selectedStatePenalty;
   $: dicePool = baseDicePool + (rollModifier === 'advantage' ? 1 : rollModifier === 'disadvantage' ? -1 : 0);
   $: forcedLowRoll = Number(character.will) <= 0;
@@ -414,7 +421,7 @@
   }
 
   async function sendDiceRoll(notation: string, pool: number, approach: string, effortReroll = false) {
-    if (!OBR.isAvailable || !loaded || pendingDiceRoll) return;
+    if (!OBR.isAvailable || !loaded || pendingDiceRoll || isIncapacitated) return;
     dicePlusError = '';
     try {
       const rollId = `mimprov_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
@@ -450,6 +457,10 @@
   }
 
   async function rollDice() {
+    if (isIncapacitated) {
+      dicePlusError = 'No puedes realizar tiradas mientras estés Incapacitado. El narrador debe resolver este Estado.';
+      return;
+    }
     if (!OBR.isAvailable || !loaded) {
       dicePlusError = 'Esta tirada necesita Owlbear Rodeo y la extensión Dice+.';
       return;
@@ -466,7 +477,7 @@
   }
 
   async function spendEffortAndReroll(roll: { notation: string; pool: number; approach: string }) {
-    if (visibleOverexertionUsed >= 1) return false;
+    if (visibleOverexertionUsed >= 1 || isIncapacitated) return false;
     const state = stateForApproach(roll.approach);
     try {
       await OBR.broadcast.sendMessage(EFFORT_REQUEST_CHANNEL, {
@@ -602,7 +613,7 @@
               const sender = party.find((p: any) => p.connectionId === event.connectionId);
               if (!sender || sender.role !== 'PLAYER' || sender.id !== data.playerId) return;
               const tracker = playerTracker(sender.id);
-              if (tracker.overexertionUsed >= 1) return;
+              if (tracker.overexertionUsed >= 1 || tracker.states.includes('Incapacitado')) return;
               tracker.overexertionUsed = 1;
               if (!tracker.states.includes(data.state) && !tracker.states.includes('Incapacitado')) tracker.states = [...tracker.states, data.state];
               saveGmTracker();
@@ -828,14 +839,24 @@
     if (step === 1 && !character.concept.trim()) return;
     if (step === 4 && !approachValid) return;
     if (step === 5 && character.traits.length !== 4) return;
-    if (step === 6 && character.inventory.length < 12) return;
+    if (step === 6 && !inventoryValid) return;
     if (step === 4) character.approaches = { ...approachDraft };
     if (step < 7) step += 1;
     else { character.created = true; character.will = 4; character.maxWill = 4; updateCharacter(); editingCharacter = false; }
   }
   function previousStep() { if (step > 0) step -= 1; }
   function setApproach(name: string, value: number) {
-    approachDraft = { ...approachDraft, [name]: Math.max(0, Math.min(2, value)) };
+    const nextValue = Math.max(0, Math.min(2, value));
+    const currentValue = Number(approachDraft[name]) || 0;
+    if (approachTotal - currentValue + nextValue > 4) return;
+    approachDraft = { ...approachDraft, [name]: nextValue };
+  }
+  function setCharacterApproach(name: string, value: number) {
+    const nextValue = Math.max(0, Math.min(2, value));
+    const currentValue = Number(character.approaches[name]) || 0;
+    if (characterApproachTotal - currentValue + nextValue > 4) return;
+    character.approaches = { ...character.approaches, [name]: nextValue };
+    updateCharacter();
   }
   function addTrait() {
     const trait = traitDraft === 'Conocedor de...' && customTraitField.trim() ? 'Conocedor de ' + customTraitField.trim() : traitDraft;
@@ -1111,14 +1132,14 @@
             {#each character.inventory.filter(i => i.trait === 'Personal') as item}
               <div class="inventory-row"><input bind:value={item.name} placeholder="Objeto personal"><button class="remove" on:click={() => removeInventoryItem(item.id)}>×</button></div>
             {/each}
-            <div class="total-points" class:valid={character.inventory.length >= 12}>Objetos de Rasgos: 12 · Total actual: {character.inventory.length}</div>
+            <div class="total-points" class:valid={inventoryValid}>Cada Rasgo debe tener tres objetos con nombre. Los objetos personales también deben tener nombre. Total actual: {character.inventory.length}</div>
           {:else}
             <h1>Revisa el personaje</h1>
             <div class="summary"><p><strong>{character.name || 'Sin nombre'}</strong></p><p>{character.concept}</p><h3>Enfoques</h3>{#each APPROACHES as name}<p>{name}: {approachDraft[name]}</p>{/each}<h3>Rasgos</h3><p>{character.traits.join(' · ')}</p><h3>Equipo</h3><p>{character.inventory.map(i => i.name || 'Objeto por definir').join(' · ')}</p><p>Voluntad inicial: 4 / 4</p><p>Sobreesfuerzo disponible: 1</p></div>
           {/if}
           <div class="wizard-actions">
             {#if step > 0}<button class="secondary" on:click={previousStep}>Anterior</button>{/if}
-            <button on:click={nextStep} disabled={(step === 1 && !character.concept.trim()) || (step === 4 && !approachValid) || (step === 5 && character.traits.length !== 4) || (step === 6 && character.inventory.length < 12)}>{step === 7 ? 'Crear personaje' : 'Continuar'}</button>
+            <button on:click={nextStep} disabled={(step === 1 && !character.concept.trim()) || (step === 4 && !approachValid) || (step === 5 && character.traits.length !== 4) || (step === 6 && !inventoryValid)}>{step === 7 ? 'Crear personaje' : 'Continuar'}</button>
           </div>
         </section>
       {:else}
@@ -1132,8 +1153,8 @@
               <label>Edad<input bind:value={character.age} on:input={updateCharacter}></label>
               <label>Apariencia<textarea bind:value={character.appearance} on:input={updateCharacter}></textarea></label>
               <label>Experiencia<input bind:value={character.experience} on:input={updateCharacter}></label>
-              <h3>Enfoques</h3>{#each APPROACHES as name}<div class="approach-row"><strong>{name}</strong><div class="stepper"><button on:click={() => { character.approaches[name] = Math.max(0, character.approaches[name] - 1); updateCharacter(); }}>−</button><b>{character.approaches[name]}</b><button on:click={() => { character.approaches[name] += 1; updateCharacter(); }}>+</button></div></div>{/each}
-              <h3>Rasgos</h3>{#each character.traits as trait}<div class="selected-item"><span>{trait}</span><button class="remove" on:click={() => removeTrait(trait)}>Quitar</button></div>{/each}<div class="trait-picker"><select bind:value={traitDraft}><option value="">Añadir Rasgo...</option>{#each TRAITS as trait}<option value={trait}>{trait}</option>{/each}</select>{#if traitDraft === 'Conocedor de...'}<input bind:value={customTraitField} placeholder="¿Conocedor de qué?">{/if}<button on:click={addTrait} disabled={!traitDraft || (traitDraft === 'Conocedor de...' && !customTraitField.trim())}>Añadir</button></div>
+              <h3>Enfoques</h3>{#each APPROACHES as name}<div class="approach-row"><strong>{name}</strong><div class="stepper"><button on:click={() => setCharacterApproach(name, character.approaches[name] - 1)} disabled={character.approaches[name] <= 0}>−</button><b>{character.approaches[name]}</b><button on:click={() => setCharacterApproach(name, character.approaches[name] + 1)} disabled={character.approaches[name] >= 2 || characterApproachTotal >= 4}>+</button></div></div>{/each}
+              <h3>Rasgos</h3>{#each character.traits as trait}<div class="selected-item"><span>{trait}</span><button class="remove" on:click={() => removeTrait(trait)}>Quitar</button></div>{/each}<div class="trait-picker"><select bind:value={traitDraft}><option value="">Añadir Rasgo...</option>{#each TRAITS as trait}<option value={trait} disabled={character.traits.includes(trait) || character.traits.length >= 4}>{trait}</option>{/each}</select>{#if traitDraft === 'Conocedor de...'}<input bind:value={customTraitField} placeholder="¿Conocedor de qué?">{/if}<button on:click={addTrait} disabled={!traitDraft || (traitDraft === 'Conocedor de...' && !customTraitField.trim())}>Añadir</button></div>
               <button on:click={finishEdit}>Guardar cambios</button>
             </div>
           {/if}
@@ -1198,7 +1219,8 @@
             </ul>
           </div>
           {#if dicePlusError}<p class="error-message">{dicePlusError}</p>{/if}
-          <button class="roll-button" disabled={!!pendingDiceRoll} on:click={rollDice}>{pendingDiceRoll ? 'Tirando…' : 'Tirar dados con Dice+'}</button>
+          {#if isIncapacitated}<p class="error-message">Estás Incapacitado y no puedes realizar tiradas. El narrador debe resolver este Estado.</p>{/if}
+          <button class="roll-button" disabled={!!pendingDiceRoll || isIncapacitated} on:click={rollDice}>{pendingDiceRoll ? 'Tirando…' : 'Tirar dados con Dice+'}</button>
         </section>
         {#if lastRoll}
           <section class="card roll-result" class:failure={lastRoll.result === 'Fracaso'} class:consequence={lastRoll.result === 'Éxito con consecuencia'} class:success={lastRoll.result === 'Éxito limpio'} class:critical={lastRoll.result === 'Éxito crítico'}>
