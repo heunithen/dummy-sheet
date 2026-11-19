@@ -22,13 +22,13 @@
   const LINES_VEILS_KEY = 'com.heunithen.dummysheet-mimprov/lines-veils';
   const LINES_VEILS_REQUEST_CHANNEL = 'com.heunithen.dummysheet-mimprov/lines-veils-update';
   const STATES = [
-    { name: 'Mermado', enfoque: 'Rapidez', detail: 'Lesión o limitación física.' },
+    { name: 'Mermado', enfoque: 'Instinto', detail: 'Lesión o limitación física.' },
     { name: 'Deprimido', enfoque: 'Tenacidad', detail: 'Enfermedad, intoxicación o debilidad.' },
-    { name: 'Ansioso', enfoque: 'Control', detail: 'Miedo, terror o intimidación.' },
-    { name: 'Confundido', enfoque: 'Astucia', detail: 'Percepción o pensamiento alterados.' },
+    { name: 'Ansioso', enfoque: 'Disciplina', detail: 'Miedo, terror o intimidación.' },
+    { name: 'Confundido', enfoque: 'Ingenio', detail: 'Percepción o pensamiento alterados.' },
     { name: 'Incapacitado', enfoque: 'Todos', detail: 'Fuera de acción; requiere resolución narrativa.' }
   ];
-  const APPROACHES = ['Tenacidad', 'Control', 'Astucia', 'Rapidez'];
+  const APPROACHES = ['Tenacidad', 'Disciplina', 'Ingenio', 'Instinto'];
   const TRAITS = [
     'Atlético', 'Conocedor de...', 'Espadachín', 'Investigador', 'Furtivo',
     'Intimidante', 'Liderazgo', 'Maestro Chasquilla', 'Observador',
@@ -39,17 +39,17 @@
       long: 'Representa la resistencia física y mental, la determinación y la capacidad de soportar presión. Se utiliza para aguantar dolor, cansancio, privaciones o situaciones extremas, mantener el esfuerzo pese a las dificultades y no ceder ante amenazas, sufrimiento o adversidad.',
       short: 'Resistir, soportar presión y mantener la determinación.'
     },
-    Control: {
-      long: 'Representa la disciplina, la precisión y la capacidad de actuar con calma. Se utiliza para ejecutar acciones delicadas, mantener la concentración, controlar los movimientos o las emociones y realizar tareas que requieren cuidado, coordinación y dominio de uno mismo.',
-      short: 'Actuar con calma, precisión y disciplina.'
+    Disciplina: {
+      long: 'Representa la capacidad de controlar conscientemente las propias emociones, impulsos y acciones. Se utiliza para mantener la compostura bajo presión, contener una reacción, sostener la concentración, seguir un plan y actuar con precisión sin dejarse dominar por el miedo, la ira o las distracciones.',
+      short: 'Controlar las emociones, los impulsos y las propias acciones.'
     },
-    Astucia: {
-      long: 'Representa la inteligencia práctica, la observación analítica y la capacidad de encontrar soluciones. Se utiliza para deducir, investigar, recordar información útil, detectar patrones, engañar, improvisar estrategias o resolver problemas mediante el ingenio.',
-      short: 'Analizar, deducir y encontrar soluciones ingeniosas.'
+    Ingenio: {
+      long: 'Representa la inteligencia práctica y la capacidad de comprender situaciones y encontrar soluciones. Se utiliza para deducir, investigar, recordar información útil, detectar patrones, relacionar indicios, improvisar estrategias y resolver problemas mediante el razonamiento.',
+      short: 'Razonar, deducir y encontrar soluciones.'
     },
-    Rapidez: {
-      long: 'Representa la velocidad de reacción, la agilidad y la capacidad de moverse con rapidez. Se utiliza para correr, esquivar, perseguir, escapar, reaccionar antes que otros y realizar acciones que dependen de la velocidad o los reflejos.',
-      short: 'Moverse con agilidad y reaccionar rápidamente.'
+    Instinto: {
+      long: 'Representa la capacidad de reaccionar de manera inmediata ante lo que sucede, guiándose por los reflejos y la percepción espontánea. Se utiliza para responder a peligros repentinos, esquivar, anticipar movimientos, actuar sin deliberar y aprovechar una oportunidad antes de que desaparezca.',
+      short: 'Reaccionar de inmediato y actuar por reflejo.'
     }
   };
   const TRAIT_DESCRIPTIONS: Record<string, { long: string; short: string }> = {
@@ -130,9 +130,19 @@
   };
   const blankCharacter = (): Character => ({
     name: '', concept: '', age: '', appearance: '', experience: '', notes: '', portrait: '',
-    approaches: { Tenacidad: 0, Control: 0, Astucia: 0, Rapidez: 0 },
+    approaches: { Tenacidad: 0, Disciplina: 0, Ingenio: 0, Instinto: 0 },
     traits: [], inventory: [], will: 4, maxWill: 4, created: false
   });
+
+  function normalizeApproaches(value: any): Record<string, number> {
+    const source = value && typeof value === 'object' ? value : {};
+    return {
+      Tenacidad: Number(source.Tenacidad) || 0,
+      Disciplina: Number(source.Disciplina ?? source.Control) || 0,
+      Ingenio: Number(source.Ingenio ?? source.Astucia) || 0,
+      Instinto: Number(source.Instinto ?? source.Rapidez) || 0
+    };
+  }
 
   let character: Character = blankCharacter();
   let loaded = false;
@@ -163,7 +173,7 @@
     if (!conceptOptions.length) return;
     character.concept = conceptOptions[Math.floor(Math.random() * conceptOptions.length)];
   }
-  let approachDraft: Record<string, number> = { Tenacidad: 0, Control: 0, Astucia: 0, Rapidez: 0 };
+  let approachDraft: Record<string, number> = { Tenacidad: 0, Disciplina: 0, Ingenio: 0, Instinto: 0 };
   let traitDraft = '';
   let customTraitField = '';
   let equipmentDraft: string[] = [];
@@ -246,7 +256,9 @@
   function getStoredCharacter(): Character {
     try {
       const raw = localStorage.getItem('mimprov-character-v1');
-      return raw ? { ...blankCharacter(), ...JSON.parse(raw) } : blankCharacter();
+      if (!raw) return blankCharacter();
+      const saved = JSON.parse(raw);
+      return { ...blankCharacter(), ...saved, approaches: normalizeApproaches(saved.approaches) };
     } catch { return blankCharacter(); }
   }
   function saveLocalCharacter() {
@@ -362,7 +374,7 @@
       if (!incoming || typeof incoming !== 'object' || !incoming.approaches || !Array.isArray(incoming.traits) || !Array.isArray(incoming.inventory)) {
         throw new Error('El archivo no contiene una ficha MIMPROV válida.');
       }
-      character = { ...blankCharacter(), ...incoming, approaches: { ...blankCharacter().approaches, ...incoming.approaches }, created: true };
+      character = { ...blankCharacter(), ...incoming, approaches: normalizeApproaches(incoming.approaches), created: true };
       updateCharacter();
       editingCharacter = false;
       step = 0;
@@ -448,7 +460,7 @@
 
   function stateForApproach(approach: string): string {
     const stateByApproach: Record<string, string> = {
-      Tenacidad: 'Deprimido', Control: 'Ansioso', Astucia: 'Confundido', Rapidez: 'Mermado'
+      Tenacidad: 'Deprimido', Disciplina: 'Ansioso', Ingenio: 'Confundido', Instinto: 'Mermado'
     };
     return stateByApproach[approach] || '';
   }
@@ -560,7 +572,8 @@
           if (role === 'PLAYER') {
             const metadata = await OBR.player.getMetadata();
             if (metadata[DATA_KEY]) {
-              character = { ...blankCharacter(), ...(metadata[DATA_KEY] as Character) };
+              const incoming = metadata[DATA_KEY] as Character;
+              character = { ...blankCharacter(), ...incoming, approaches: normalizeApproaches(incoming.approaches) };
               saveLocalCharacter();
             } else if (character.created) {
               await OBR.player.setMetadata({ [DATA_KEY]: clone(character) });
@@ -809,7 +822,7 @@
     return player?.metadata?.[DATA_KEY] as Character | undefined;
   }
 
-  function startCreation() { step = 0; character = blankCharacter(); approachDraft = { Tenacidad: 0, Control: 0, Astucia: 0, Rapidez: 0 }; }
+  function startCreation() { step = 0; character = blankCharacter(); approachDraft = { Tenacidad: 0, Disciplina: 0, Ingenio: 0, Instinto: 0 }; }
   function nextStep() {
     if (step === 1 && !character.concept.trim()) return;
     if (step === 4 && !approachValid) return;
@@ -881,7 +894,7 @@
   function spendOverexertion(id: string, enfoque: string) {
     const t = playerTracker(id);
     if (t.overexertionUsed >= 1) return;
-    const stateByApproach: Record<string, string> = { Tenacidad: 'Deprimido', Control: 'Ansioso', Astucia: 'Confundido', Rapidez: 'Mermado' };
+    const stateByApproach: Record<string, string> = { Tenacidad: 'Deprimido', Disciplina: 'Ansioso', Ingenio: 'Confundido', Instinto: 'Mermado' };
     const state = stateByApproach[enfoque];
     t.overexertionUsed += 1;
     if (!t.states.includes(state) && !t.states.includes('Incapacitado')) t.states = [...t.states, state];
@@ -1376,7 +1389,7 @@
         <h2>1. Creación de personajes</h2>
         <p>Cada personaje se define mediante su nombre, concepto, edad, apariencia, cuatro Enfoques, cuatro Rasgos y su equipo.</p>
         <ul>
-          <li><strong>Enfoques:</strong> distribuye exactamente 4 puntos entre Tenacidad, Control, Astucia y Rapidez. Cada Enfoque puede tener entre 0 y 2 puntos.</li>
+          <li><strong>Enfoques:</strong> distribuye exactamente 4 puntos entre Tenacidad, Disciplina, Ingenio y Instinto. Cada Enfoque puede tener entre 0 y 2 puntos.</li>
           <li><strong>Rasgos:</strong> escoge cuatro. Cada Rasgo aporta +1 dado cuando resulta directamente relevante para la acción.</li>
           <li><strong>Equipo:</strong> cada Rasgo proporciona tres espacios de objetos asociados. Debes completar al menos 12 objetos para terminar la creación.</li>
           <li><strong>Voluntad:</strong> comienzas con 4 puntos y tu máximo inicial también es 4.</li>
@@ -1421,10 +1434,10 @@
         <h2>4. Estados</h2>
         <p>Los Estados representan condiciones que dificultan determinadas acciones. Cada Estado aplica una penalización de −1 dado al Enfoque asociado.</p>
         <ul>
-          <li><strong>Mermado — Rapidez:</strong> lesión o limitación física.</li>
+          <li><strong>Mermado — Instinto:</strong> lesión o limitación física.</li>
           <li><strong>Deprimido — Tenacidad:</strong> enfermedad, intoxicación o debilidad.</li>
-          <li><strong>Ansioso — Control:</strong> miedo, terror o intimidación.</li>
-          <li><strong>Confundido — Astucia:</strong> percepción o pensamiento alterados.</li>
+          <li><strong>Ansioso — Disciplina:</strong> miedo, terror o intimidación.</li>
+          <li><strong>Confundido — Ingenio:</strong> percepción o pensamiento alterados.</li>
           <li><strong>Incapacitado — Todos:</strong> el personaje queda fuera de acción. Este Estado reemplaza a los demás y no puede acumularse con ellos.</li>
         </ul>
         <p>Descansar no elimina Estados. Cada Estado debe resolverse mediante su propio procedimiento; quitar uno no elimina los demás.</p>
@@ -1436,7 +1449,7 @@
         <ul>
           <li>Después de fallar una tirada, puedes gastar el punto para repetirla.</li>
           <li>Al gastarlo, recibes el Estado asociado al Enfoque utilizado y vuelves a lanzar todos los dados de la tirada.</li>
-          <li>Tenacidad añade Deprimido; Control añade Ansioso; Astucia añade Confundido; Rapidez añade Mermado.</li>
+          <li>Tenacidad añade Deprimido; Disciplina añade Ansioso; Ingenio añade Confundido; Instinto añade Mermado.</li>
           <li>El Punto de Esfuerzo solo puede utilizarse una vez hasta recuperarlo mediante un descanso.</li>
           <li>Si la repetición también fracasa, no puedes volver a gastar ese mismo punto.</li>
         </ul>
