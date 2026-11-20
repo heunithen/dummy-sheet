@@ -621,7 +621,7 @@
               tracker.effortCoins = Math.max(0, Number(tracker.effortCoins ?? (3 - (Number(tracker.overexertionUsed) || 0))) - 1);
               saveGmTracker();
             } catch (error) {
-              console.error('No se pudo registrar el Punto de Esfuerzo', error);
+              console.error('No se pudo registrar la moneda de esfuerzo', error);
             }
           });
           OBR.broadcast.onMessage(MAGIC_SUBMIT_CHANNEL, async (event) => {
