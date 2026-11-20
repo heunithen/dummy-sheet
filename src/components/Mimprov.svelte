@@ -1448,6 +1448,11 @@
         <h2>1. Creación de personajes</h2>
         <p>Cada personaje se define mediante su nombre, arquetipo, concepto, edad, apariencia, cuatro Enfoques, cuatro Rasgos y su equipo. Elige primero el arquetipo y después escribe el concepto.</p>
         <ul>
+          <li><strong>Valiente:</strong> Tenacidad 1 e Instinto 1; Peleador y Superviviente.</li>
+          <li><strong>Místico:</strong> Disciplina 1 e Instinto 1; Observador y Conocedor de...</li>
+          <li><strong>Académico:</strong> Disciplina 1 e Ingenio 1; Investigador y Conocedor de...</li>
+          <li><strong>Atlético:</strong> Tenacidad 1 e Instinto 1; Atlético y Superviviente.</li>
+          <li><strong>Sociable:</strong> Disciplina 1 e Ingenio 1; Persuasivo y Liderazgo.</li>
           <li><strong>Arquetipo:</strong> aporta 2 puntos de Enfoque, repartidos entre dos Enfoques distintos (1 punto en cada uno), y 2 Rasgos fijos.</li>
           <li><strong>Enfoques:</strong> distribuye los otros 2 puntos entre los dos Enfoques que no recibieron puntos del arquetipo. Cada Enfoque puede tener como máximo 1 punto; empiezas con 4 puntos en total.</li>
           <li><strong>Rasgos:</strong> conserva los 2 Rasgos fijos del arquetipo y escoge otros 2 de la lista. Cada Rasgo aporta +1 dado cuando resulta directamente relevante para la acción.</li>
