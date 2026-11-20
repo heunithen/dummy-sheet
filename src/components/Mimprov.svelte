@@ -611,7 +611,7 @@
           OBR.broadcast.onMessage(EFFORT_REQUEST_CHANNEL, async (event) => {
             if (role !== 'GM') return;
             const data = event.data as any;
-            if (!data?.playerId || !data?.approach || !data?.state) return;
+            if (!data?.playerId || !['extra-die', 'reroll'].includes(data.mode) || !String(data.connection || '').trim()) return;
             try {
               const party = await OBR.party.getPlayers();
               const sender = party.find((p: any) => p.connectionId === event.connectionId);
