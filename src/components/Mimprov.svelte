@@ -1435,7 +1435,24 @@
       <section class="card"><h2>Magnitud del conjuro</h2><label>Elige la magnitud propuesta<select bind:value={magicMagnitude}><option value="simple">Truco simple — sin éxitos adicionales</option><option value="moderate">Magia moderada — +1 éxito si la tirada tiene éxito</option><option value="extraordinary">Magia extraordinaria — +2 éxitos si la tirada tiene éxito</option></select></label><p class="muted">Los éxitos adicionales solo cuentan para reducir la Resistencia de un conflicto. No cambian el resultado narrativo ni cuentan para críticos.</p></section>
       <section class="card"><h2>¿Qué das a cambio?</h2><p>El coste debe ser proporcional al poder. Puede consistir en perder Voluntad, recibir Mermado, Deprimido, Ansioso o Confundido, o ambas cosas. Abrumado aparece únicamente al llegar a 0 Voluntad. El precio puede pagarse una sola vez al establecer el pacto o cada vez que utilizas el poder.</p><textarea bind:value={magicPrice} rows="5" maxlength="4000" placeholder="Describe el coste y cuándo se paga..."></textarea><small class="field-hint">{magicPrice.length} / 4000 caracteres</small><button class="full" on:click={submitMagicPact} disabled={!magicEffect.trim() || !magicPrice.trim()}>Firmar pacto</button>{#if magicMessage}<p class="magic-message">{magicMessage}</p>{/if}</section>
       {#if getMyMagicRecord().proposals?.some((pact) => pact.status !== 'accepted')}<section class="card"><h2>Mis propuestas</h2>{#each [...getMyMagicRecord().proposals].filter((pact) => pact.status !== 'accepted').sort((a, b) => b.createdAt - a.createdAt) as pact}<article class="pact-item"><div class="pact-status" class:pending={pact.status === 'pending'} class:rejected={pact.status === 'rejected'}>{pact.status === 'pending' ? 'Pendiente de revisión' : 'Rechazado'}</div><h3>Efecto</h3><p>{pact.effect}</p><h3>Magnitud</h3><p>{magicMagnitudeLabel(pact.magnitude)}</p><h3>Coste</h3><p>{pact.price}</p></article>{/each}</section>{/if}
-      {#if getMyMagicRecord().spells?.length}<section class="card"><h2>Mis conjuros aprobados</h2>{#each getMyMagicRecord().spells as pact}<article class="pact-item approved-spell"><div class="pact-status accepted">Pacto aprobado</div><h3>Efecto</h3><p>{pact.effect}</p><h3>Magnitud</h3><p>{magicMagnitudeLabel(pact.magnitude)}</p><h3>Precio</h3><p>{magicMagnitudeLabel(pact.magnitude)} · {pact.price}</p></article>{/each}</section>{/if}
+      {#if getMyMagicRecord().spells?.length}<section class="card"><h2>Mis conjuros aprobados</h2>{#each getMyMagicRecord().spells as pact}<article class="pact-item approved-spell"><div class="pact-status accepted">Pacto aprobado</div><h3>Efecto</h3><p>{pact.effect}</p><h3>Magnitud</h3><p>{magicMagnitudeLabel(pact.magnitude)}</p><h3>Precio</h3><p>{pact.price}</p></article>{/each}</section>{/if}
+    </main>
+  {:else if $isGM && activeTab === 'magia-gm'}
+    <main class="content magic-content"><div class="eyebrow">REVISIÓN DE PACTOS</div><h1>Magia</h1>
+      <p class="magic-intro">Revisa el efecto, la magnitud y que el coste sea proporcional. La magia se resuelve con una tirada normal; los éxitos adicionales solo cuentan para reducir la Resistencia de un conflicto y no cambian el resultado narrativo ni cuentan para críticos.</p>
+      {#each Object.entries(magicData?.players || {}) as [playerId, record]}
+        {#each (record.proposals || []).filter((pact) => pact.status === 'pending') as pact}
+          <section class="card pact-review"><div class="eyebrow">PROPUESTA DE {pact.playerName || 'JUGADOR'}</div>
+            <h2>¿Qué quiere conseguir?</h2><p class="pact-text">{pact.effect}</p>
+            <h2>Magnitud</h2><p>{magicMagnitudeLabel(pact.magnitude)}</p>
+            <h2>¿Qué da a cambio?</h2><p class="pact-text">{pact.price}</p>
+            <div class="pact-actions"><button on:click={() => updateMagicPact(playerId, pact.id, 'accepted')}>Aceptar pacto</button><button class="secondary" on:click={() => updateMagicPact(playerId, pact.id, 'rejected')}>Rechazar</button></div>
+          </section>
+        {/each}
+      {/each}
+      {#if !Object.values(magicData?.players || {}).some((record) => (record.proposals || []).some((pact) => pact.status === 'pending'))}
+        <section class="card"><p>No hay pactos pendientes de revisión.</p></section>
+      {/if}
     </main>
   {:else if !$isGM && activeTab === 'notas'}
     <main class="content notes-content">
