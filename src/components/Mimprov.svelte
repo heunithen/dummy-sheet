@@ -1133,7 +1133,7 @@
       <button class:active={activeTab === 'notas'} on:click={() => { activeTab = 'notas'; }}>Notas</button>
       <button class:active={activeTab === 'lineas-velos'} on:click={() => { activeTab = 'lineas-velos'; }}>Líneas y velos</button>
     </nav>
-  {:else}
+  {:else if $isGM}
     <nav class="main-tabs">
       <button class:active={activeTab === 'gm'} on:click={() => { activeTab = 'gm'; }}>Personajes</button>
       <button class:active={activeTab === 'conflicto'} on:click={() => { activeTab = 'conflicto'; }}>Conflicto</button>
