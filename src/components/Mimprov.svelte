@@ -40,6 +40,30 @@
     'Intimidante', 'Liderazgo', 'Maestro Chasquilla', 'Observador',
     'Peleador', 'Persuasivo', 'Superviviente', 'Tirador'
   ];
+  const GENRE_KEY = 'com.heunithen.dummysheet-mimprov/genre';
+  const GENRES = [{id:'fantasy',label:'Fantasía'},{id:'scifi',label:'Ciencia ficción'},{id:'horror',label:'Terror'},{id:'modern',label:'Contemporánea'},{id:'postapoc',label:'Postapocalíptica'}];
+  const GENRE_TRAIT_LABELS: Record<string, Record<string,string>> = {
+    fantasy:{'Maestro Chasquilla':'Herrero','Tirador':'Arquero'},
+    scifi:{'Conocedor de...':'Especialista en...','Espadachín':'Duelista','Investigador':'Analista','Furtivo':'Infiltrador','Liderazgo':'Coordinador','Maestro Chasquilla':'Técnico'},
+    horror:{'Maestro Chasquilla':'Reparador'},
+    modern:{'Maestro Chasquilla':'Técnico'},
+    postapoc:{'Conocedor de...':'Experto en...','Furtivo':'Merodeador','Maestro Chasquilla':'Mecánico'}
+  };
+  const KNOWLEDGE_BY_GENRE: Record<string,string[]> = {
+    fantasy:['Alquimia','Heráldica','Historia','Monstruos','Religión','Plantas medicinales','Minería','Arquitectura','Magia','Forja'],
+    scifi:['Robótica','Medicina','Biología alienígena','Ingeniería','Programación','Navegación espacial','Xenología','Armamento','Cibernética','Astrofísica'],
+    horror:['Ocultismo','Medicina forense','Leyendas locales','Psicología','Rituales','Enfermedades','Historia criminal','Fenómenos paranormales','Folclore','Anatomía'],
+    modern:['Derecho','Medicina','Informática','Mecánica','Química','Finanzas','Historia','Construcción','Electrónica','Periodismo'],
+    postapoc:['Medicina','Motores','Explosivos','Agricultura','Electricidad','Armas','Química','Fauna','Navegación','Purificación de agua']
+  };
+  const GENRE_EQUIPMENT: Record<string,Record<string,string[]>> = {
+    fantasy:{'Atlético':['Cuerda de escalada','Botas de viaje','Guantes de cuero'],'Conocedor de...':['Libro de referencia','Notas de estudio','Instrumento de oficio'],'Espadachín':['Espada','Vaina','Piedra de afilar'],'Investigador':['Libreta','Lápiz de carbón','Lupa'],'Furtivo':['Capa con capucha','Ganzúas artesanales','Ropa discreta'],'Intimidante':['Armadura intimidante','Trofeo amenazador','Insignia de reputación'],'Liderazgo':['Estandarte','Cuerno de mando','Mapa de campaña'],'Maestro Chasquilla':['Martillo de herrero','Tenazas','Herramientas de forja'],'Observador':['Catalejo','Linterna','Espejo pequeño'],'Peleador':['Guantes reforzados','Vendas','Protección de cuero'],'Persuasivo':['Ropa elegante','Sello personal','Regalo de cortesía'],'Superviviente':['Cantimplora','Pedernal','Manta de viaje'],'Tirador':['Arco','Carcaj','Flechas']},
+    scifi:{'Atlético':['Arnés de movilidad','Calzado magnético','Suero hidratante'],'Conocedor de...':['Terminal portátil','Base de datos','Kit de análisis'],'Espadachín':['Hoja de energía','Empuñadura de repuesto','Funda magnética'],'Investigador':['Terminal de análisis','Grabador','Escáner de evidencias'],'Furtivo':['Traje de camuflaje','Silenciador de pasos','Herramienta de acceso'],'Intimidante':['Armadura táctica','Insignia de rango','Máscara amenazante'],'Liderazgo':['Comunicador de escuadra','Proyector de mapas','Identificador de mando'],'Maestro Chasquilla':['Multiherramienta técnica','Escáner de circuitos','Kit de reparación'],'Observador':['Sensor óptico','Visor de largo alcance','Detector de movimiento'],'Peleador':['Guantes de impacto','Protector corporal','Refuerzo de nudillos'],'Persuasivo':['Identificación profesional','Traductor universal','Obsequio diplomático'],'Superviviente':['Filtro de aire','Ración compacta','Manta térmica'],'Tirador':['Rifle de precisión','Mira','Cargador adicional']},
+    horror:{'Atlético':['Linterna frontal','Calzado resistente','Cuerda'],'Conocedor de...':['Archivo de recortes','Libro especializado','Grabadora de voz'],'Espadachín':['Espada antigua','Vaina','Piedra de afilar'],'Investigador':['Libreta de evidencias','Cámara','Lupa'],'Furtivo':['Ropa oscura','Guantes','Herramientas de apertura'],'Intimidante':['Vestimenta amenazante','Máscara inquietante','Objeto perturbador'],'Liderazgo':['Radio portátil','Plano del lugar','Silbato'],'Maestro Chasquilla':['Caja de herramientas','Alicates','Cinta aislante'],'Observador':['Linterna','Binoculares','Cámara compacta'],'Peleador':['Vendas','Guantes resistentes','Protección improvisada'],'Persuasivo':['Documentos de identidad','Grabadora','Objeto de confianza'],'Superviviente':['Botiquín','Agua embotellada','Manta'],'Tirador':['Arma a distancia apropiada','Linterna de montaje','Munición']},
+    modern:{'Atlético':['Ropa deportiva','Zapatillas','Botella de agua'],'Conocedor de...':['Manual profesional','Computador portátil','Herramienta de medición'],'Espadachín':['Espada deportiva','Protección de entrenamiento','Bolso de transporte'],'Investigador':['Libreta','Grabadora','Cámara'],'Furtivo':['Ropa discreta','Guantes','Herramienta de apertura'],'Intimidante':['Vestimenta formal','Credencial de autoridad','Accesorio intimidante'],'Liderazgo':['Teléfono','Agenda de contactos','Presentación o plano'],'Maestro Chasquilla':['Caja de herramientas','Multímetro','Taladro'],'Observador':['Cámara','Binoculares','Linterna'],'Peleador':['Guantes de entrenamiento','Vendas','Protector bucal'],'Persuasivo':['Tarjetas de presentación','Teléfono','Obsequio de cortesía'],'Superviviente':['Botiquín','Botella de agua','Manta de emergencia'],'Tirador':['Equipo de tiro deportivo','Protección ocular','Protección auditiva']},
+    postapoc:{'Atlético':['Botas resistentes','Cuerda','Mochila ligera'],'Conocedor de...':['Manual deteriorado','Cuaderno de apuntes','Herramienta especializada'],'Espadachín':['Machete','Piedra de afilar','Funda reforzada'],'Investigador':['Mapa usado','Libreta','Lupa improvisada'],'Furtivo':['Ropa de camuflaje','Máscara antipolvo','Herramienta de apertura'],'Intimidante':['Armadura improvisada','Trofeo amenazador','Emblema de banda'],'Liderazgo':['Radio reparada','Mapa de rutas','Silbato'],'Maestro Chasquilla':['Llave inglesa','Alicates','Piezas reutilizables'],'Observador':['Prismáticos','Espejo de señales','Linterna'],'Peleador':['Guantes reforzados','Vendas','Protección artesanal'],'Persuasivo':['Mercancía de trueque','Credencial antigua','Objeto de intercambio'],'Superviviente':['Cantimplora','Filtro de agua','Manta térmica'],'Tirador':['Arma a distancia apropiada','Mira artesanal','Munición']}
+  };
+
   const APPROACH_DESCRIPTIONS: Record<string, { long: string; short: string }> = {
     Tenacidad: {
       long: 'Representa la resistencia física y mental, la determinación y la capacidad de soportar presión. Se utiliza para aguantar dolor, cansancio, privaciones o situaciones extremas, mantener el esfuerzo pese a las dificultades y no ceder ante amenazas, sufrimiento o adversidad.',
@@ -198,6 +222,7 @@
   let gmNpcCharacters: GmNpc[] = [];
   let selectedGmNpcGenre: GmNpcGenre = 'fantasy';
   let gmNpcNotes = '';
+  let selectedGenre = 'fantasy';
   let linesVeils: { lines: string; veils: string } = { lines: '', veils: '' };
   let visibleStates: string[] = [];
   let visibleEffortCoins = 3;
@@ -226,6 +251,24 @@
   $: createdCharacterCount = partyMembers.filter(p => getPlayerCharacter(p)?.created).length;
   $: initialConflictResistance = createdCharacterCount * 2;
   $: if ($isGM && gmTracker.conflict?.active && partyMembers.length > 0 && partyMembers.every((player) => (Number(getPlayerCharacter(player)?.will) || 0) <= 0)) resolveConflict('defeat');
+
+
+  function traitLabel(trait: string): string {
+    const base = trait.startsWith('Conocedor de ') ? 'Conocedor de...' : trait;
+    const label = GENRE_TRAIT_LABELS[selectedGenre]?.[base] || base;
+    return trait.startsWith('Conocedor de ') ? label.replace(/\.\.\.$/, '') + ' ' + trait.slice('Conocedor de '.length) : label;
+  }
+  function knowledgeOptions(): string[] { return KNOWLEDGE_BY_GENRE[selectedGenre] || KNOWLEDGE_BY_GENRE.fantasy; }
+  function equipmentForTrait(trait: string): string[] {
+    const base = trait.startsWith('Conocedor de ') ? 'Conocedor de...' : trait;
+    return GENRE_EQUIPMENT[selectedGenre]?.[base] || EQUIPMENT[base] || ['', '', ''];
+  }
+  async function changeGenre(genre: string) {
+    if (!GENRES.some(item => item.id === genre)) return;
+    selectedGenre = genre;
+    try { if (OBR.isAvailable) await OBR.room.setMetadata({ [GENRE_KEY]: genre }); }
+    catch (error) { console.error('No se pudo guardar la ambientación', error); }
+  }
 
   function clone<T>(value: T): T { return JSON.parse(JSON.stringify(value)); }
   function loadRollHistory() {
@@ -566,6 +609,9 @@
             const room = OBR.room.id;
             localStorage.setItem('mimprov-lines-veils-v1-' + room, JSON.stringify(linesVeils));
           };
+          const syncGenre = (metadata: any) => { const genre = metadata?.[GENRE_KEY]; selectedGenre = GENRES.some(item => item.id === genre) ? genre : 'fantasy'; };
+          syncGenre(await OBR.room.getMetadata());
+          OBR.room.onMetadataChange(syncGenre);
           syncLinesVeils(await OBR.room.getMetadata());
           OBR.room.onMetadataChange(syncLinesVeils);
           OBR.broadcast.onMessage(LINES_VEILS_REQUEST_CHANNEL, async (event) => {
@@ -860,7 +906,7 @@
     character.traits = [...archetype.traits];
     character.inventory = [];
     character.traits.forEach((trait) => {
-      const equipment = EQUIPMENT[trait] || (trait === 'Conocedor de...' ? EQUIPMENT['Conocedor de...'] : ['', '', '']);
+      const equipment = equipmentForTrait(trait);
       equipment.forEach((item, i) => character.inventory.push({ id: Date.now() + i + character.inventory.length, name: item, trait }));
     });
     updateCharacter();
@@ -896,7 +942,7 @@
     const trait = traitDraft === 'Conocedor de...' && customTraitField.trim() ? 'Conocedor de ' + customTraitField.trim() : traitDraft;
     if (!trait || character.traits.length >= 4 || character.traits.includes(trait)) return;
     character.traits = [...character.traits, trait];
-    const equipment = EQUIPMENT[trait] || (trait.startsWith('Conocedor de ') ? EQUIPMENT['Conocedor de...'] : ['', '', '']);
+    const equipment = equipmentForTrait(trait);
     equipment.forEach((name, i) => character.inventory.push({ id: Date.now() + i + character.inventory.length, name, trait }));
     traitDraft = ''; customTraitField = ''; updateCharacter();
   }
@@ -1101,7 +1147,7 @@
             <h1>¿Cuál es su arquetipo?</h1>
             <p>El arquetipo aporta 2 puntos de Enfoque y 2 Rasgos fijos. Junto con el concepto, también define cuándo puedes gastar monedas de esfuerzo.</p>
             <div class="trait-picker"><select value={character.archetype} on:change={(event) => selectArchetype(event.currentTarget.value)}><option value="">Seleccionar arquetipo...</option>{#each Object.keys(ARCHETYPES) as archetype}<option value={archetype}>{archetype}</option>{/each}</select></div>
-            {#if character.archetype}<div class="selected-list"><strong>{character.archetype}</strong><p>Enfoques: {APPROACHES.filter(name => ARCHETYPES[character.archetype].approaches[name]).join(' 1 · ')} 1.</p><p>Rasgos fijos: {ARCHETYPES[character.archetype].traits.join(' · ')}</p></div>{/if}
+            {#if character.archetype}<div class="selected-list"><strong>{character.archetype}</strong><p>Enfoques: {APPROACHES.filter(name => ARCHETYPES[character.archetype].approaches[name]).join(' 1 · ')} 1.</p><p>Rasgos fijos: {ARCHETYPES[character.archetype].traits.map(traitLabel).join(' · ')}</p></div>{/if}
           {:else if step === 2}
             <h1>¿Cuál es su concepto?</h1>
             <p>Escribe una frase que describa quién es, qué lo caracteriza y qué guía sus acciones. El arquetipo y el concepto están unidos: la acción debe guardar relación con al menos uno de ellos para gastar una moneda de esfuerzo.</p>
@@ -1140,20 +1186,20 @@
           {:else if step === 6}
             <h1>Completa tus cuatro Rasgos</h1>
             <p>El arquetipo aporta dos Rasgos fijos. Escoge otros dos de la lista disponible.</p>
-            <div class="selected-list"><strong>Rasgos fijos del arquetipo</strong>{#each character.traits.slice(0, 2) as trait}<div class="selected-item"><span>{trait}</span><small>Fijo</small></div>{/each}</div>
+            <div class="selected-list"><strong>Rasgos fijos del arquetipo</strong>{#each character.traits.slice(0, 2) as trait}<div class="selected-item"><span>{traitLabel(trait)}</span><small>Fijo</small></div>{/each}</div>
             {#if ARCHETYPES[character.archetype]?.traits.includes('Conocedor de...')}<label>Campo de conocimiento<input value={character.traits.find((trait) => trait.startsWith('Conocedor de '))?.replace('Conocedor de ', '') || ''} on:input={(event) => updateArchetypeKnowledge(event.currentTarget.value)} placeholder="¿Conocedor de qué?"></label>{/if}
             <div class="trait-picker">
-              <select bind:value={traitDraft}><option value="">Seleccionar Rasgo...</option>{#each TRAITS as trait}<option value={trait} disabled={character.traits.includes(trait) || character.traits.length >= 4}>{trait}</option>{/each}</select>
-              {#if traitDraft === 'Conocedor de...'}<input bind:value={customTraitField} placeholder="¿Conocedor de qué?">{/if}
+              <select bind:value={traitDraft}><option value="">Seleccionar Rasgo...</option>{#each TRAITS as trait}<option value={trait} disabled={character.traits.includes(trait) || character.traits.length >= 4}>{traitLabel(trait)}</option>{/each}</select>
+              {#if traitDraft === 'Conocedor de...'}<input bind:value={customTraitField} list="mimprov-knowledge-options" placeholder="¿Conocedor de qué?"><datalist id="mimprov-knowledge-options">{#each knowledgeOptions() as option}<option value={option}></option>{/each}</datalist>{/if}
               <button on:click={addTrait} disabled={!traitDraft || (traitDraft === 'Conocedor de...' && !customTraitField.trim())}>Añadir</button>
             </div>
-            <div class="selected-list">{#each character.traits as trait}<div class="selected-item trait-description"><div><strong>{trait}</strong><small>{trait.startsWith('Conocedor de ') || trait === 'Conocedor de...' ? 'Conocedor de...': trait} </small><p>{trait.startsWith('Conocedor de ') ? 'Posees conocimientos y experiencia en ' + trait.slice('Conocedor de '.length) + '. Puedes reconocer elementos propios de esa materia, comprender información especializada, recordar procedimientos y resolver problemas relacionados con ese ámbito.' : TRAIT_DESCRIPTIONS[trait]?.long || ''}</p></div>{#if isFixedArchetypeTrait(trait)}<small>Fijo</small>{:else}<button class="remove" on:click={() => removeTrait(trait)}>Quitar</button>{/if}</div>{/each}</div>
+            <div class="selected-list">{#each character.traits as trait}<div class="selected-item trait-description"><div><strong>{traitLabel(trait)}</strong><small>{traitLabel(trait.startsWith('Conocedor de ') ? 'Conocedor de...' : trait)} </small><p>{trait.startsWith('Conocedor de ') ? 'Posees conocimientos y experiencia en ' + trait.slice('Conocedor de '.length) + '. Puedes reconocer elementos propios de esa materia, comprender información especializada, recordar procedimientos y resolver problemas relacionados con ese ámbito.' : TRAIT_DESCRIPTIONS[trait]?.long || ''}</p></div>{#if isFixedArchetypeTrait(trait)}<small>Fijo</small>{:else}<button class="remove" on:click={() => removeTrait(trait)}>Quitar</button>{/if}</div>{/each}</div>
             <div class="total-points" class:valid={character.traits.length === 4}>Rasgos seleccionados: {character.traits.length} / 4</div>
           {:else if step === 7}
             <h1>Prepara su equipo</h1>
             <p>Cada Rasgo entrega tres objetos asociados. Puedes editar los nombres de los objetos y añadir pertenencias personales.</p>
             {#each character.traits as trait}
-              <div class="equipment-group"><h3>{trait}</h3>{#each character.inventory.filter(i => i.trait === trait) as item}
+              <div class="equipment-group"><h3>{traitLabel(trait)}</h3>{#each character.inventory.filter(i => i.trait === trait) as item}
                 <label class="inline-label"><input value={item.name} placeholder="Nombre del objeto" on:input={(e) => { item.name = e.currentTarget.value; updateCharacter(); }}></label>
               {/each}</div>
             {/each}
@@ -1164,7 +1210,7 @@
             <div class="total-points" class:valid={inventoryValid}>Cada Rasgo debe tener tres objetos con nombre. Los objetos personales también deben tener nombre. Total actual: {character.inventory.length}</div>
           {:else}
             <h1>Revisa el personaje</h1>
-            <div class="summary"><p><strong>{character.name || 'Sin nombre'}</strong></p><p>{character.archetype} · {character.concept}</p><h3>Enfoques</h3>{#each APPROACHES as name}<p>{name}: {approachDraft[name]}</p>{/each}<h3>Rasgos</h3><p>{character.traits.join(' · ')}</p><h3>Equipo</h3><p>{character.inventory.map(i => i.name || 'Objeto por definir').join(' · ')}</p><p>Voluntad inicial: 4 / 4</p><p>Monedas de esfuerzo iniciales: 3 / 3</p></div>
+            <div class="summary"><p><strong>{character.name || 'Sin nombre'}</strong></p><p>{character.archetype} · {character.concept}</p><h3>Enfoques</h3>{#each APPROACHES as name}<p>{name}: {approachDraft[name]}</p>{/each}<h3>Rasgos</h3><p>{character.traits.map(traitLabel).join(' · ')}</p><h3>Equipo</h3><p>{character.inventory.map(i => i.name || 'Objeto por definir').join(' · ')}</p><p>Voluntad inicial: 4 / 4</p><p>Monedas de esfuerzo iniciales: 3 / 3</p></div>
           {/if}
           <div class="wizard-actions">
             {#if step > 0}<button class="secondary" on:click={previousStep}>Anterior</button>{/if}
@@ -1183,7 +1229,7 @@
               <label>Apariencia<textarea bind:value={character.appearance} on:input={updateCharacter}></textarea></label>
               <label>Experiencia<input bind:value={character.experience} on:input={updateCharacter}></label>
               <h3>Enfoques</h3><p class="muted">Puntos distribuidos: {characterApproachTotal} / 4. Máximo 1 por Enfoque; los puntos del arquetipo son fijos.</p>{#each APPROACHES as name}<div class="approach-row"><strong>{name}</strong><div class="stepper"><button on:click={() => setCharacterApproach(name, character.approaches[name] - 1)} disabled={character.approaches[name] <= (ARCHETYPES[character.archetype]?.approaches[name] || 0)}>−</button><b>{character.approaches[name]}</b><button on:click={() => setCharacterApproach(name, character.approaches[name] + 1)} disabled={character.approaches[name] >= 1 || characterApproachTotal >= 4}>+</button></div></div>{/each}
-              <h3>Rasgos</h3>{#if ARCHETYPES[character.archetype]?.traits.includes('Conocedor de...')}<label>Especialidad de Conocedor de...<input value={character.traits.find((trait) => trait.startsWith('Conocedor de '))?.replace('Conocedor de ', '') || ''} on:input={(event) => updateArchetypeKnowledge(event.currentTarget.value)} placeholder="Campo de conocimiento"></label>{/if}{#each character.traits as trait}<div class="selected-item"><span>{trait}</span>{#if isFixedArchetypeTrait(trait)}<small>Fijo</small>{:else}<button class="remove" on:click={() => removeTrait(trait)}>Quitar</button>{/if}</div>{/each}<div class="trait-picker"><select bind:value={traitDraft}><option value="">Añadir Rasgo...</option>{#each TRAITS as trait}<option value={trait} disabled={character.traits.includes(trait) || character.traits.length >= 4}>{trait}</option>{/each}</select>{#if traitDraft === 'Conocedor de...'}<input bind:value={customTraitField} placeholder="¿Conocedor de qué?">{/if}<button on:click={addTrait} disabled={!traitDraft || (traitDraft === 'Conocedor de...' && !customTraitField.trim())}>Añadir</button></div>
+              <h3>Rasgos</h3>{#if ARCHETYPES[character.archetype]?.traits.includes('Conocedor de...')}<label>Especialidad de Conocedor de...<input value={character.traits.find((trait) => trait.startsWith('Conocedor de '))?.replace('Conocedor de ', '') || ''} on:input={(event) => updateArchetypeKnowledge(event.currentTarget.value)} placeholder="Campo de conocimiento"></label>{/if}{#each character.traits as trait}<div class="selected-item"><span>{traitLabel(trait)}</span>{#if isFixedArchetypeTrait(trait)}<small>Fijo</small>{:else}<button class="remove" on:click={() => removeTrait(trait)}>Quitar</button>{/if}</div>{/each}<div class="trait-picker"><select bind:value={traitDraft}><option value="">Añadir Rasgo...</option>{#each TRAITS as trait}<option value={trait} disabled={character.traits.includes(trait) || character.traits.length >= 4}>{trait}</option>{/each}</select>{#if traitDraft === 'Conocedor de...'}<input bind:value={customTraitField} placeholder="¿Conocedor de qué?">{/if}<button on:click={addTrait} disabled={!traitDraft || (traitDraft === 'Conocedor de...' && !customTraitField.trim())}>Añadir</button></div>
               <button on:click={finishEdit}>Guardar cambios</button>
             </div>
           {/if}
@@ -1197,11 +1243,11 @@
           </section>
           <div class="sheet-grid">
             <section class="card"><h2>Enfoques</h2>{#each APPROACHES as name}<div class="approach-row compact"><div><strong>{name}</strong><small>{APPROACH_DESCRIPTIONS[name].short}</small></div><span class="score">{character.approaches[name]}</span></div>{/each}</section>
-            <section class="card"><h2>Rasgos</h2>{#each character.traits as trait}<div class="trait-line"><strong>{trait}</strong><small>{trait.startsWith('Conocedor de ') ? 'Conocedor de...' : trait} </small><p>{trait.startsWith('Conocedor de ') ? 'Conocimientos y experiencia en ' + trait.slice('Conocedor de '.length) + '.' : TRAIT_DESCRIPTIONS[trait]?.short || ''}</p></div>{/each}</section>
+            <section class="card"><h2>Rasgos</h2>{#each character.traits as trait}<div class="trait-line"><strong>{traitLabel(trait)}</strong><small>{traitLabel(trait.startsWith('Conocedor de ') ? 'Conocedor de...' : trait)} </small><p>{trait.startsWith('Conocedor de ') ? 'Conocimientos y experiencia en ' + trait.slice('Conocedor de '.length) + '.' : TRAIT_DESCRIPTIONS[trait]?.short || ''}</p></div>{/each}</section>
             <section class="card"><h2>Voluntad</h2><div class="will-value">{character.will}<small> / {character.maxWill}</small></div><div class="will-controls"><button on:click={() => adjustWill(-1)} disabled={character.will <= 0}>−</button><button on:click={() => adjustWill(1)} disabled={character.will >= character.maxWill}>+</button></div><button class="secondary full" on:click={restCharacter}>Descansar</button><p class="muted">Recuperas 2 puntos de Voluntad (sin superar el máximo). El descanso no recupera monedas de esfuerzo. Con 0 Voluntad, siempre tiras 2d6 y conservas el menor, sin importar ventaja o desventaja.</p></section>
             <section class="card extra-info"><h2>Monedas de esfuerzo</h2><div class="will-value">{visibleEffortCoins}<small> / 3 disponibles</small></div><p class="muted">Cada moneda permite añadir 1d6 a la próxima tirada o repetir todos los dados de la última tirada. Se restablecen a 3 al comenzar cada sesión.</p><button class="secondary full" on:click={() => spendEffort('extra-die')} disabled={visibleEffortCoins <= 0 || !!pendingDiceRoll || effortDiceBonus > 0}>Gastar moneda: +1d6 a la próxima tirada</button>{#if lastRoll}<button class="secondary full" on:click={() => spendEffort('reroll')} disabled={visibleEffortCoins <= 0 || !!pendingDiceRoll}>Gastar moneda: repetir última tirada</button>{/if}</section>
             <section class="card"><h2>Estados</h2><div class="state-grid">{#each [...STATES, ...(Number(character.will) <= 0 ? [{ name: 'Abrumado', enfoque: 'Todos', detail: 'Con 0 Voluntad, todas las tiradas usan 2d6 y conservan el menor.' }] : [])] as state}<label class="check-row"><input type="checkbox" checked={displayedStates.includes(state.name)} disabled><span><b>{state.name}</b><small>{state.enfoque}: {state.detail}</small></span></label>{/each}</div></section>
-            <section class="card"><h2>Equipo</h2>{#each character.inventory as item}<div class="inventory-line"><input bind:value={item.name} placeholder="Objeto por definir" on:input={updateCharacter}><small>{item.trait}</small><button class="remove" on:click={() => removeInventoryItem(item.id)}>×</button></div>{/each}<button class="secondary full" on:click={addInventoryItem}>Añadir objeto</button></section>
+            <section class="card"><h2>Equipo</h2>{#each character.inventory as item}<div class="inventory-line"><input bind:value={item.name} placeholder="Objeto por definir" on:input={updateCharacter}><small>{traitLabel(item.trait)}</small><button class="remove" on:click={() => removeInventoryItem(item.id)}>×</button></div>{/each}<button class="secondary full" on:click={addInventoryItem}>Añadir objeto</button></section>
           </div>
           <p class="sync-note">{OBR.isAvailable ? 'La ficha se sincroniza con Owlbear Rodeo.' : 'Modo de vista previa: la ficha se guarda en este navegador.'}</p>
         </section>
@@ -1227,7 +1273,7 @@
             <select bind:value={selectedTrait}>
               <option value="">Sin Rasgo</option>
               {#each character.traits as trait}
-                <option value={trait}>{trait}</option>
+                <option value={trait}>{traitLabel(trait)}</option>
               {/each}
             </select>
           </label>
@@ -1294,6 +1340,7 @@
     <main class="content gm-content">
       {#if activeTab === 'gm'}
       <div class="eyebrow">HERRAMIENTAS DEL NARRADOR</div><h1>Personajes</h1>
+      <section class="card"><h2>Ambientación de la partida</h2><p class="muted">Cambia los nombres visibles de algunos Rasgos, las sugerencias de conocimientos y el equipo inicial. Las capacidades y reglas no cambian.</p><label for="mimprov-genre">Género o ambientación</label><select id="mimprov-genre" value={selectedGenre} on:change={(event) => changeGenre(event.currentTarget.value)}>{#each GENRES as genre}<option value={genre.id}>{genre.label}</option>{/each}</select><p class="muted">La ambientación se comparte con todos los jugadores de esta sala.</p></section>
       <p class="muted">Seguimiento independiente. Estos controles no modifican las fichas de los jugadores.</p>
             <section class="card"><h2>Sesión</h2><p class="muted">Al comenzar una nueva sesión, restablece las monedas de esfuerzo de todos los personajes a 3.</p><button on:click={() => { if (!confirm('¿Comenzar una nueva sesión y restablecer las monedas de esfuerzo de todos los personajes a 3?')) return; partyMembers.forEach(player => { playerTracker(player.id).effortCoins = 3; }); saveGmTracker(); }}>Iniciar nueva sesión</button></section>
       <section class="card"><h2>Personajes de la sala</h2>
@@ -1309,7 +1356,7 @@
             <article class="gm-player">
               <div class="gm-player-head"><div class="gm-player-identity">{#if getPlayerCharacter(player)?.portrait}<img class="gm-player-portrait" src={getPlayerCharacter(player)?.portrait} alt="Retrato de {getPlayerCharacter(player)?.name || player.name}">{/if}<div><h3>{getPlayerCharacter(player)?.name || player.name}</h3><small>{getPlayerCharacter(player)?.created ? getPlayerCharacter(player)?.concept : 'Ficha MIMPROV aún no creada'}</small></div></div>{#if getPlayerCharacter(player)?.created}<button class="danger-button" on:click={() => deletePlayerCharacter(player)}>Borrar personaje</button>{/if}</div>
               {#if getPlayerCharacter(player)?.created}
-                <div class="gm-stats"><span>Voluntad: <b>{getPlayerCharacter(player)?.will} / {getPlayerCharacter(player)?.maxWill}</b></span><span>Enfoques: <b>{APPROACHES.map(a => a + ' ' + (getPlayerCharacter(player)?.approaches?.[a] ?? 0)).join(' · ')}</b></span><span>Rasgos: <b>{getPlayerCharacter(player)?.traits?.join(', ')}</b></span></div>
+                <div class="gm-stats"><span>Voluntad: <b>{getPlayerCharacter(player)?.will} / {getPlayerCharacter(player)?.maxWill}</b></span><span>Enfoques: <b>{APPROACHES.map(a => a + ' ' + (getPlayerCharacter(player)?.approaches?.[a] ?? 0)).join(' · ')}</b></span><span>Rasgos: <b>{(getPlayerCharacter(player)?.traits || []).map(traitLabel).join(', ')}</b></span></div>
               {:else}<p class="muted">El jugador todavía no ha creado su ficha.</p>{/if}
               <h4>Estados actuales</h4><div class="state-grid">{#each STATES as state}<label class="check-row"><input type="checkbox" checked={playerTracker(player.id).states.includes(state.name)} on:change={() => toggleState(player.id, state.name)}><span><b>{state.name}</b><small>{state.enfoque}: {state.detail}</small></span></label>{/each}</div>
               <h4>Monedas de esfuerzo</h4><p class="muted">Disponibles: {playerTracker(player.id).effortCoins} / 3</p><small class="muted">Las monedas permiten añadir 1d6 a una tirada o repetir todos los dados de la última tirada. El descanso no las recupera.</small>
