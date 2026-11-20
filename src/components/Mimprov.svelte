@@ -1214,8 +1214,11 @@
           {#if dicePlusError}<p class="error-message">{dicePlusError}</p>{/if}
           {#if isIncapacitated}<p class="error-message">Estás Incapacitado y no puedes realizar tiradas. El narrador debe resolver este Estado.</p>{/if}
           <button class="roll-button" disabled={!!pendingDiceRoll || isIncapacitated} on:click={rollDice}>{pendingDiceRoll ? 'Tirando…' : effortDiceBonus > 0 ? 'Tirar dados con +1d6' : 'Tirar dados con Dice+'}</button>
-          {#if lastRoll && visibleEffortCoins > 0}
-            <button class="secondary full" on:click={() => spendEffort('reroll')} disabled={!!pendingDiceRoll || isIncapacitated}>Gastar moneda: repetir última tirada</button>
+          {#if visibleEffortCoins > 0}
+            <button class="secondary full" on:click={() => spendEffort('extra-die')} disabled={!!pendingDiceRoll || isIncapacitated || effortDiceBonus > 0}>Gastar moneda: +1d6 a la próxima tirada</button>
+            {#if lastRoll}
+              <button class="secondary full" on:click={() => spendEffort('reroll')} disabled={!!pendingDiceRoll || isIncapacitated}>Gastar moneda: repetir última tirada</button>
+            {/if}
           {/if}
         </section>
         {#if lastRoll}
