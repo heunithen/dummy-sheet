@@ -215,6 +215,7 @@
   let magicEffect = '';
   let magicPrice = '';
   let magicMagnitude: 'simple' | 'moderate' | 'extraordinary' = 'simple';
+  let selectedMagicSpellId = '';
   let magicMessage = '';
   let gmTracker: any = { players: {}, conflict: { active: false, danger: 'Bajo', resistance: null } };
   let conflictActive = false;
@@ -468,6 +469,8 @@
       input.value = '';
     }
   }
+  $: selectedMagicSpell = (playerMagicRecord?.spells || []).find((spell: any) => spell.id === selectedMagicSpellId);
+  $: selectedMagicSpellBonus = selectedMagicSpell?.magnitude === 'moderate' ? 1 : selectedMagicSpell?.magnitude === 'extraordinary' ? 2 : 0;
   $: selectedApproachScore = Number(character.approaches?.[selectedApproach] || 0);
   $: selectedTraitBonus = selectedTrait && character.traits.includes(selectedTrait) ? 1 : 0;
   $: selectedState = visibleStates.find((stateName) => {
@@ -1300,6 +1303,17 @@
               {/each}
             </select>
           </label>
+          {#if playerMagicRecord?.spells?.length}
+            <label>Conjuro (opcional)
+              <select bind:value={selectedMagicSpellId}>
+                <option value="">Tirada normal, sin magia</option>
+                {#each playerMagicRecord.spells as spell}
+                  <option value={spell.id}>{spell.effect.slice(0, 90)} · {magicMagnitudeLabel(spell.magnitude)}</option>
+                {/each}
+              </select>
+            </label>
+            {#if selectedMagicSpell}<p class="muted">Conjuro seleccionado: {selectedMagicSpell.effect} · {magicMagnitudeLabel(selectedMagicSpell.magnitude)}. Se realiza esta misma tirada normal.</p>{/if}
+          {/if}
           <label>Rasgo
             <select bind:value={selectedTrait}>
               <option value="">Sin Rasgo</option>
@@ -1345,6 +1359,11 @@
             <div class="kept-result">Dado conservado: <strong>{lastRoll.kept}</strong></div>
             {#if lastRoll.critical}<p class="critical-reward">Éxito crítico: recuperas 1 punto de Voluntad.</p>{/if}
             {#if lastRoll.summary}<p class="muted">{lastRoll.summary}</p>{/if}
+            {#if selectedMagicSpell && lastRoll.result !== 'Fracaso'}
+              <p class="critical-reward">Contribución mágica al conflicto: {lastRoll.dice.filter((die) => die === 6).length + selectedMagicSpellBonus} éxitos ({lastRoll.dice.filter((die) => die === 6).length} éxitos obtenidos + {selectedMagicSpellBonus} adicionales). Los éxitos adicionales no modifican el resultado narrativo ni cuentan para críticos.</p>
+            {:else if selectedMagicSpell}
+              <p class="muted">El conjuro no añade éxitos: la tirada fue un fracaso.</p>
+            {/if}
           </section>
         {/if}
         <section class="card roll-history">
