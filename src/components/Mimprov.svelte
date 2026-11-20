@@ -201,7 +201,7 @@
   let selectedTrait = '';
   let selectedState = '';
   let rollModifier = 'normal';
-  let lastRoll: { dice: number[]; kept: number; pool: number; result: string; critical: boolean; notation?: string; summary?: string; approach?: string } | null = null;
+  let lastRoll: { dice: number[]; kept: number; pool: number; result: string; critical: boolean; notation?: string; summary?: string; approach?: string; retryNotation?: string; retryPool?: number } | null = null;
   let rollHistory: Array<{ id: string; timestamp: number; approach: string; dice: number[]; kept: number; result: string; critical: boolean; notation: string }> = [];
   let rollHistoryKey = '';
   let dicePlusError = '';
@@ -421,13 +421,13 @@
     });
   }
 
-  async function sendDiceRoll(notation: string, pool: number, approach: string, effortReroll = false) {
+  async function sendDiceRoll(notation: string, pool: number, approach: string, effortReroll = false, retryNotation = notation, retryPool = pool) {
     if (!OBR.isAvailable || !loaded || pendingDiceRoll || isIncapacitated) return;
     dicePlusError = '';
     try {
       const rollId = `mimprov_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
       pendingDiceRoll = {
-        rollId, pool, notation, approach, effortReroll,
+        rollId, pool, notation, approach, effortReroll, retryNotation, retryPool,
         conflictActive, danger: conflictDanger
       };
       lastRoll = { dice: [], kept: 0, pool, result: effortReroll ? 'Repitiendo todos los dados…' : 'Tirando en Dice+…', critical: false, notation };
@@ -467,7 +467,9 @@
       return;
     }
     if (pendingDiceRoll) return;
-    await sendDiceRoll(diceNotation, dicePool, selectedApproach);
+    const retryPool = selectedApproachScore + selectedTraitBonus + (rollModifier === 'advantage' ? 1 : 0);
+    const retryNotation = forcedLowRoll ? '2d6kl1' : retryPool <= 0 ? '2d6kl1' : `${retryPool}d6kh1`;
+    await sendDiceRoll(diceNotation, dicePool, selectedApproach, false, retryNotation, retryPool);
     effortDiceBonus = 0;
   }
 
@@ -478,20 +480,20 @@
     return stateByApproach[approach] || '';
   }
 
-  async function spendEffort(mode: 'extra-die' | 'reroll', roll?: { notation: string; pool: number; approach: string }) {
-    if (visibleEffortCoins <= 0 || isIncapacitated) return false;
-    const connection = window.prompt('Explica brevemente cómo esta acción se relaciona con el concepto de tu personaje:\n\n' + (character.concept || 'Sin concepto definido'));
-    if (!connection?.trim()) return false;
+  async function spendEffort(mode: 'extra-die' | 'reroll') {
+    if (visibleEffortCoins <= 0 || isIncapacitated || pendingDiceRoll) return false;
+    if (mode === 'reroll' && (!lastRoll || !lastRoll.retryNotation || !Number.isFinite(lastRoll.retryPool))) return false;
     try {
       await OBR.broadcast.sendMessage(EFFORT_REQUEST_CHANNEL, {
-        playerId: await OBR.player.getId(), mode, connection: connection.trim(), requestedAt: Date.now()
+        playerId: await OBR.player.getId(), mode, requestedAt: Date.now()
       }, { destination: 'ALL' });
       visibleEffortCoins = Math.max(0, visibleEffortCoins - 1);
       if (mode === 'extra-die') {
         effortDiceBonus = 1;
-        dicePlusError = 'Moneda de esfuerzo aplicada: +1d6 al pool de esta tirada.';
-      } else if (roll) {
-        await sendDiceRoll(roll.notation, roll.pool, roll.approach, true);
+        dicePlusError = 'Moneda aplicada: +1d6 a la próxima tirada.';
+      } else if (lastRoll) {
+        dicePlusError = '';
+        await sendDiceRoll(lastRoll.retryNotation!, lastRoll.retryPool!, lastRoll.approach || selectedApproach, true, lastRoll.retryNotation!, lastRoll.retryPool!);
       }
       return true;
     } catch (error) {
@@ -526,7 +528,8 @@
     lastRoll = {
       dice, kept, pool: roll.pool,
       result: finalResult,
-      critical, notation: roll.notation, summary: data.result.rollSummary, approach: roll.approach
+      critical, notation: roll.notation, summary: data.result.rollSummary, approach: roll.approach,
+      retryNotation: roll.retryNotation, retryPool: roll.retryPool
     };
     recordRoll(roll, dice, kept, finalResult, critical);
     pendingDiceRoll = null;
@@ -535,13 +538,6 @@
       return;
     }
     if (!failed) return;
-    if (!roll.effortReroll && visibleEffortCoins > 0) {
-      const useEffort = window.confirm('Has fallado la tirada. ¿Quieres gastar una moneda de esfuerzo para volver a lanzar todos los dados?');
-      if (useEffort) {
-        spendEffort('reroll', roll);
-        return;
-      }
-    }
     applyConflictFailure(roll.conflictActive, roll.danger);
   }
 
@@ -611,7 +607,7 @@
           OBR.broadcast.onMessage(EFFORT_REQUEST_CHANNEL, async (event) => {
             if (role !== 'GM') return;
             const data = event.data as any;
-            if (!data?.playerId || !['extra-die', 'reroll'].includes(data.mode) || !String(data.connection || '').trim()) return;
+            if (!data?.playerId || !['extra-die', 'reroll'].includes(data.mode)) return;
             try {
               const party = await OBR.party.getPlayers();
               const sender = party.find((p: any) => p.connectionId === event.connectionId);
@@ -1167,7 +1163,7 @@
             <section class="card"><h2>Enfoques</h2>{#each APPROACHES as name}<div class="approach-row compact"><div><strong>{name}</strong><small>{APPROACH_DESCRIPTIONS[name].short}</small></div><span class="score">{character.approaches[name]}</span></div>{/each}</section>
             <section class="card"><h2>Rasgos</h2>{#each character.traits as trait}<div class="trait-line"><strong>{trait}</strong><small>{trait.startsWith('Conocedor de ') ? 'Conocedor de...' : trait} </small><p>{trait.startsWith('Conocedor de ') ? 'Conocimientos y experiencia en ' + trait.slice('Conocedor de '.length) + '.' : TRAIT_DESCRIPTIONS[trait]?.short || ''}</p></div>{/each}</section>
             <section class="card"><h2>Voluntad</h2><div class="will-value">{character.will}<small> / {character.maxWill}</small></div><div class="will-controls"><button on:click={() => adjustWill(-1)} disabled={character.will <= 0}>−</button><button on:click={() => adjustWill(1)} disabled={character.will >= character.maxWill}>+</button></div><button class="secondary full" on:click={restCharacter}>Descansar</button><p class="muted">Recuperas 2 puntos de Voluntad (sin superar el máximo). El descanso no recupera monedas de esfuerzo. Con 0 Voluntad, siempre tiras 2d6 y conservas el menor, sin importar ventaja o desventaja.</p></section>
-            <section class="card extra-info"><h2>Monedas de esfuerzo</h2><div class="will-value">{visibleEffortCoins}<small> / 3 disponibles</small></div><p class="muted">Solo puedes gastar una moneda cuando la acción esté relacionada con tu concepto. Debes explicar brevemente la relación. Cada moneda permite añadir 1d6 al pool antes de tirar o volver a lanzar todos los dados de una tirada. Se restablecen a 3 al comenzar cada sesión.</p><button class="secondary full" on:click={() => spendEffort('extra-die')} disabled={visibleEffortCoins <= 0 || isIncapacitated || !!pendingDiceRoll}>Gastar moneda: +1d6</button></section>
+            <section class="card extra-info"><h2>Monedas de esfuerzo</h2><div class="will-value">{visibleEffortCoins}<small> / 3 disponibles</small></div><p class="muted">Cada moneda permite añadir 1d6 a la próxima tirada o repetir todos los dados de la última tirada. Se restablecen a 3 al comenzar cada sesión.</p><button class="secondary full" on:click={() => spendEffort('extra-die')} disabled={visibleEffortCoins <= 0 || isIncapacitated || !!pendingDiceRoll || effortDiceBonus > 0}>Gastar moneda: +1d6 a la próxima tirada</button></section>
             <section class="card"><h2>Estados</h2><div class="state-grid">{#each STATES as state}<label class="check-row"><input type="checkbox" checked={visibleStates.includes(state.name)} disabled><span><b>{state.name}</b><small>{state.enfoque}: {state.detail}</small></span></label>{/each}</div></section>
             <section class="card"><h2>Equipo</h2>{#each character.inventory as item}<div class="inventory-line"><input bind:value={item.name} placeholder="Objeto por definir" on:input={updateCharacter}><small>{item.trait}</small><button class="remove" on:click={() => removeInventoryItem(item.id)}>×</button></div>{/each}<button class="secondary full" on:click={addInventoryItem}>Añadir objeto</button></section>
           </div>
@@ -1217,7 +1213,10 @@
           </div>
           {#if dicePlusError}<p class="error-message">{dicePlusError}</p>{/if}
           {#if isIncapacitated}<p class="error-message">Estás Incapacitado y no puedes realizar tiradas. El narrador debe resolver este Estado.</p>{/if}
-          <button class="roll-button" disabled={!!pendingDiceRoll || isIncapacitated} on:click={rollDice}>{pendingDiceRoll ? 'Tirando…' : 'Tirar dados con Dice+'}</button>
+          <button class="roll-button" disabled={!!pendingDiceRoll || isIncapacitated} on:click={rollDice}>{pendingDiceRoll ? 'Tirando…' : effortDiceBonus > 0 ? 'Tirar dados con +1d6' : 'Tirar dados con Dice+'}</button>
+          {#if lastRoll && visibleEffortCoins > 0}
+            <button class="secondary full" on:click={() => spendEffort('reroll')} disabled={!!pendingDiceRoll || isIncapacitated}>Gastar moneda: repetir última tirada</button>
+          {/if}
         </section>
         {#if lastRoll}
           <section class="card roll-result" class:failure={lastRoll.result === 'Fracaso'} class:consequence={lastRoll.result === 'Éxito con consecuencia'} class:success={lastRoll.result === 'Éxito limpio'} class:critical={lastRoll.result === 'Éxito crítico'}>
