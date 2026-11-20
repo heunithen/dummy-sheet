@@ -1117,7 +1117,7 @@
             {/each}
             <div class:valid={approachValid} class="total-points">Puntos distribuidos: {approachTotal} / 4</div>
           {:else if step === 5}
-            <h1>Escoge cuatro Rasgos</h1>
+            <h1>Elige cuatro Rasgos de la lista disponible</h1>
             <p>Cada Rasgo aporta un dado cuando es directamente relevante para una acción.</p>
             <div class="trait-picker">
               <select bind:value={traitDraft}><option value="">Seleccionar Rasgo...</option>{#each TRAITS as trait}<option value={trait} disabled={character.traits.includes(trait) || character.traits.length >= 4}>{trait}</option>{/each}</select>
