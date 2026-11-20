@@ -239,7 +239,7 @@
   let pendingDiceRoll: { rollId: string; pool: number; notation: string; approach: string; effortReroll: boolean; conflictActive: boolean; danger: string } | null = null;
 
   $: approachTotal = APPROACHES.reduce((sum, name) => sum + (Number(approachDraft[name]) || 0), 0);
-  $: approachValid = approachTotal === 4 && APPROACHES.every(name => approachDraft[name] >= 0 && approachDraft[name] <= 1);
+  $: approachValid = approachTotal === 4 && APPROACHES.every(name => approachDraft[name] >= 0 && approachDraft[name] <= 2);
   $: myPlayer = $PartyStore.find(p => p.id === $currentPlayerId);
   // El rol llega de forma asíncrona desde Owlbear. Asegura una pestaña válida al cambiar de rol.
   $: if ($isGM && activeTab !== 'gm' && activeTab !== 'conflicto' && activeTab !== 'reglamento' && activeTab !== 'magia-gm' && activeTab !== 'lineas-velos' && activeTab !== 'pnj') activeTab = 'gm';
@@ -1505,7 +1505,7 @@
           <li><strong>Atlético:</strong> Tenacidad 1 e Instinto 1; Atlético y Superviviente.</li>
           <li><strong>Sociable:</strong> Disciplina 1 e Ingenio 1; Persuasivo y Liderazgo.</li>
           <li><strong>Arquetipo:</strong> aporta 2 puntos de Enfoque, repartidos entre dos Enfoques distintos (1 punto en cada uno), y 2 Rasgos fijos.</li>
-          <li><strong>Enfoques:</strong> distribuye los otros 2 puntos entre los dos Enfoques que no recibieron puntos del arquetipo. Cada Enfoque puede tener como máximo 1 punto; empiezas con 4 puntos en total.</li>
+          <li><strong>Enfoques:</strong> distribuye los otros 2 puntos entre los Enfoques que no recibieron puntos del arquetipo. Puedes asignar ambos puntos al mismo Enfoque o repartirlos entre dos. Ningún Enfoque puede superar 2 puntos; empiezas con 4 puntos en total.</li>
           <li><strong>Rasgos:</strong> conserva los 2 Rasgos fijos del arquetipo y escoge otros 2 de la lista. Cada Rasgo aporta +1 dado cuando resulta directamente relevante para la acción.</li>
           <li><strong>Equipo:</strong> cada Rasgo proporciona tres espacios de objetos asociados. Debes completar al menos 12 objetos para terminar la creación.</li>
           <li><strong>Voluntad:</strong> comienzas con 4 puntos y tu máximo inicial también es 4.</li>
