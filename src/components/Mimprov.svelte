@@ -285,7 +285,7 @@
 
   async function startNewSession() {
     if (!$isGM || !OBR.isAvailable) return;
-    if (!confirm('¿Iniciar una nueva sesión? Se restablecerán las monedas de esfuerzo de todos los jugadores a 3.')) return;
+    if (!confirm('¿Estás seguro de que quieres iniciar una nueva sesión? Se restablecerán las monedas de esfuerzo de todos los jugadores a 3.')) return;
     try {
       const players = $PartyStore.filter(player => player.role !== 'GM');
       players.forEach(player => { playerTracker(player.id).effortCoins = 3; });
