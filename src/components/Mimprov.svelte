@@ -194,7 +194,8 @@
   let gmNpcNotes = '';
   let linesVeils: { lines: string; veils: string } = { lines: '', veils: '' };
   let visibleStates: string[] = [];
-  let visibleOverexertionUsed = 0;
+  let visibleEffortCoins = 3;
+  let effortDiceBonus = 0;
   let selectedPlayerId = '';
   let selectedApproach = 'Tenacidad';
   let selectedTrait = '';
@@ -400,7 +401,7 @@
     return items.length === 3 && items.every(item => typeof item.name === 'string' && item.name.trim().length > 0);
   }) && character.inventory.filter(item => item.trait === 'Personal').every(item => typeof item.name === 'string' && item.name.trim().length > 0);
   $: baseDicePool = selectedApproachScore + selectedTraitBonus - selectedStatePenalty;
-  $: dicePool = baseDicePool + (rollModifier === 'advantage' ? 1 : rollModifier === 'disadvantage' ? -1 : 0);
+  $: dicePool = baseDicePool + effortDiceBonus + (rollModifier === 'advantage' ? 1 : rollModifier === 'disadvantage' ? -1 : 0);
   $: forcedLowRoll = Number(character.will) <= 0;
   $: diceNotation = forcedLowRoll || dicePool <= 0 ? '2d6kl1' : `${dicePool}d6kh1`;
 
@@ -466,7 +467,8 @@
       return;
     }
     if (pendingDiceRoll) return;
-    await sendDiceRoll(diceNotation, baseDicePool, selectedApproach);
+    await sendDiceRoll(diceNotation, dicePool, selectedApproach);
+    effortDiceBonus = 0;
   }
 
   function stateForApproach(approach: string): string {
@@ -476,23 +478,25 @@
     return stateByApproach[approach] || '';
   }
 
-  async function spendEffortAndReroll(roll: { notation: string; pool: number; approach: string }) {
-    if (visibleOverexertionUsed >= 1 || isIncapacitated) return false;
-    const state = stateForApproach(roll.approach);
+  async function spendEffort(mode: 'extra-die' | 'reroll', roll?: { notation: string; pool: number; approach: string }) {
+    if (visibleEffortCoins <= 0 || isIncapacitated) return false;
+    const connection = window.prompt('Explica brevemente cómo esta acción se relaciona con el concepto de tu personaje:\n\n' + (character.concept || 'Sin concepto definido'));
+    if (!connection?.trim()) return false;
     try {
       await OBR.broadcast.sendMessage(EFFORT_REQUEST_CHANNEL, {
-        playerId: await OBR.player.getId(),
-        approach: roll.approach,
-        state,
-        requestedAt: Date.now()
+        playerId: await OBR.player.getId(), mode, connection: connection.trim(), requestedAt: Date.now()
       }, { destination: 'ALL' });
-      visibleOverexertionUsed = 1;
-      if (state && !visibleStates.includes(state) && !visibleStates.includes('Incapacitado')) visibleStates = [...visibleStates, state];
-      await sendDiceRoll(roll.notation, roll.pool, roll.approach, true);
+      visibleEffortCoins = Math.max(0, visibleEffortCoins - 1);
+      if (mode === 'extra-die') {
+        effortDiceBonus = 1;
+        dicePlusError = 'Moneda de esfuerzo aplicada: +1d6 al pool de esta tirada.';
+      } else if (roll) {
+        await sendDiceRoll(roll.notation, roll.pool, roll.approach, true);
+      }
       return true;
     } catch (error) {
-      console.error('No se pudo solicitar el gasto del Punto de Esfuerzo', error);
-      dicePlusError = 'No se pudo registrar el Punto de Esfuerzo con el narrador.';
+      console.error('No se pudo solicitar el gasto de una moneda de esfuerzo', error);
+      dicePlusError = 'No se pudo registrar la moneda de esfuerzo con el narrador.';
       return false;
     }
   }
@@ -531,10 +535,10 @@
       return;
     }
     if (!failed) return;
-    if (!roll.effortReroll && visibleOverexertionUsed < 1) {
-      const useEffort = window.confirm('Has fallado la tirada. ¿Quieres gastar tu Punto de Esfuerzo para añadir el Estado correspondiente a este Enfoque y volver a lanzar todos los dados?');
+    if (!roll.effortReroll && visibleEffortCoins > 0) {
+      const useEffort = window.confirm('Has fallado la tirada. ¿Quieres gastar una moneda de esfuerzo para volver a lanzar todos los dados?');
       if (useEffort) {
-        spendEffortAndReroll(roll);
+        spendEffort('reroll', roll);
         return;
       }
     }
@@ -596,7 +600,7 @@
               const allStates = metadata?.[STATE_KEY] || {};
               visibleStates = Array.isArray(allStates[$currentPlayerId]) ? allStates[$currentPlayerId] : [];
               const allOverexertion = metadata?.[OVEREXERTION_KEY] || {};
-              visibleOverexertionUsed = Math.max(0, Math.min(1, Number(allOverexertion[$currentPlayerId]) || 0));
+              visibleEffortCoins = Math.max(0, Math.min(3, Number(allOverexertion[$currentPlayerId] ?? 3) || 0));
               const conflict = metadata?.[CONFLICT_KEY] || {};
               conflictActive = conflict.active === true;
               conflictDanger = ['Bajo', 'Medio', 'Alto'].includes(conflict.danger) ? conflict.danger : 'Bajo';
@@ -613,9 +617,8 @@
               const sender = party.find((p: any) => p.connectionId === event.connectionId);
               if (!sender || sender.role !== 'PLAYER' || sender.id !== data.playerId) return;
               const tracker = playerTracker(sender.id);
-              if (tracker.overexertionUsed >= 1 || tracker.states.includes('Incapacitado')) return;
-              tracker.overexertionUsed = 1;
-              if (!tracker.states.includes(data.state) && !tracker.states.includes('Incapacitado')) tracker.states = [...tracker.states, data.state];
+              if (Number(tracker.effortCoins ?? (3 - (Number(tracker.overexertionUsed) || 0))) <= 0 || tracker.states.includes('Incapacitado')) return;
+              tracker.effortCoins = Math.max(0, Number(tracker.effortCoins ?? (3 - (Number(tracker.overexertionUsed) || 0))) - 1);
               saveGmTracker();
             } catch (error) {
               console.error('No se pudo registrar el Punto de Esfuerzo', error);
@@ -657,7 +660,7 @@
               const party = await OBR.party.getPlayers();
               const sender = party.find((p: any) => p.connectionId === event.connectionId);
               if (!sender || sender.role !== 'PLAYER' || sender.id !== data.playerId) return;
-              playerTracker(sender.id).overexertionUsed = 0;
+              // El descanso recupera Voluntad, pero no repone monedas de esfuerzo.
               saveGmTracker();
             } catch (error) {
               console.error('No se pudo registrar el descanso', error);
@@ -817,7 +820,7 @@
       const allOverexertion: Record<string, number> = {};
       Object.entries(gmTracker.players || {}).forEach(([id, tracker]: [string, any]) => {
         allStates[id] = Array.isArray(tracker.states) ? [...tracker.states] : [];
-        allOverexertion[id] = Math.max(0, Math.min(1, Number(tracker.overexertionUsed) || 0));
+        allOverexertion[id] = Math.max(0, Math.min(3, Number(tracker.effortCoins ?? (3 - (Number(tracker.overexertionUsed) || 0))) || 0));
       });
       OBR.room.setMetadata({ [STATE_KEY]: allStates, [OVEREXERTION_KEY]: allOverexertion, [CONFLICT_KEY]: clone(gmTracker.conflict) }).catch((error) => {
         console.error('No se pudieron publicar los datos de seguimiento de los personajes', error);
@@ -825,8 +828,10 @@
     }
   }
   function playerTracker(id: string) {
-    if (!gmTracker.players[id]) gmTracker.players[id] = { states: [], risk: 'Ninguno', overexertionUsed: 0, overexertionNotes: [] };
-    gmTracker.players[id].overexertionUsed = Math.max(0, Math.min(1, Number(gmTracker.players[id].overexertionUsed) || 0));
+    if (!gmTracker.players[id]) gmTracker.players[id] = { states: [], risk: 'Ninguno', effortCoins: 3 };
+    const tracker = gmTracker.players[id];
+    if (!Number.isFinite(Number(tracker.effortCoins))) tracker.effortCoins = Math.max(0, 3 - (Number(tracker.overexertionUsed) || 0));
+    tracker.effortCoins = Math.max(0, Math.min(3, Number(tracker.effortCoins)));
     return gmTracker.players[id];
   }
   function getPlayerCharacter(player: any): Character | undefined {
@@ -895,7 +900,7 @@
           requestedAt: Date.now()
         }, { destination: 'ALL' });
       } else {
-        visibleOverexertionUsed = 0;
+        visibleEffortCoins = Math.max(0, Math.min(3, Number(playerTracker('local').effortCoins ?? 3)));
       }
       adjustWill(2);
       if (!OBR.isAvailable) {
@@ -921,11 +926,8 @@
   }
   function spendOverexertion(id: string, enfoque: string) {
     const t = playerTracker(id);
-    if (t.overexertionUsed >= 1 || t.states.includes('Incapacitado')) return;
-    const stateByApproach: Record<string, string> = { Tenacidad: 'Deprimido', Disciplina: 'Ansioso', Ingenio: 'Confundido', Instinto: 'Mermado' };
-    const state = stateByApproach[enfoque];
-    t.overexertionUsed += 1;
-    if (!t.states.includes(state) && !t.states.includes('Incapacitado')) t.states = [...t.states, state];
+    if (t.effortCoins <= 0 || t.states.includes('Incapacitado')) return;
+    t.effortCoins -= 1;
     saveGmTracker();
   }
   async function deletePlayerCharacter(player: any, alreadyConfirmed = false) {
@@ -941,8 +943,7 @@
       }, { destination: 'ALL' });
       const tracker = playerTracker(player.id);
       tracker.states = [];
-      tracker.overexertionUsed = 0;
-      tracker.overexertionNotes = [];
+      tracker.effortCoins = 3;
       const currentMagic = clone(magicData || { players: {} });
       if (currentMagic.players) delete currentMagic.players[player.id];
       await OBR.room.setMetadata({ [MAGIC_KEY]: currentMagic });
@@ -1083,7 +1084,7 @@
             <small class="muted">Puedes escribir el nombre completo o generar un nombre y apellido aleatorios.</small>
           {:else if step === 1}
             <h1>¿Cuál es su concepto?</h1>
-            <p>Escribe una frase que describa quién es y qué lo caracteriza.</p>
+            <p>Escribe una frase que describa quién es, qué lo caracteriza y qué guía sus acciones. Este concepto determina cuándo puedes gastar tus monedas de esfuerzo.</p>
             <label>Concepto<textarea bind:value={character.concept} rows="3" placeholder="Una exploradora que busca rutas seguras entre ciudades aisladas..."></textarea></label>
             <div class="name-generator concept-generator">
               <label>Género narrativo<select bind:value={conceptGenre}>
@@ -1091,7 +1092,7 @@
               </select></label>
               <button type="button" class="name-dice" on:click={generateRandomConcept} aria-label="Generar concepto aleatorio">🎲 Generar concepto</button>
             </div>
-            <small class="muted">Elige un género y genera una frase aleatoria. Puedes editarla libremente.</small>
+            <small class="muted">Elige un género y genera una frase aleatoria. Puedes editarla libremente. El concepto debe servir como referencia para justificar el gasto de monedas de esfuerzo.</small>
           {:else if step === 2}
             <h1>¿Qué edad tiene?</h1>
             <label>Edad<input bind:value={character.age} placeholder="Edad o rango aproximado"></label>
@@ -1141,7 +1142,7 @@
             <div class="total-points" class:valid={inventoryValid}>Cada Rasgo debe tener tres objetos con nombre. Los objetos personales también deben tener nombre. Total actual: {character.inventory.length}</div>
           {:else}
             <h1>Revisa el personaje</h1>
-            <div class="summary"><p><strong>{character.name || 'Sin nombre'}</strong></p><p>{character.concept}</p><h3>Enfoques</h3>{#each APPROACHES as name}<p>{name}: {approachDraft[name]}</p>{/each}<h3>Rasgos</h3><p>{character.traits.join(' · ')}</p><h3>Equipo</h3><p>{character.inventory.map(i => i.name || 'Objeto por definir').join(' · ')}</p><p>Voluntad inicial: 4 / 4</p><p>Sobreesfuerzo disponible: 1</p></div>
+            <div class="summary"><p><strong>{character.name || 'Sin nombre'}</strong></p><p>{character.concept}</p><h3>Enfoques</h3>{#each APPROACHES as name}<p>{name}: {approachDraft[name]}</p>{/each}<h3>Rasgos</h3><p>{character.traits.join(' · ')}</p><h3>Equipo</h3><p>{character.inventory.map(i => i.name || 'Objeto por definir').join(' · ')}</p><p>Voluntad inicial: 4 / 4</p><p>Monedas de esfuerzo iniciales: 3 / 3</p></div>
           {/if}
           <div class="wizard-actions">
             {#if step > 0}<button class="secondary" on:click={previousStep}>Anterior</button>{/if}
@@ -1175,8 +1176,8 @@
           <div class="sheet-grid">
             <section class="card"><h2>Enfoques</h2>{#each APPROACHES as name}<div class="approach-row compact"><div><strong>{name}</strong><small>{APPROACH_DESCRIPTIONS[name].short}</small></div><span class="score">{character.approaches[name]}</span></div>{/each}</section>
             <section class="card"><h2>Rasgos</h2>{#each character.traits as trait}<div class="trait-line"><strong>{trait}</strong><small>{trait.startsWith('Conocedor de ') ? 'Conocedor de...' : trait} </small><p>{trait.startsWith('Conocedor de ') ? 'Conocimientos y experiencia en ' + trait.slice('Conocedor de '.length) + '.' : TRAIT_DESCRIPTIONS[trait]?.short || ''}</p></div>{/each}</section>
-            <section class="card"><h2>Voluntad</h2><div class="will-value">{character.will}<small> / {character.maxWill}</small></div><div class="will-controls"><button on:click={() => adjustWill(-1)} disabled={character.will <= 0}>−</button><button on:click={() => adjustWill(1)} disabled={character.will >= character.maxWill}>+</button></div><button class="secondary full" on:click={restCharacter}>Descansar</button><p class="muted">Recuperas 2 puntos de Voluntad (sin superar el máximo) y tu Punto de Esfuerzo. Con 0 Voluntad, siempre tiras 2d6 y conservas el menor, sin importar ventaja o desventaja.</p></section>
-            <section class="card extra-info"><h2>Punto de Esfuerzo</h2><div class="will-value">{1 - visibleOverexertionUsed}<small> / 1 punto disponible</small></div><p class="muted">Punto utilizado: {visibleOverexertionUsed}. Se recupera al realizar un descanso.</p></section>
+            <section class="card"><h2>Voluntad</h2><div class="will-value">{character.will}<small> / {character.maxWill}</small></div><div class="will-controls"><button on:click={() => adjustWill(-1)} disabled={character.will <= 0}>−</button><button on:click={() => adjustWill(1)} disabled={character.will >= character.maxWill}>+</button></div><button class="secondary full" on:click={restCharacter}>Descansar</button><p class="muted">Recuperas 2 puntos de Voluntad (sin superar el máximo). El descanso no recupera monedas de esfuerzo. Con 0 Voluntad, siempre tiras 2d6 y conservas el menor, sin importar ventaja o desventaja.</p></section>
+            <section class="card extra-info"><h2>Monedas de esfuerzo</h2><div class="will-value">{visibleEffortCoins}<small> / 3 disponibles</small></div><p class="muted">Solo puedes gastar una moneda cuando la acción esté relacionada con tu concepto. Debes explicar brevemente la relación. Cada moneda permite añadir 1d6 al pool antes de tirar o volver a lanzar todos los dados de una tirada. Se restablecen a 3 al comenzar cada sesión.</p><button class="secondary full" on:click={() => spendEffort('extra-die')} disabled={visibleEffortCoins <= 0 || isIncapacitated || !!pendingDiceRoll}>Gastar moneda: +1d6</button></section>
             <section class="card"><h2>Estados</h2><div class="state-grid">{#each STATES as state}<label class="check-row"><input type="checkbox" checked={visibleStates.includes(state.name)} disabled><span><b>{state.name}</b><small>{state.enfoque}: {state.detail}</small></span></label>{/each}</div></section>
             <section class="card"><h2>Equipo</h2>{#each character.inventory as item}<div class="inventory-line"><input bind:value={item.name} placeholder="Objeto por definir" on:input={updateCharacter}><small>{item.trait}</small><button class="remove" on:click={() => removeInventoryItem(item.id)}>×</button></div>{/each}<button class="secondary full" on:click={addInventoryItem}>Añadir objeto</button></section>
           </div>
@@ -1266,7 +1267,8 @@
       {#if activeTab === 'gm'}
       <div class="eyebrow">HERRAMIENTAS DEL NARRADOR</div><h1>Personajes</h1>
       <p class="muted">Seguimiento independiente. Estos controles no modifican las fichas de los jugadores.</p>
-            <section class="card"><h2>Personajes de la sala</h2>
+            <section class="card"><h2>Sesión</h2><p class="muted">Al comenzar una nueva sesión, restablece las monedas de esfuerzo de todos los personajes a 3.</p><button on:click={() => { if (!confirm('¿Comenzar una nueva sesión y restablecer las monedas de esfuerzo de todos los personajes a 3?')) return; partyMembers.forEach(player => { playerTracker(player.id).effortCoins = 3; }); saveGmTracker(); }}>Iniciar nueva sesión</button></section>
+      <section class="card"><h2>Personajes de la sala</h2>
         {#if partyMembers.length === 0}
           <p>No hay personajes creados en la sala.</p>
         {:else}
@@ -1282,7 +1284,7 @@
                 <div class="gm-stats"><span>Voluntad: <b>{getPlayerCharacter(player)?.will} / {getPlayerCharacter(player)?.maxWill}</b></span><span>Enfoques: <b>{APPROACHES.map(a => a + ' ' + (getPlayerCharacter(player)?.approaches?.[a] ?? 0)).join(' · ')}</b></span><span>Rasgos: <b>{getPlayerCharacter(player)?.traits?.join(', ')}</b></span></div>
               {:else}<p class="muted">El jugador todavía no ha creado su ficha.</p>{/if}
               <h4>Estados actuales</h4><div class="state-grid">{#each STATES as state}<label class="check-row"><input type="checkbox" checked={playerTracker(player.id).states.includes(state.name)} on:change={() => toggleState(player.id, state.name)}><span><b>{state.name}</b><small>{state.enfoque}: {state.detail}</small></span></label>{/each}</div>
-              <h4>Sobreesfuerzo</h4><p class="muted">Puntos disponibles: {1 - playerTracker(player.id).overexertionUsed} / 1</p><div class="stepper"><b>{playerTracker(player.id).overexertionUsed} usado</b></div><div class="approach-buttons">{#each APPROACHES as enfoque}<button class="secondary" on:click={() => spendOverexertion(player.id, enfoque)} disabled={playerTracker(player.id).overexertionUsed >= 1 || playerTracker(player.id).states.includes('Incapacitado')}>{enfoque}</button>{/each}</div><small class="muted">Al gastar el punto, el panel añade el Estado correspondiente al Enfoque utilizado. Se recupera al realizar un descanso.</small>
+              <h4>Monedas de esfuerzo</h4><p class="muted">Disponibles: {playerTracker(player.id).effortCoins} / 3</p><small class="muted">El jugador debe justificar que la acción está relacionada con su concepto. Las monedas permiten añadir 1d6 o repetir todos los dados. El descanso no las recupera.</small>
             </article>
           {/each}
         {/if}
@@ -1317,7 +1319,7 @@
           <button class="secondary" on:click={resetConflictResistance}>Restablecer</button>
         </div>
       </section>
-      <p class="sync-note">El seguimiento del conflicto se sincroniza con los jugadores de la sala. Fallo: Bajo −1 Voluntad · Medio −2 · Alto −3. El Punto de Esfuerzo puede gastarse una vez para añadir el Estado del Enfoque y repetir todos los dados.</p>
+      <p class="sync-note">El seguimiento del conflicto se sincroniza con los jugadores de la sala. Fallo: Bajo −1 Voluntad · Medio −2 · Alto −3.</p>
       {/if}
     </main>
   {:else if !$isGM && activeTab === 'magia'}
@@ -1473,14 +1475,13 @@
       </section>
 
       <section class="card">
-        <h2>5. Punto de Esfuerzo</h2>
-        <p>Cada personaje dispone de 1 Punto de Esfuerzo.</p>
+        <h2>5. Monedas de esfuerzo</h2>
+        <p>Cada personaje recibe 3 monedas de esfuerzo al comienzo de cada sesión. Las monedas no gastadas no se acumulan: al iniciar una nueva sesión, todos vuelven a tener 3.</p>
         <ul>
-          <li>Después de fallar una tirada, puedes gastar el punto para repetirla.</li>
-          <li>Al gastarlo, recibes el Estado asociado al Enfoque utilizado y vuelves a lanzar todos los dados de la tirada.</li>
-          <li>Tenacidad añade Deprimido; Disciplina añade Ansioso; Ingenio añade Confundido; Instinto añade Mermado.</li>
-          <li>El Punto de Esfuerzo solo puede utilizarse una vez hasta recuperarlo mediante un descanso.</li>
-          <li>Si la repetición también fracasa, no puedes volver a gastar ese mismo punto.</li>
+          <li>Solo puedes gastar una moneda si la acción que intentas realizar está relacionada con el concepto de tu personaje. Debes explicar brevemente esa relación.</li>
+          <li>Antes de una tirada, puedes gastar una moneda para añadir 1d6 al pool.</li>
+          <li>Después de una tirada, puedes gastar una moneda para volver a lanzar todos los dados. Debes aceptar el nuevo resultado.</li>
+          <li>El descanso no recupera monedas de esfuerzo.</li>
         </ul>
       </section>
 
@@ -1489,7 +1490,7 @@
         <p>Al realizar un descanso:</p>
         <ul>
           <li>Recuperas 2 puntos de Voluntad, sin superar tu máximo.</li>
-          <li>Recuperas tu Punto de Esfuerzo.</li>
+          <li>El descanso no recupera monedas de esfuerzo.</li>
           <li>Conservas los Estados que tengas; el descanso no los elimina.</li>
         </ul>
       </section>
@@ -1509,7 +1510,7 @@
       <section class="card">
         <h2>8. Dirección de juego</h2>
         <p>El narrador determina cuándo una acción requiere una tirada, qué Enfoque corresponde, si un Rasgo resulta aplicable y qué consecuencias tiene el resultado. Las reglas no establecen rondas, turnos, ataques ni movimientos automáticos: esos elementos se resuelven según la situación y la dirección del narrador.</p>
-        <p>Las tiradas se realizan mediante Dice+. La aplicación sincroniza las fichas, la Voluntad, los Estados, el Punto de Esfuerzo y el estado del conflicto con la sala de Owlbear Rodeo.</p>
+        <p>Las tiradas se realizan mediante Dice+. La aplicación sincroniza las fichas, la Voluntad, los Estados, las monedas de esfuerzo y el estado del conflicto con la sala de Owlbear Rodeo.</p>
       </section>
     </main>
   {/if}
