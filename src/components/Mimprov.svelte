@@ -467,7 +467,7 @@
       return;
     }
     if (pendingDiceRoll) return;
-    const retryPool = selectedApproachScore + selectedTraitBonus + (rollModifier === 'advantage' ? 1 : 0);
+    const retryPool = selectedApproachScore + selectedTraitBonus + effortDiceBonus + (rollModifier === 'advantage' ? 1 : 0);
     const retryNotation = forcedLowRoll ? '2d6kl1' : retryPool <= 0 ? '2d6kl1' : `${retryPool}d6kh1`;
     await sendDiceRoll(diceNotation, dicePool, selectedApproach, false, retryNotation, retryPool);
     effortDiceBonus = 0;
@@ -1078,7 +1078,7 @@
               </select></label>
               <button type="button" class="name-dice" on:click={generateRandomConcept} aria-label="Generar concepto aleatorio">🎲 Generar concepto</button>
             </div>
-            <small class="muted">Elige un género y genera una frase aleatoria. Puedes editarla libremente. El concepto debe servir como referencia para justificar el gasto de monedas de esfuerzo.</small>
+            <small class="muted">Elige un género y genera una frase aleatoria. Puedes editarla libremente. </small>
           {:else if step === 2}
             <h1>¿Qué edad tiene?</h1>
             <label>Edad<input bind:value={character.age} placeholder="Edad o rango aproximado"></label>
@@ -1273,7 +1273,7 @@
                 <div class="gm-stats"><span>Voluntad: <b>{getPlayerCharacter(player)?.will} / {getPlayerCharacter(player)?.maxWill}</b></span><span>Enfoques: <b>{APPROACHES.map(a => a + ' ' + (getPlayerCharacter(player)?.approaches?.[a] ?? 0)).join(' · ')}</b></span><span>Rasgos: <b>{getPlayerCharacter(player)?.traits?.join(', ')}</b></span></div>
               {:else}<p class="muted">El jugador todavía no ha creado su ficha.</p>{/if}
               <h4>Estados actuales</h4><div class="state-grid">{#each STATES as state}<label class="check-row"><input type="checkbox" checked={playerTracker(player.id).states.includes(state.name)} on:change={() => toggleState(player.id, state.name)}><span><b>{state.name}</b><small>{state.enfoque}: {state.detail}</small></span></label>{/each}</div>
-              <h4>Monedas de esfuerzo</h4><p class="muted">Disponibles: {playerTracker(player.id).effortCoins} / 3</p><small class="muted">El jugador debe justificar que la acción está relacionada con su concepto. Las monedas permiten añadir 1d6 o repetir todos los dados. El descanso no las recupera.</small>
+              <h4>Monedas de esfuerzo</h4><p class="muted">Disponibles: {playerTracker(player.id).effortCoins} / 3</p><small class="muted">Las monedas permiten añadir 1d6 a una tirada o repetir todos los dados de la última tirada. El descanso no las recupera.</small>
             </article>
           {/each}
         {/if}
