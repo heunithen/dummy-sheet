@@ -28,6 +28,13 @@
     { name: 'Confundido', enfoque: 'Ingenio', detail: 'Percepción o pensamiento alterados.' },
   ];
   const APPROACHES = ['Tenacidad', 'Disciplina', 'Instinto', 'Ingenio'];
+  const ARCHETYPES: Record<string, { approaches: Record<string, number>; traits: string[] }> = {
+    'Valiente': { approaches: { Tenacidad: 1, Disciplina: 0, Instinto: 1, Ingenio: 0 }, traits: ['Peleador', 'Superviviente'] },
+    'Místico': { approaches: { Tenacidad: 0, Disciplina: 1, Instinto: 1, Ingenio: 0 }, traits: ['Observador', 'Conocedor de...'] },
+    'Académico': { approaches: { Tenacidad: 0, Disciplina: 1, Instinto: 0, Ingenio: 1 }, traits: ['Investigador', 'Conocedor de...'] },
+    'Atlético': { approaches: { Tenacidad: 1, Disciplina: 0, Instinto: 1, Ingenio: 0 }, traits: ['Atlético', 'Superviviente'] },
+    'Sociable': { approaches: { Tenacidad: 0, Disciplina: 1, Instinto: 0, Ingenio: 1 }, traits: ['Persuasivo', 'Liderazgo'] }
+  };
   const TRAITS = [
     'Atlético', 'Conocedor de...', 'Espadachín', 'Investigador', 'Furtivo',
     'Intimidante', 'Liderazgo', 'Maestro Chasquilla', 'Observador',
@@ -123,12 +130,12 @@
 
   type Item = { id: number; name: string; trait: string };
   type Character = {
-    name: string; concept: string; age: string; appearance: string; experience: string; notes: string; portrait?: string;
+    name: string; archetype: string; concept: string; age: string; appearance: string; experience: string; notes: string; portrait?: string;
     approaches: Record<string, number>; traits: string[]; inventory: Item[];
     will: number; maxWill: number; created: boolean;
   };
   const blankCharacter = (): Character => ({
-    name: '', concept: '', age: '', appearance: '', experience: '', notes: '', portrait: '',
+    name: '', archetype: '', concept: '', age: '', appearance: '', experience: '', notes: '', portrait: '',
     approaches: { Tenacidad: 0, Disciplina: 0, Instinto: 0, Ingenio: 0 },
     traits: [], inventory: [], will: 4, maxWill: 4, created: false
   });
@@ -207,7 +214,7 @@
   let pendingDiceRoll: { rollId: string; pool: number; notation: string; approach: string; effortReroll: boolean; conflictActive: boolean; danger: string } | null = null;
 
   $: approachTotal = APPROACHES.reduce((sum, name) => sum + (Number(approachDraft[name]) || 0), 0);
-  $: approachValid = approachTotal === 4 && APPROACHES.every(name => approachDraft[name] >= 0 && approachDraft[name] <= 2);
+  $: approachValid = approachTotal === 4 && APPROACHES.every(name => approachDraft[name] >= 0 && approachDraft[name] <= 1);
   $: myPlayer = $PartyStore.find(p => p.id === $currentPlayerId);
   // El rol llega de forma asíncrona desde Owlbear. Asegura una pestaña válida al cambiar de rol.
   $: if ($isGM && activeTab !== 'gm' && activeTab !== 'conflicto' && activeTab !== 'reglamento' && activeTab !== 'magia-gm' && activeTab !== 'lineas-velos' && activeTab !== 'pnj') activeTab = 'gm';
@@ -394,7 +401,7 @@
   $: selectedStatePenalty = selectedState ? 1 : 0;
   $: displayedStates = [...visibleStates.filter((stateName) => stateName !== 'Incapacitado' && stateName !== 'Abrumado'), ...(Number(character.will) <= 0 ? ['Abrumado'] : [])];
   $: characterApproachTotal = APPROACHES.reduce((sum, name) => sum + (Number(character.approaches?.[name]) || 0), 0);
-  $: characterApproachesValid = characterApproachTotal === 4 && APPROACHES.every(name => Number(character.approaches?.[name]) >= 0 && Number(character.approaches?.[name]) <= 2);
+  $: characterApproachesValid = characterApproachTotal === 4 && APPROACHES.every(name => Number(character.approaches?.[name]) >= 0 && Number(character.approaches?.[name]) <= 1);
   $: inventoryValid = character.traits.length === 4 && character.traits.every(trait => {
     const items = character.inventory.filter(item => item.trait === trait);
     return items.length === 3 && items.every(item => typeof item.name === 'string' && item.name.trim().length > 0);
@@ -831,18 +838,35 @@
   }
 
   function startCreation() { step = 0; character = blankCharacter(); approachDraft = { Tenacidad: 0, Disciplina: 0, Instinto: 0, Ingenio: 0 }; }
+  function selectArchetype(name: string) {
+    const archetype = ARCHETYPES[name];
+    if (!archetype) return;
+    character.archetype = name;
+    character.approaches = { ...archetype.approaches };
+    approachDraft = { ...archetype.approaches };
+    character.traits = [...archetype.traits];
+    character.inventory = [];
+    character.traits.forEach((trait) => {
+      const equipment = EQUIPMENT[trait] || (trait === 'Conocedor de...' ? EQUIPMENT['Conocedor de...'] : ['', '', '']);
+      equipment.forEach((item, i) => character.inventory.push({ id: Date.now() + i + character.inventory.length, name: item, trait }));
+    });
+    updateCharacter();
+  }
   function nextStep() {
-    if (step === 1 && !character.concept.trim()) return;
-    if (step === 4 && !approachValid) return;
-    if (step === 5 && character.traits.length !== 4) return;
-    if (step === 6 && !inventoryValid) return;
-    if (step === 4) character.approaches = { ...approachDraft };
-    if (step < 7) step += 1;
+    if (step === 1 && !character.archetype) return;
+    if (step === 2 && !character.concept.trim()) return;
+    if (step === 5 && !approachValid) return;
+    if (step === 6 && character.traits.length !== 4) return;
+    if (step === 7 && !inventoryValid) return;
+    if (step === 5) character.approaches = { ...approachDraft };
+    if (step < 8) step += 1;
     else { character.created = true; character.will = 4; character.maxWill = 4; updateCharacter(); editingCharacter = false; }
   }
   function previousStep() { if (step > 0) step -= 1; }
   function setApproach(name: string, value: number) {
-    const nextValue = Math.max(0, Math.min(2, value));
+    const fixedValue = ARCHETYPES[character.archetype]?.approaches[name] || 0;
+    if (fixedValue > 0 && value < fixedValue) return;
+    const nextValue = Math.max(fixedValue, Math.min(1, value));
     const currentValue = Number(approachDraft[name]) || 0;
     if (approachTotal - currentValue + nextValue > 4) return;
     approachDraft = { ...approachDraft, [name]: nextValue };
@@ -1040,8 +1064,8 @@
     <main class="content">
       {#if !character.created}
         <section class="card wizard">
-          <div class="eyebrow">CREACIÓN DE PERSONAJE · PASO {step + 1} DE 8</div>
-          <div class="progress"><span style="width:{(step + 1) * 12.5}%"></span></div>
+          <div class="eyebrow">CREACIÓN DE PERSONAJE · PASO {step + 1} DE 9</div>
+          <div class="progress"><span style="width:{(step + 1) * 11.111}%"></span></div>
           {#if step === 0}
             <h1>¿Cómo se llama tu personaje?</h1>
             <label>Nombre y apellido<input bind:value={character.name} list="mimprov-name-options" placeholder="Nombre del personaje"></label>
@@ -1059,8 +1083,13 @@
             </div>
             <small class="muted">Puedes escribir el nombre completo o generar un nombre y apellido aleatorios.</small>
           {:else if step === 1}
+            <h1>¿Cuál es su arquetipo?</h1>
+            <p>El arquetipo aporta 2 puntos de Enfoque y 2 Rasgos fijos. Junto con el concepto, también define cuándo puedes gastar monedas de esfuerzo.</p>
+            <div class="trait-picker"><select value={character.archetype} on:change={(event) => selectArchetype(event.currentTarget.value)}><option value="">Seleccionar arquetipo...</option>{#each Object.keys(ARCHETYPES) as archetype}<option value={archetype}>{archetype}</option>{/each}</select></div>
+            {#if character.archetype}<div class="selected-list"><strong>{character.archetype}</strong><p>Enfoques: {APPROACHES.filter(name => ARCHETYPES[character.archetype].approaches[name]).join(' 1 · ')} 1.</p><p>Rasgos fijos: {ARCHETYPES[character.archetype].traits.join(' · ')}</p></div>{/if}
+          {:else if step === 2}
             <h1>¿Cuál es su concepto?</h1>
-            <p>Escribe una frase que describa quién es, qué lo caracteriza y qué guía sus acciones. Este concepto determina cuándo puedes gastar tus monedas de esfuerzo.</p>
+            <p>Escribe una frase que describa quién es, qué lo caracteriza y qué guía sus acciones. El arquetipo y el concepto están unidos: la acción debe guardar relación con al menos uno de ellos para gastar una moneda de esfuerzo.</p>
             <label>Concepto<textarea bind:value={character.concept} rows="3" placeholder="Una exploradora que busca rutas seguras entre ciudades aisladas..."></textarea></label>
             <div class="name-generator concept-generator">
               <label>Género narrativo<select bind:value={conceptGenre}>
@@ -1069,10 +1098,10 @@
               <button type="button" class="name-dice" on:click={generateRandomConcept} aria-label="Generar concepto aleatorio">🎲 Generar concepto</button>
             </div>
             <small class="muted">Elige un género y genera una frase aleatoria. Puedes editarla libremente. </small>
-          {:else if step === 2}
+          {:else if step === 3}
             <h1>¿Qué edad tiene?</h1>
             <label>Edad<input bind:value={character.age} placeholder="Edad o rango aproximado"></label>
-          {:else if step === 3}
+          {:else if step === 4}
             <h1>¿Cómo es su apariencia?</h1>
             <p>Elige un rango de edad y si el personaje es hombre o mujer para recibir descripciones físicas generales que puedas usar o modificar.</p>
             <div class="name-generator">
@@ -1086,16 +1115,17 @@
             </div>
             <label>Descripción física<textarea bind:value={character.appearance} rows="3" placeholder="La descripción completa aparecerá aquí. También puedes escribirla o modificarla."></textarea></label>
             <small class="muted">Cada generación combina al azar rasgos independientes —piel, ojos, cabello, rostro y complexión— en una sola descripción. La selección de rasgos ocurre internamente.</small>
-          {:else if step === 4}
+          {:else if step === 5}
             <h1>Distribuye sus Enfoques</h1>
-            <p>Reparte exactamente 4 puntos. Cada Enfoque puede tener entre 0 y 2 puntos.</p>
+            <p>El arquetipo aporta 2 puntos. Distribuye los otros 2 entre los Enfoques restantes. Cada Enfoque puede tener como máximo 1 punto.</p>
             {#each APPROACHES as name}
-              <div class="approach-row"><div><strong>{name}</strong><small>{APPROACH_DESCRIPTIONS[name].long}</small></div><div class="stepper"><button on:click={() => setApproach(name, approachDraft[name] - 1)} disabled={approachDraft[name] <= 0}>−</button><b>{approachDraft[name]}</b><button on:click={() => setApproach(name, approachDraft[name] + 1)} disabled={approachDraft[name] >= 2 || approachTotal >= 4}>+</button></div></div>
+              <div class="approach-row"><div><strong>{name}</strong><small>{APPROACH_DESCRIPTIONS[name].long}{#if ARCHETYPES[character.archetype]?.approaches[name]} · Punto asignado por el arquetipo.{/if}</small></div><div class="stepper"><button on:click={() => setApproach(name, approachDraft[name] - 1)} disabled={approachDraft[name] <= (ARCHETYPES[character.archetype]?.approaches[name] || 0)}>−</button><b>{approachDraft[name]}</b><button on:click={() => setApproach(name, approachDraft[name] + 1)} disabled={approachDraft[name] >= 1 || approachTotal >= 4}>+</button></div></div>
             {/each}
             <div class:valid={approachValid} class="total-points">Puntos distribuidos: {approachTotal} / 4</div>
-          {:else if step === 5}
-            <h1>Elige cuatro Rasgos de la lista disponible</h1>
-            <p>Cada Rasgo aporta un dado cuando es directamente relevante para una acción.</p>
+          {:else if step === 6}
+            <h1>Completa tus cuatro Rasgos</h1>
+            <p>El arquetipo aporta dos Rasgos fijos. Escoge otros dos de la lista disponible.</p>
+            <div class="selected-list"><strong>Rasgos fijos del arquetipo</strong>{#each character.traits.slice(0, 2) as trait}<div class="selected-item"><span>{trait}</span><small>Fijo</small></div>{/each}</div>
             <div class="trait-picker">
               <select bind:value={traitDraft}><option value="">Seleccionar Rasgo...</option>{#each TRAITS as trait}<option value={trait} disabled={character.traits.includes(trait) || character.traits.length >= 4}>{trait}</option>{/each}</select>
               {#if traitDraft === 'Conocedor de...'}<input bind:value={customTraitField} placeholder="¿Conocedor de qué?">{/if}
@@ -1103,7 +1133,7 @@
             </div>
             <div class="selected-list">{#each character.traits as trait}<div class="selected-item trait-description"><div><strong>{trait}</strong><small>{trait.startsWith('Conocedor de ') ? 'Conocedor de...': trait} </small><p>{trait.startsWith('Conocedor de ') ? 'Posees conocimientos y experiencia en ' + trait.slice('Conocedor de '.length) + '. Puedes reconocer elementos propios de esa materia, comprender información especializada, recordar procedimientos y resolver problemas relacionados con ese ámbito.' : TRAIT_DESCRIPTIONS[trait]?.long || ''}</p></div><button class="remove" on:click={() => removeTrait(trait)}>Quitar</button></div>{/each}</div>
             <div class="total-points" class:valid={character.traits.length === 4}>Rasgos seleccionados: {character.traits.length} / 4</div>
-          {:else if step === 6}
+          {:else if step === 7}
             <h1>Prepara su equipo</h1>
             <p>Cada Rasgo entrega tres objetos asociados. Puedes editar los nombres de los objetos y añadir pertenencias personales.</p>
             {#each character.traits as trait}
@@ -1118,11 +1148,11 @@
             <div class="total-points" class:valid={inventoryValid}>Cada Rasgo debe tener tres objetos con nombre. Los objetos personales también deben tener nombre. Total actual: {character.inventory.length}</div>
           {:else}
             <h1>Revisa el personaje</h1>
-            <div class="summary"><p><strong>{character.name || 'Sin nombre'}</strong></p><p>{character.concept}</p><h3>Enfoques</h3>{#each APPROACHES as name}<p>{name}: {approachDraft[name]}</p>{/each}<h3>Rasgos</h3><p>{character.traits.join(' · ')}</p><h3>Equipo</h3><p>{character.inventory.map(i => i.name || 'Objeto por definir').join(' · ')}</p><p>Voluntad inicial: 4 / 4</p><p>Monedas de esfuerzo iniciales: 3 / 3</p></div>
+            <div class="summary"><p><strong>{character.name || 'Sin nombre'}</strong></p><p>{character.archetype} · {character.concept}</p><h3>Enfoques</h3>{#each APPROACHES as name}<p>{name}: {approachDraft[name]}</p>{/each}<h3>Rasgos</h3><p>{character.traits.join(' · ')}</p><h3>Equipo</h3><p>{character.inventory.map(i => i.name || 'Objeto por definir').join(' · ')}</p><p>Voluntad inicial: 4 / 4</p><p>Monedas de esfuerzo iniciales: 3 / 3</p></div>
           {/if}
           <div class="wizard-actions">
             {#if step > 0}<button class="secondary" on:click={previousStep}>Anterior</button>{/if}
-            <button on:click={nextStep} disabled={(step === 1 && !character.concept.trim()) || (step === 4 && !approachValid) || (step === 5 && character.traits.length !== 4) || (step === 6 && !inventoryValid)}>{step === 7 ? 'Crear personaje' : 'Continuar'}</button>
+            <button on:click={nextStep} disabled={(step === 1 && !character.archetype) || (step === 2 && !character.concept.trim()) || (step === 5 && !approachValid) || (step === 6 && character.traits.length !== 4) || (step === 7 && !inventoryValid)}>{step === 8 ? 'Crear personaje' : 'Continuar'}</button>
           </div>
         </section>
       {:else}
