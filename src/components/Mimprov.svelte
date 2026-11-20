@@ -1249,7 +1249,7 @@
             <section class="card"><h2>Enfoques</h2>{#each APPROACHES as name}<div class="approach-row compact"><div><strong>{name}</strong><small>{APPROACH_DESCRIPTIONS[name].short}</small></div><span class="score">{character.approaches[name]}</span></div>{/each}</section>
             <section class="card"><h2>Rasgos</h2>{#each character.traits as trait}<div class="trait-line"><strong>{traitLabel(trait)}</strong><small>{traitLabel(trait.startsWith('Conocedor de ') ? 'Conocedor de...' : trait)} </small><p>{trait.startsWith('Conocedor de ') ? 'Conocimientos y experiencia en ' + trait.slice('Conocedor de '.length) + '.' : TRAIT_DESCRIPTIONS[trait]?.short || ''}</p></div>{/each}</section>
             <section class="card"><h2>Voluntad</h2><div class="will-value">{character.will}<small> / {character.maxWill}</small></div><div class="will-controls"><button on:click={() => adjustWill(-1)} disabled={character.will <= 0}>−</button><button on:click={() => adjustWill(1)} disabled={character.will >= character.maxWill}>+</button></div><button class="secondary full" on:click={restCharacter}>Descansar</button><p class="muted">Recuperas 2 puntos de Voluntad (sin superar el máximo). El descanso no recupera monedas de esfuerzo. Con 0 Voluntad, siempre tiras 2d6 y conservas el menor, sin importar ventaja o desventaja.</p></section>
-            <section class="card extra-info"><h2>Monedas de esfuerzo</h2><div class="will-value">{visibleEffortCoins}<small> / 3 disponibles</small></div><p class="muted">Cada moneda permite añadir 1d6 a la próxima tirada o repetir todos los dados de la última tirada. Se restablecen a 3 al comenzar cada sesión.</p><button class="secondary full" on:click={() => spendEffort('extra-die')} disabled={visibleEffortCoins <= 0 || !!pendingDiceRoll || effortDiceBonus > 0}>Gastar moneda: +1d6 a la próxima tirada</button>{#if lastRoll}<button class="secondary full" on:click={() => spendEffort('reroll')} disabled={visibleEffortCoins <= 0 || !!pendingDiceRoll}>Gastar moneda: repetir última tirada</button>{/if}</section>
+            <section class="card extra-info"><h2>Monedas de esfuerzo</h2><div class="will-value">{visibleEffortCoins}<small> / 3 disponibles</small></div><p class="muted">Cada moneda permite añadir 1d6 a la próxima tirada o repetir todos los dados de la última tirada. Gastarla no genera Estados. Se restablecen a 3 al comenzar cada sesión.</p><button class="secondary full" on:click={() => spendEffort('extra-die')} disabled={visibleEffortCoins <= 0 || !!pendingDiceRoll || effortDiceBonus > 0}>Gastar moneda: +1d6 a la próxima tirada</button>{#if lastRoll}<button class="secondary full" on:click={() => spendEffort('reroll')} disabled={visibleEffortCoins <= 0 || !!pendingDiceRoll}>Gastar moneda: repetir última tirada</button>{/if}</section>
             <section class="card"><h2>Estados</h2><div class="state-grid">{#each [...STATES, ...(Number(character.will) <= 0 ? [{ name: 'Abrumado', enfoque: 'Todos', detail: 'Con 0 Voluntad, todas las tiradas usan 2d6 y conservan el menor.' }] : [])] as state}<label class="check-row"><input type="checkbox" checked={displayedStates.includes(state.name)} disabled><span><b>{state.name}</b><small>{state.enfoque}: {state.detail}</small></span></label>{/each}</div></section>
             <section class="card"><h2>Equipo</h2>{#each character.inventory as item}<div class="inventory-line"><input value={equipmentDisplayName(item)} placeholder="Objeto por definir" on:input={(event) => { item.name = event.currentTarget.value; updateCharacter(); }}><small>{traitLabel(item.trait)}</small><button class="remove" on:click={() => removeInventoryItem(item.id)}>×</button></div>{/each}<button class="secondary full" on:click={addInventoryItem}>Añadir objeto</button></section>
           </div>
@@ -1363,7 +1363,7 @@
                 <div class="gm-stats"><span>Voluntad: <b>{getPlayerCharacter(player)?.will} / {getPlayerCharacter(player)?.maxWill}</b></span><span>Enfoques: <b>{APPROACHES.map(a => a + ' ' + (getPlayerCharacter(player)?.approaches?.[a] ?? 0)).join(' · ')}</b></span><span>Rasgos: <b>{(getPlayerCharacter(player)?.traits || []).map(traitLabel).join(', ')}</b></span></div><p class="muted"><b>Equipo:</b> {(getPlayerCharacter(player)?.inventory || []).map(equipmentDisplayName).join(' · ')}</p>
               {:else}<p class="muted">El jugador todavía no ha creado su ficha.</p>{/if}
               <h4>Estados actuales</h4><div class="state-grid">{#each STATES as state}<label class="check-row"><input type="checkbox" checked={playerTracker(player.id).states.includes(state.name)} on:change={() => toggleState(player.id, state.name)}><span><b>{state.name}</b><small>{state.enfoque}: {state.detail}</small></span></label>{/each}</div>
-              <h4>Monedas de esfuerzo</h4><p class="muted">Disponibles: {playerTracker(player.id).effortCoins} / 3</p><small class="muted">Las monedas permiten añadir 1d6 a una tirada o repetir todos los dados de la última tirada. El descanso no las recupera.</small>
+              <h4>Monedas de esfuerzo</h4><p class="muted">Disponibles: {playerTracker(player.id).effortCoins} / 3</p><small class="muted">Las monedas permiten añadir 1d6 a una tirada o repetir todos los dados de la última tirada. Gastarlas no genera Estados. El descanso no las recupera.</small>
             </article>
           {/each}
         {/if}
@@ -1509,7 +1509,7 @@
           <li><strong>Rasgos:</strong> conserva los 2 Rasgos fijos del arquetipo y escoge otros 2 de la lista. Cada Rasgo aporta +1 dado cuando resulta directamente relevante para la acción.</li>
           <li><strong>Equipo:</strong> cada Rasgo proporciona tres espacios de objetos asociados. Debes completar al menos 12 objetos para terminar la creación.</li>
           <li><strong>Voluntad:</strong> comienzas con 4 puntos y tu máximo inicial también es 4.</li>
-          <li><strong>Monedas de esfuerzo:</strong> comienzas cada sesión con 3 monedas. El arquetipo y el concepto forman juntos la identidad del personaje: puedes gastar una moneda cuando la acción esté relacionada con el arquetipo o con el concepto. Puedes añadir 1d6 a una tirada o volver a lanzar todos sus dados.</li>
+          <li><strong>Monedas de esfuerzo:</strong> comienzas cada sesión con 3 monedas. El arquetipo y el concepto forman juntos la identidad del personaje: puedes gastar una moneda cuando la acción esté relacionada con el arquetipo o con el concepto. Puedes añadir 1d6 a una tirada o volver a lanzar todos sus dados. Gastar una moneda no genera Estados.</li>
         </ul>
       </section>
 
@@ -1563,9 +1563,10 @@
         <h2>5. Monedas de esfuerzo</h2>
         <p>Cada personaje recibe 3 monedas de esfuerzo al comienzo de cada sesión. Las monedas no gastadas no se acumulan: al iniciar una nueva sesión, todos vuelven a tener 3.</p>
         <ul>
-          <li>Solo puedes gastar una moneda si la acción que intentas realizar está relacionada con el concepto de tu personaje. Debes explicar brevemente esa relación.</li>
+          <li>Solo puedes gastar una moneda si la acción que intentas realizar está relacionada con el arquetipo o el concepto de tu personaje. No necesitas explicar ni justificar el gasto.</li>
           <li>Antes de una tirada, puedes gastar una moneda para añadir 1d6 al pool.</li>
-          <li>Después de una tirada, puedes gastar una moneda para volver a lanzar todos los dados. Debes aceptar el nuevo resultado.</li>
+          <li>Después de una tirada, puedes gastar una moneda para volver a lanzar todos los dados, ignorando los Estados o Desventajas que resten dados. Debes aceptar el nuevo resultado.</li>
+          <li>Gastar una moneda no genera Estados ni consecuencias automáticas adicionales.</li>
           <li>El descanso no recupera monedas de esfuerzo.</li>
         </ul>
       </section>
