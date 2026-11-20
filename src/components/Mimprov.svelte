@@ -28,12 +28,12 @@
     { name: 'Confundido', enfoque: 'Ingenio', detail: 'Percepción o pensamiento alterados.' },
   ];
   const APPROACHES = ['Tenacidad', 'Disciplina', 'Instinto', 'Ingenio'];
-  const ARCHETYPES: Record<string, { approaches: Record<string, number>; traits: string[] }> = {
-    'Valiente': { approaches: { Tenacidad: 1, Disciplina: 0, Instinto: 1, Ingenio: 0 }, traits: ['Peleador', 'Superviviente'] },
-    'Místico': { approaches: { Tenacidad: 0, Disciplina: 1, Instinto: 1, Ingenio: 0 }, traits: ['Observador', 'Conocedor de...'] },
-    'Académico': { approaches: { Tenacidad: 0, Disciplina: 1, Instinto: 0, Ingenio: 1 }, traits: ['Investigador', 'Conocedor de...'] },
-    'Atlético': { approaches: { Tenacidad: 1, Disciplina: 0, Instinto: 1, Ingenio: 0 }, traits: ['Atlético', 'Superviviente'] },
-    'Sociable': { approaches: { Tenacidad: 0, Disciplina: 1, Instinto: 0, Ingenio: 1 }, traits: ['Persuasivo', 'Liderazgo'] }
+  const ARCHETYPES: Record<string, { description: string; approaches: Record<string, number>; traits: string[] }> = {
+    'Valiente': { description: 'Se enfrenta a los peligros sin retroceder. Actúa con decisión cuando otros dudan, soporta la presión y está dispuesto a ponerse en riesgo para proteger o defender aquello que considera importante.', approaches: { Tenacidad: 1, Disciplina: 0, Instinto: 1, Ingenio: 0 }, traits: ['Peleador', 'Superviviente'] },
+    'Místico': { description: 'Se interesa por lo oculto, lo inexplicable y las fuerzas que escapan a la comprensión cotidiana. Observa señales, busca significados y conoce prácticas, tradiciones o saberes poco comunes.', approaches: { Tenacidad: 0, Disciplina: 1, Instinto: 1, Ingenio: 0 }, traits: ['Observador', 'Conocedor de...'] },
+    'Académico': { description: 'Se apoya en el estudio, la investigación y el pensamiento metódico. Reúne información, examina pruebas y utiliza conocimientos especializados para comprender problemas y encontrar respuestas.', approaches: { Tenacidad: 0, Disciplina: 1, Instinto: 0, Ingenio: 1 }, traits: ['Investigador', 'Conocedor de...'] },
+    'Atlético': { description: 'Destaca por su preparación física y el dominio de su cuerpo. Confía en su fuerza, coordinación, velocidad y resistencia para superar obstáculos y realizar esfuerzos exigentes.', approaches: { Tenacidad: 1, Disciplina: 0, Instinto: 1, Ingenio: 0 }, traits: ['Atlético', 'Superviviente'] },
+    'Sociable': { description: 'Se desenvuelve con facilidad entre otras personas. Sabe comunicarse, generar confianza, negociar y reunir voluntades para alcanzar objetivos compartidos.', approaches: { Tenacidad: 0, Disciplina: 1, Instinto: 0, Ingenio: 1 }, traits: ['Persuasivo', 'Liderazgo'] }
   };
   const TRAITS = [
     'Atlético', 'Conocedor de...', 'Espadachín', 'Investigador', 'Furtivo',
@@ -41,6 +41,7 @@
     'Peleador', 'Persuasivo', 'Superviviente', 'Tirador'
   ];
   const GENRE_KEY = 'com.heunithen.dummysheet-mimprov/genre';
+  const SESSION_KEY = 'com.heunithen.dummysheet-mimprov/session';
   const GENRES = [{id:'fantasy',label:'Fantasía'},{id:'scifi',label:'Ciencia ficción'},{id:'horror',label:'Terror'},{id:'modern',label:'Contemporánea'},{id:'postapoc',label:'Postapocalíptica'}];
   const GENRE_TRAIT_LABELS: Record<string, Record<string,string>> = {
     fantasy:{'Maestro Chasquilla':'Herrero','Tirador':'Arquero'},
@@ -223,6 +224,7 @@
   let selectedGmNpcGenre: GmNpcGenre = 'fantasy';
   let gmNpcNotes = '';
   let selectedGenre = 'fantasy';
+  let sessionStarted = false;
   let linesVeils: { lines: string; veils: string } = { lines: '', veils: '' };
   let visibleStates: string[] = [];
   let visibleEffortCoins = 3;
@@ -279,6 +281,20 @@
     selectedGenre = genre;
     try { if (OBR.isAvailable) await OBR.room.setMetadata({ [GENRE_KEY]: genre }); }
     catch (error) { console.error('No se pudo guardar la ambientación', error); }
+  }
+
+  async function startNewSession() {
+    if (!$isGM || !OBR.isAvailable) return;
+    if (!confirm('¿Iniciar una nueva sesión? Se restablecerán las monedas de esfuerzo de todos los jugadores a 3.')) return;
+    try {
+      const players = $PartyStore.filter(player => player.role !== 'GM');
+      players.forEach(player => { playerTracker(player.id).effortCoins = 3; });
+      saveGmTracker();
+      await OBR.room.setMetadata({ [SESSION_KEY]: { active: true, startedAt: Date.now() } });
+      sessionStarted = true;
+    } catch (error) {
+      console.error('No se pudo iniciar la sesión', error);
+    }
   }
 
   function clone<T>(value: T): T { return JSON.parse(JSON.stringify(value)); }
@@ -616,6 +632,9 @@
           const syncGenre = (metadata: any) => { const genre = metadata?.[GENRE_KEY]; selectedGenre = GENRES.some(item => item.id === genre) ? genre : 'fantasy'; };
           syncGenre(await OBR.room.getMetadata());
           OBR.room.onMetadataChange(syncGenre);
+          const syncSession = (metadata: any) => { sessionStarted = metadata?.[SESSION_KEY]?.active === true; };
+          syncSession(await OBR.room.getMetadata());
+          OBR.room.onMetadataChange(syncSession);
           syncLinesVeils(await OBR.room.getMetadata());
           OBR.room.onMetadataChange(syncLinesVeils);
           OBR.broadcast.onMessage(LINES_VEILS_REQUEST_CHANNEL, async (event) => {
@@ -1105,7 +1124,7 @@
 </svelte:head>
 
 <div class="app-shell">
-  {#if !$isGM}
+  {#if !$isGM && sessionStarted}
     <nav class="main-tabs">
       <button class:active={activeTab === 'personaje'} on:click={() => { activeTab = 'personaje'; }}>Personaje</button>
       <button class:active={activeTab === 'tiradas'} on:click={() => { activeTab = 'tiradas'; }}>Tiradas</button>
@@ -1125,7 +1144,9 @@
     </nav>
   {/if}
 
-  {#if !$isGM && activeTab === 'personaje'}
+  {#if !$isGM && !sessionStarted}
+    <main class="content"><section class="card wizard"><div class="eyebrow">SALA EN ESPERA</div><h1>La sesión aún no ha comenzado</h1><p>La creación de personajes y las demás funciones estarán disponibles cuando el Narrador pulse <strong>Iniciar nueva sesión</strong>.</p></section></main>
+  {:else if !$isGM && activeTab === 'personaje'}
     <main class="content">
       {#if !character.created}
         <section class="card wizard">
@@ -1151,7 +1172,7 @@
             <h1>¿Cuál es su arquetipo?</h1>
             <p>El arquetipo aporta 2 puntos de Enfoque y 2 Rasgos fijos. Junto con el concepto, también define cuándo puedes gastar monedas de esfuerzo.</p>
             <div class="trait-picker"><select value={character.archetype} on:change={(event) => selectArchetype(event.currentTarget.value)}><option value="">Seleccionar arquetipo...</option>{#each Object.keys(ARCHETYPES) as archetype}<option value={archetype}>{archetype}</option>{/each}</select></div>
-            {#if character.archetype}<div class="selected-list"><strong>{character.archetype}</strong><p>Enfoques: {APPROACHES.filter(name => ARCHETYPES[character.archetype].approaches[name]).join(' 1 · ')} 1.</p><p>Rasgos fijos: {ARCHETYPES[character.archetype].traits.map(traitLabel).join(' · ')}</p></div>{/if}
+            {#if character.archetype}<div class="selected-list"><strong>{character.archetype}</strong><p>{ARCHETYPES[character.archetype].description}</p><p>Enfoques: {APPROACHES.filter(name => ARCHETYPES[character.archetype].approaches[name]).join(' 1 · ')} 1.</p><p>Rasgos fijos: {ARCHETYPES[character.archetype].traits.map(traitLabel).join(' · ')}</p></div>{/if}
           {:else if step === 2}
             <h1>¿Cuál es su concepto?</h1>
             <p>Escribe una frase que describa quién es, qué lo caracteriza y qué guía sus acciones. El arquetipo y el concepto están unidos: la acción debe guardar relación con al menos uno de ellos para gastar una moneda de esfuerzo.</p>
@@ -1346,7 +1367,7 @@
       <div class="eyebrow">HERRAMIENTAS DEL NARRADOR</div><h1>Personajes</h1>
       <section class="card"><h2>Ambientación de la partida</h2><p class="muted">Esta selección aplica una skin global a todos los personajes de la sala: adapta los nombres de Rasgos, conocimientos y objetos de equipo, incluidos los personajes ya creados. No cambia sus Enfoques, capacidades, reglas ni objetos personalizados.</p><label for="mimprov-genre">Género o ambientación</label><select id="mimprov-genre" value={selectedGenre} on:change={(event) => changeGenre(event.currentTarget.value)}>{#each GENRES as genre}<option value={genre.id}>{genre.label}</option>{/each}</select><p class="muted">La ambientación se comparte con todos los jugadores de esta sala.</p></section>
       <p class="muted">Seguimiento independiente. Estos controles no modifican las fichas de los jugadores.</p>
-            <section class="card"><h2>Sesión</h2><p class="muted">Al comenzar una nueva sesión, restablece las monedas de esfuerzo de todos los personajes a 3.</p><button on:click={() => { if (!confirm('¿Comenzar una nueva sesión y restablecer las monedas de esfuerzo de todos los personajes a 3?')) return; partyMembers.forEach(player => { playerTracker(player.id).effortCoins = 3; }); saveGmTracker(); }}>Iniciar nueva sesión</button></section>
+            <section class="card"><h2>Sesión</h2><p class="muted">{sessionStarted ? 'Sesión iniciada. Los jugadores pueden crear sus personajes y utilizar la ficha.' : 'La sesión todavía no ha comenzado. Los jugadores verán una pantalla de espera y no podrán iniciar la creación de personajes.'}</p><button on:click={startNewSession}>Iniciar nueva sesión</button></section>
       <section class="card"><h2>Personajes de la sala</h2>
         {#if partyMembers.length === 0}
           <p>No hay personajes creados en la sala.</p>
