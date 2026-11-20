@@ -838,10 +838,23 @@
   }
 
   function startCreation() { step = 0; character = blankCharacter(); approachDraft = { Tenacidad: 0, Disciplina: 0, Instinto: 0, Ingenio: 0 }; }
+  function isFixedArchetypeTrait(trait: string): boolean {
+    return (ARCHETYPES[character.archetype]?.traits || []).some((fixed) => fixed === trait || (fixed === 'Conocedor de...' && trait.startsWith('Conocedor de ')));
+  }
+  function updateArchetypeKnowledge(value: string) {
+    const index = character.traits.findIndex((trait) => trait === 'Conocedor de...' || trait.startsWith('Conocedor de '));
+    if (index < 0) return;
+    const previous = character.traits[index];
+    const next = value.trim() ? 'Conocedor de ' + value.trim() : 'Conocedor de...';
+    character.traits[index] = next;
+    character.inventory = character.inventory.map((item) => item.trait === previous ? { ...item, trait: next } : item);
+    updateCharacter();
+  }
   function selectArchetype(name: string) {
     const archetype = ARCHETYPES[name];
     if (!archetype) return;
     character.archetype = name;
+    customTraitField = '';
     character.approaches = { ...archetype.approaches };
     approachDraft = { ...archetype.approaches };
     character.traits = [...archetype.traits];
@@ -872,7 +885,8 @@
     approachDraft = { ...approachDraft, [name]: nextValue };
   }
   function setCharacterApproach(name: string, value: number) {
-    const nextValue = Math.max(0, Math.min(2, value));
+    const fixedValue = ARCHETYPES[character.archetype]?.approaches[name] || 0;
+    const nextValue = Math.max(fixedValue, Math.min(1, value));
     const currentValue = Number(character.approaches[name]) || 0;
     if (characterApproachTotal - currentValue + nextValue > 4) return;
     character.approaches = { ...character.approaches, [name]: nextValue };
@@ -887,7 +901,7 @@
     traitDraft = ''; customTraitField = ''; updateCharacter();
   }
   function removeTrait(trait: string) {
-    if (ARCHETYPES[character.archetype]?.traits.includes(trait)) return;
+    if (isFixedArchetypeTrait(trait)) return;
     character.traits = character.traits.filter(t => t !== trait);
     character.inventory = character.inventory.filter(i => i.trait !== trait);
     updateCharacter();
@@ -1127,12 +1141,13 @@
             <h1>Completa tus cuatro Rasgos</h1>
             <p>El arquetipo aporta dos Rasgos fijos. Escoge otros dos de la lista disponible.</p>
             <div class="selected-list"><strong>Rasgos fijos del arquetipo</strong>{#each character.traits.slice(0, 2) as trait}<div class="selected-item"><span>{trait}</span><small>Fijo</small></div>{/each}</div>
+            {#if ARCHETYPES[character.archetype]?.traits.includes('Conocedor de...')}<label>Campo de conocimiento<input value={character.traits.find((trait) => trait.startsWith('Conocedor de '))?.replace('Conocedor de ', '') || ''} on:input={(event) => updateArchetypeKnowledge(event.currentTarget.value)} placeholder="¿Conocedor de qué?"></label>{/if}
             <div class="trait-picker">
               <select bind:value={traitDraft}><option value="">Seleccionar Rasgo...</option>{#each TRAITS as trait}<option value={trait} disabled={character.traits.includes(trait) || character.traits.length >= 4}>{trait}</option>{/each}</select>
               {#if traitDraft === 'Conocedor de...'}<input bind:value={customTraitField} placeholder="¿Conocedor de qué?">{/if}
               <button on:click={addTrait} disabled={!traitDraft || (traitDraft === 'Conocedor de...' && !customTraitField.trim())}>Añadir</button>
             </div>
-            <div class="selected-list">{#each character.traits as trait}<div class="selected-item trait-description"><div><strong>{trait}</strong><small>{trait.startsWith('Conocedor de ') || trait === 'Conocedor de...' ? 'Conocedor de...': trait} </small><p>{trait.startsWith('Conocedor de ') ? 'Posees conocimientos y experiencia en ' + trait.slice('Conocedor de '.length) + '. Puedes reconocer elementos propios de esa materia, comprender información especializada, recordar procedimientos y resolver problemas relacionados con ese ámbito.' : TRAIT_DESCRIPTIONS[trait]?.long || ''}</p></div>{#if ARCHETYPES[character.archetype]?.traits.includes(trait)}<small>Fijo</small>{:else}<button class="remove" on:click={() => removeTrait(trait)}>Quitar</button>{/if}</div>{/each}</div>
+            <div class="selected-list">{#each character.traits as trait}<div class="selected-item trait-description"><div><strong>{trait}</strong><small>{trait.startsWith('Conocedor de ') || trait === 'Conocedor de...' ? 'Conocedor de...': trait} </small><p>{trait.startsWith('Conocedor de ') ? 'Posees conocimientos y experiencia en ' + trait.slice('Conocedor de '.length) + '. Puedes reconocer elementos propios de esa materia, comprender información especializada, recordar procedimientos y resolver problemas relacionados con ese ámbito.' : TRAIT_DESCRIPTIONS[trait]?.long || ''}</p></div>{#if isFixedArchetypeTrait(trait)}<small>Fijo</small>{:else}<button class="remove" on:click={() => removeTrait(trait)}>Quitar</button>{/if}</div>{/each}</div>
             <div class="total-points" class:valid={character.traits.length === 4}>Rasgos seleccionados: {character.traits.length} / 4</div>
           {:else if step === 7}
             <h1>Prepara su equipo</h1>
@@ -1158,7 +1173,7 @@
         </section>
       {:else}
         <section class="character-sheet">
-          <header class="sheet-header"><div class="sheet-title-group"><div class="character-portrait-wrap">{#if character.portrait}<img class="character-portrait" src={character.portrait} alt="Retrato de {character.name || 'personaje'}">{:else}<div class="character-portrait character-portrait-empty" aria-label="Sin retrato">?</div>{/if}</div><div class="sheet-title"><div class="eyebrow">PERSONAJE MIMPROV</div><h1>{character.name || 'Sin nombre'}</h1><p>{character.concept}</p><div class="portrait-actions"><label class="import-button portrait-upload">Subir imagen<input type="file" accept="image/*" on:change={uploadCharacterPortrait}></label>{#if character.portrait}<button class="secondary" on:click={removeCharacterPortrait}>Quitar imagen</button>{/if}<small>Imagen cuadrada de 512 × 512 px.</small></div></div></div><div class="sheet-header-actions"><button class="secondary" on:click={() => editingCharacter = !editingCharacter}>{editingCharacter ? 'Cerrar edición' : 'Editar ficha'}</button><button class="danger-button" on:click={requestOwnCharacterDeletion}>Eliminar personaje</button></div></header>
+          <header class="sheet-header"><div class="sheet-title-group"><div class="character-portrait-wrap">{#if character.portrait}<img class="character-portrait" src={character.portrait} alt="Retrato de {character.name || 'personaje'}">{:else}<div class="character-portrait character-portrait-empty" aria-label="Sin retrato">?</div>{/if}</div><div class="sheet-title"><div class="eyebrow">PERSONAJE MIMPROV</div><h1>{character.name || 'Sin nombre'}</h1><p>{character.archetype} · {character.concept}</p><div class="portrait-actions"><label class="import-button portrait-upload">Subir imagen<input type="file" accept="image/*" on:change={uploadCharacterPortrait}></label>{#if character.portrait}<button class="secondary" on:click={removeCharacterPortrait}>Quitar imagen</button>{/if}<small>Imagen cuadrada de 512 × 512 px.</small></div></div></div><div class="sheet-header-actions"><button class="secondary" on:click={() => editingCharacter = !editingCharacter}>{editingCharacter ? 'Cerrar edición' : 'Editar ficha'}</button><button class="danger-button" on:click={requestOwnCharacterDeletion}>Eliminar personaje</button></div></header>
           <section class="card extra-info"><h2>Datos del personaje</h2><p><strong>Edad:</strong> {character.age || '—'}</p><p><strong>Apariencia:</strong> {character.appearance || '—'}</p><p><strong>Experiencia:</strong> {character.experience || '—'}</p></section>
           {#if editingCharacter}
             <div class="card edit-card">
@@ -1167,8 +1182,8 @@
               <label>Edad<input bind:value={character.age} on:input={updateCharacter}></label>
               <label>Apariencia<textarea bind:value={character.appearance} on:input={updateCharacter}></textarea></label>
               <label>Experiencia<input bind:value={character.experience} on:input={updateCharacter}></label>
-              <h3>Enfoques</h3><p class="muted">Puntos distribuidos: {characterApproachTotal} / 4. Máximo 2 por Enfoque.</p>{#each APPROACHES as name}<div class="approach-row"><strong>{name}</strong><div class="stepper"><button on:click={() => setCharacterApproach(name, character.approaches[name] - 1)} disabled={character.approaches[name] <= 0}>−</button><b>{character.approaches[name]}</b><button on:click={() => setCharacterApproach(name, character.approaches[name] + 1)} disabled={character.approaches[name] >= 2 || characterApproachTotal >= 4}>+</button></div></div>{/each}
-              <h3>Rasgos</h3>{#each character.traits as trait}<div class="selected-item"><span>{trait}</span><button class="remove" on:click={() => removeTrait(trait)}>Quitar</button></div>{/each}<div class="trait-picker"><select bind:value={traitDraft}><option value="">Añadir Rasgo...</option>{#each TRAITS as trait}<option value={trait} disabled={character.traits.includes(trait) || character.traits.length >= 4}>{trait}</option>{/each}</select>{#if traitDraft === 'Conocedor de...'}<input bind:value={customTraitField} placeholder="¿Conocedor de qué?">{/if}<button on:click={addTrait} disabled={!traitDraft || (traitDraft === 'Conocedor de...' && !customTraitField.trim())}>Añadir</button></div>
+              <h3>Enfoques</h3><p class="muted">Puntos distribuidos: {characterApproachTotal} / 4. Máximo 1 por Enfoque; los puntos del arquetipo son fijos.</p>{#each APPROACHES as name}<div class="approach-row"><strong>{name}</strong><div class="stepper"><button on:click={() => setCharacterApproach(name, character.approaches[name] - 1)} disabled={character.approaches[name] <= (ARCHETYPES[character.archetype]?.approaches[name] || 0)}>−</button><b>{character.approaches[name]}</b><button on:click={() => setCharacterApproach(name, character.approaches[name] + 1)} disabled={character.approaches[name] >= 1 || characterApproachTotal >= 4}>+</button></div></div>{/each}
+              <h3>Rasgos</h3>{#if ARCHETYPES[character.archetype]?.traits.includes('Conocedor de...')}<label>Especialidad de Conocedor de...<input value={character.traits.find((trait) => trait.startsWith('Conocedor de '))?.replace('Conocedor de ', '') || ''} on:input={(event) => updateArchetypeKnowledge(event.currentTarget.value)} placeholder="Campo de conocimiento"></label>{/if}{#each character.traits as trait}<div class="selected-item"><span>{trait}</span>{#if isFixedArchetypeTrait(trait)}<small>Fijo</small>{:else}<button class="remove" on:click={() => removeTrait(trait)}>Quitar</button>{/if}</div>{/each}<div class="trait-picker"><select bind:value={traitDraft}><option value="">Añadir Rasgo...</option>{#each TRAITS as trait}<option value={trait} disabled={character.traits.includes(trait) || character.traits.length >= 4}>{trait}</option>{/each}</select>{#if traitDraft === 'Conocedor de...'}<input bind:value={customTraitField} placeholder="¿Conocedor de qué?">{/if}<button on:click={addTrait} disabled={!traitDraft || (traitDraft === 'Conocedor de...' && !customTraitField.trim())}>Añadir</button></div>
               <button on:click={finishEdit}>Guardar cambios</button>
             </div>
           {/if}
