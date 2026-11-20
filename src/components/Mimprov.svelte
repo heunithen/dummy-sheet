@@ -455,7 +455,7 @@
   $: selectedStatePenalty = selectedState ? 1 : 0;
   $: displayedStates = [...visibleStates.filter((stateName) => stateName !== 'Incapacitado' && stateName !== 'Abrumado'), ...(Number(character.will) <= 0 ? ['Abrumado'] : [])];
   $: characterApproachTotal = APPROACHES.reduce((sum, name) => sum + (Number(character.approaches?.[name]) || 0), 0);
-  $: characterApproachesValid = characterApproachTotal === 4 && APPROACHES.every(name => Number(character.approaches?.[name]) >= 0 && Number(character.approaches?.[name]) <= 1);
+  $: characterApproachesValid = characterApproachTotal === 4 && APPROACHES.every(name => Number(character.approaches?.[name]) >= 0 && Number(character.approaches?.[name]) <= 2);
   $: inventoryValid = character.traits.length === 4 && character.traits.every(trait => {
     const items = character.inventory.filter(item => item.trait === trait);
     return items.length === 3 && items.every(item => typeof item.name === 'string' && item.name.trim().length > 0);
@@ -929,14 +929,14 @@
   function setApproach(name: string, value: number) {
     const fixedValue = ARCHETYPES[character.archetype]?.approaches[name] || 0;
     if (fixedValue > 0 && value < fixedValue) return;
-    const nextValue = Math.max(fixedValue, Math.min(1, value));
+    const nextValue = Math.max(fixedValue, Math.min(2, value));
     const currentValue = Number(approachDraft[name]) || 0;
     if (approachTotal - currentValue + nextValue > 4) return;
     approachDraft = { ...approachDraft, [name]: nextValue };
   }
   function setCharacterApproach(name: string, value: number) {
     const fixedValue = ARCHETYPES[character.archetype]?.approaches[name] || 0;
-    const nextValue = Math.max(fixedValue, Math.min(1, value));
+    const nextValue = Math.max(fixedValue, Math.min(2, value));
     const currentValue = Number(character.approaches[name]) || 0;
     if (characterApproachTotal - currentValue + nextValue > 4) return;
     character.approaches = { ...character.approaches, [name]: nextValue };
@@ -1182,9 +1182,9 @@
             <small class="muted">Cada generación combina al azar rasgos independientes —piel, ojos, cabello, rostro y complexión— en una sola descripción. La selección de rasgos ocurre internamente.</small>
           {:else if step === 5}
             <h1>Distribuye sus Enfoques</h1>
-            <p>El arquetipo aporta 2 puntos. Distribuye los otros 2 entre los Enfoques restantes. Cada Enfoque puede tener como máximo 1 punto.</p>
+            <p>El arquetipo aporta 2 puntos. Distribuye los otros 2 entre los Enfoques restantes. Ningún Enfoque puede superar 2 puntos.</p>
             {#each APPROACHES as name}
-              <div class="approach-row"><div><strong>{name}</strong><small>{APPROACH_DESCRIPTIONS[name].long}{#if ARCHETYPES[character.archetype]?.approaches[name]} · Punto asignado por el arquetipo.{/if}</small></div><div class="stepper"><button on:click={() => setApproach(name, approachDraft[name] - 1)} disabled={approachDraft[name] <= (ARCHETYPES[character.archetype]?.approaches[name] || 0)}>−</button><b>{approachDraft[name]}</b><button on:click={() => setApproach(name, approachDraft[name] + 1)} disabled={approachDraft[name] >= 1 || approachTotal >= 4}>+</button></div></div>
+              <div class="approach-row"><div><strong>{name}</strong><small>{APPROACH_DESCRIPTIONS[name].long}{#if ARCHETYPES[character.archetype]?.approaches[name]} · Punto asignado por el arquetipo.{/if}</small></div><div class="stepper"><button on:click={() => setApproach(name, approachDraft[name] - 1)} disabled={approachDraft[name] <= (ARCHETYPES[character.archetype]?.approaches[name] || 0)}>−</button><b>{approachDraft[name]}</b><button on:click={() => setApproach(name, approachDraft[name] + 1)} disabled={approachDraft[name] >= 2 || approachTotal >= 4}>+</button></div></div>
             {/each}
             <div class:valid={approachValid} class="total-points">Puntos distribuidos: {approachTotal} / 4</div>
           {:else if step === 6}
@@ -1232,7 +1232,7 @@
               <label>Edad<input bind:value={character.age} on:input={updateCharacter}></label>
               <label>Apariencia<textarea bind:value={character.appearance} on:input={updateCharacter}></textarea></label>
               <label>Experiencia<input bind:value={character.experience} on:input={updateCharacter}></label>
-              <h3>Enfoques</h3><p class="muted">Puntos distribuidos: {characterApproachTotal} / 4. Máximo 1 por Enfoque; los puntos del arquetipo son fijos.</p>{#each APPROACHES as name}<div class="approach-row"><strong>{name}</strong><div class="stepper"><button on:click={() => setCharacterApproach(name, character.approaches[name] - 1)} disabled={character.approaches[name] <= (ARCHETYPES[character.archetype]?.approaches[name] || 0)}>−</button><b>{character.approaches[name]}</b><button on:click={() => setCharacterApproach(name, character.approaches[name] + 1)} disabled={character.approaches[name] >= 1 || characterApproachTotal >= 4}>+</button></div></div>{/each}
+              <h3>Enfoques</h3><p class="muted">Puntos distribuidos: {characterApproachTotal} / 4. Máximo 2 por Enfoque; los puntos del arquetipo son fijos.</p>{#each APPROACHES as name}<div class="approach-row"><strong>{name}</strong><div class="stepper"><button on:click={() => setCharacterApproach(name, character.approaches[name] - 1)} disabled={character.approaches[name] <= (ARCHETYPES[character.archetype]?.approaches[name] || 0)}>−</button><b>{character.approaches[name]}</b><button on:click={() => setCharacterApproach(name, character.approaches[name] + 1)} disabled={character.approaches[name] >= 2 || characterApproachTotal >= 4}>+</button></div></div>{/each}
               <h3>Rasgos</h3>{#if ARCHETYPES[character.archetype]?.traits.includes('Conocedor de...')}<label>{traitLabel('Conocedor de...', selectedGenre)}<input list="mimprov-knowledge-options" value={character.traits.find((trait) => trait.startsWith('Conocedor de '))?.replace('Conocedor de ', '') || ''} on:input={(event) => updateArchetypeKnowledge(event.currentTarget.value)} placeholder="Elige o escribe un conocimiento"></label><datalist id="mimprov-knowledge-options">{#each knowledgeOptions(selectedGenre) as option}<option value={option}></option>{/each}</datalist>{/if}{#each character.traits as trait}<div class="selected-item"><span>{traitLabel(trait, selectedGenre)}</span>{#if isFixedArchetypeTrait(trait)}<small>Fijo</small>{:else}<button class="remove" on:click={() => removeTrait(trait)}>Quitar</button>{/if}</div>{/each}<div class="trait-picker"><select bind:value={traitDraft}><option value="">Añadir Rasgo...</option>{#each TRAITS as trait}<option value={trait} disabled={character.traits.includes(trait) || character.traits.length >= 4}>{traitLabel(trait, selectedGenre)}</option>{/each}</select>{#if traitDraft === 'Conocedor de...'}<input bind:value={customTraitField} list="mimprov-knowledge-options" placeholder="Elige o escribe un conocimiento"><datalist id="mimprov-knowledge-options">{#each knowledgeOptions(selectedGenre) as option}<option value={option}></option>{/each}</datalist>{/if}<button on:click={addTrait} disabled={!traitDraft || (traitDraft === 'Conocedor de...' && !customTraitField.trim())}>Añadir</button></div>
               <button on:click={finishEdit}>Guardar cambios</button>
             </div>
