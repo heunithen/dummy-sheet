@@ -263,6 +263,17 @@
     const base = trait.startsWith('Conocedor de ') ? 'Conocedor de...' : trait;
     return GENRE_EQUIPMENT[selectedGenre]?.[base] || EQUIPMENT[base] || ['', '', ''];
   }
+  // Presenta el mismo objeto de equipo con el nombre de la ambientación activa.
+  // Los nombres personalizados no se alteran; solo se traducen los objetos sugeridos por el sistema.
+  function equipmentDisplayName(item: Item): string {
+    const base = item.trait.startsWith('Conocedor de ') ? 'Conocedor de...' : item.trait;
+    const matchingSets = [EQUIPMENT[base] || [], ...Object.values(GENRE_EQUIPMENT).map((genre) => genre[base] || [])];
+    for (const set of matchingSets) {
+      const index = set.indexOf(item.name);
+      if (index >= 0) return GENRE_EQUIPMENT[selectedGenre]?.[base]?.[index] || item.name;
+    }
+    return item.name;
+  }
   async function changeGenre(genre: string) {
     if (!GENRES.some(item => item.id === genre)) return;
     selectedGenre = genre;
@@ -516,13 +527,6 @@
     const retryNotation = forcedLowRoll ? '2d6kl1' : retryPool <= 0 ? '2d6kl1' : `${retryPool}d6kh1`;
     await sendDiceRoll(diceNotation, dicePool, selectedApproach, false, retryNotation, retryPool);
     effortDiceBonus = 0;
-  }
-
-  function stateForApproach(approach: string): string {
-    const stateByApproach: Record<string, string> = {
-      Tenacidad: 'Deprimido', Disciplina: 'Ansioso', Ingenio: 'Confundido', Instinto: 'Mermado'
-    };
-    return stateByApproach[approach] || '';
   }
 
   async function spendEffort(mode: 'extra-die' | 'reroll') {
@@ -1200,7 +1204,7 @@
             <p>Cada Rasgo entrega tres objetos asociados. Puedes editar los nombres de los objetos y añadir pertenencias personales.</p>
             {#each character.traits as trait}
               <div class="equipment-group"><h3>{traitLabel(trait)}</h3>{#each character.inventory.filter(i => i.trait === trait) as item}
-                <label class="inline-label"><input value={item.name} placeholder="Nombre del objeto" on:input={(e) => { item.name = e.currentTarget.value; updateCharacter(); }}></label>
+                <label class="inline-label"><input value={equipmentDisplayName(item)} placeholder="Nombre del objeto" on:input={(e) => { item.name = e.currentTarget.value; updateCharacter(); }}></label>
               {/each}</div>
             {/each}
             <button class="secondary" on:click={addInventoryItem}>Añadir objeto personal</button>
@@ -1210,7 +1214,7 @@
             <div class="total-points" class:valid={inventoryValid}>Cada Rasgo debe tener tres objetos con nombre. Los objetos personales también deben tener nombre. Total actual: {character.inventory.length}</div>
           {:else}
             <h1>Revisa el personaje</h1>
-            <div class="summary"><p><strong>{character.name || 'Sin nombre'}</strong></p><p>{character.archetype} · {character.concept}</p><h3>Enfoques</h3>{#each APPROACHES as name}<p>{name}: {approachDraft[name]}</p>{/each}<h3>Rasgos</h3><p>{character.traits.map(traitLabel).join(' · ')}</p><h3>Equipo</h3><p>{character.inventory.map(i => i.name || 'Objeto por definir').join(' · ')}</p><p>Voluntad inicial: 4 / 4</p><p>Monedas de esfuerzo iniciales: 3 / 3</p></div>
+            <div class="summary"><p><strong>{character.name || 'Sin nombre'}</strong></p><p>{character.archetype} · {character.concept}</p><h3>Enfoques</h3>{#each APPROACHES as name}<p>{name}: {approachDraft[name]}</p>{/each}<h3>Rasgos</h3><p>{character.traits.map(traitLabel).join(' · ')}</p><h3>Equipo</h3><p>{character.inventory.map(i => equipmentDisplayName(i) || 'Objeto por definir').join(' · ')}</p><p>Voluntad inicial: 4 / 4</p><p>Monedas de esfuerzo iniciales: 3 / 3</p></div>
           {/if}
           <div class="wizard-actions">
             {#if step > 0}<button class="secondary" on:click={previousStep}>Anterior</button>{/if}
@@ -1247,7 +1251,7 @@
             <section class="card"><h2>Voluntad</h2><div class="will-value">{character.will}<small> / {character.maxWill}</small></div><div class="will-controls"><button on:click={() => adjustWill(-1)} disabled={character.will <= 0}>−</button><button on:click={() => adjustWill(1)} disabled={character.will >= character.maxWill}>+</button></div><button class="secondary full" on:click={restCharacter}>Descansar</button><p class="muted">Recuperas 2 puntos de Voluntad (sin superar el máximo). El descanso no recupera monedas de esfuerzo. Con 0 Voluntad, siempre tiras 2d6 y conservas el menor, sin importar ventaja o desventaja.</p></section>
             <section class="card extra-info"><h2>Monedas de esfuerzo</h2><div class="will-value">{visibleEffortCoins}<small> / 3 disponibles</small></div><p class="muted">Cada moneda permite añadir 1d6 a la próxima tirada o repetir todos los dados de la última tirada. Se restablecen a 3 al comenzar cada sesión.</p><button class="secondary full" on:click={() => spendEffort('extra-die')} disabled={visibleEffortCoins <= 0 || !!pendingDiceRoll || effortDiceBonus > 0}>Gastar moneda: +1d6 a la próxima tirada</button>{#if lastRoll}<button class="secondary full" on:click={() => spendEffort('reroll')} disabled={visibleEffortCoins <= 0 || !!pendingDiceRoll}>Gastar moneda: repetir última tirada</button>{/if}</section>
             <section class="card"><h2>Estados</h2><div class="state-grid">{#each [...STATES, ...(Number(character.will) <= 0 ? [{ name: 'Abrumado', enfoque: 'Todos', detail: 'Con 0 Voluntad, todas las tiradas usan 2d6 y conservan el menor.' }] : [])] as state}<label class="check-row"><input type="checkbox" checked={displayedStates.includes(state.name)} disabled><span><b>{state.name}</b><small>{state.enfoque}: {state.detail}</small></span></label>{/each}</div></section>
-            <section class="card"><h2>Equipo</h2>{#each character.inventory as item}<div class="inventory-line"><input bind:value={item.name} placeholder="Objeto por definir" on:input={updateCharacter}><small>{traitLabel(item.trait)}</small><button class="remove" on:click={() => removeInventoryItem(item.id)}>×</button></div>{/each}<button class="secondary full" on:click={addInventoryItem}>Añadir objeto</button></section>
+            <section class="card"><h2>Equipo</h2>{#each character.inventory as item}<div class="inventory-line"><input value={equipmentDisplayName(item)} placeholder="Objeto por definir" on:input={(event) => { item.name = event.currentTarget.value; updateCharacter(); }}><small>{traitLabel(item.trait)}</small><button class="remove" on:click={() => removeInventoryItem(item.id)}>×</button></div>{/each}<button class="secondary full" on:click={addInventoryItem}>Añadir objeto</button></section>
           </div>
           <p class="sync-note">{OBR.isAvailable ? 'La ficha se sincroniza con Owlbear Rodeo.' : 'Modo de vista previa: la ficha se guarda en este navegador.'}</p>
         </section>
@@ -1340,7 +1344,7 @@
     <main class="content gm-content">
       {#if activeTab === 'gm'}
       <div class="eyebrow">HERRAMIENTAS DEL NARRADOR</div><h1>Personajes</h1>
-      <section class="card"><h2>Ambientación de la partida</h2><p class="muted">Cambia los nombres visibles de algunos Rasgos, las sugerencias de conocimientos y el equipo inicial. Las capacidades y reglas no cambian.</p><label for="mimprov-genre">Género o ambientación</label><select id="mimprov-genre" value={selectedGenre} on:change={(event) => changeGenre(event.currentTarget.value)}>{#each GENRES as genre}<option value={genre.id}>{genre.label}</option>{/each}</select><p class="muted">La ambientación se comparte con todos los jugadores de esta sala.</p></section>
+      <section class="card"><h2>Ambientación de la partida</h2><p class="muted">Esta selección aplica una skin global a todos los personajes de la sala: adapta los nombres de Rasgos, conocimientos y objetos de equipo, incluidos los personajes ya creados. No cambia sus Enfoques, capacidades, reglas ni objetos personalizados.</p><label for="mimprov-genre">Género o ambientación</label><select id="mimprov-genre" value={selectedGenre} on:change={(event) => changeGenre(event.currentTarget.value)}>{#each GENRES as genre}<option value={genre.id}>{genre.label}</option>{/each}</select><p class="muted">La ambientación se comparte con todos los jugadores de esta sala.</p></section>
       <p class="muted">Seguimiento independiente. Estos controles no modifican las fichas de los jugadores.</p>
             <section class="card"><h2>Sesión</h2><p class="muted">Al comenzar una nueva sesión, restablece las monedas de esfuerzo de todos los personajes a 3.</p><button on:click={() => { if (!confirm('¿Comenzar una nueva sesión y restablecer las monedas de esfuerzo de todos los personajes a 3?')) return; partyMembers.forEach(player => { playerTracker(player.id).effortCoins = 3; }); saveGmTracker(); }}>Iniciar nueva sesión</button></section>
       <section class="card"><h2>Personajes de la sala</h2>
@@ -1356,7 +1360,7 @@
             <article class="gm-player">
               <div class="gm-player-head"><div class="gm-player-identity">{#if getPlayerCharacter(player)?.portrait}<img class="gm-player-portrait" src={getPlayerCharacter(player)?.portrait} alt="Retrato de {getPlayerCharacter(player)?.name || player.name}">{/if}<div><h3>{getPlayerCharacter(player)?.name || player.name}</h3><small>{getPlayerCharacter(player)?.created ? getPlayerCharacter(player)?.concept : 'Ficha MIMPROV aún no creada'}</small></div></div>{#if getPlayerCharacter(player)?.created}<button class="danger-button" on:click={() => deletePlayerCharacter(player)}>Borrar personaje</button>{/if}</div>
               {#if getPlayerCharacter(player)?.created}
-                <div class="gm-stats"><span>Voluntad: <b>{getPlayerCharacter(player)?.will} / {getPlayerCharacter(player)?.maxWill}</b></span><span>Enfoques: <b>{APPROACHES.map(a => a + ' ' + (getPlayerCharacter(player)?.approaches?.[a] ?? 0)).join(' · ')}</b></span><span>Rasgos: <b>{(getPlayerCharacter(player)?.traits || []).map(traitLabel).join(', ')}</b></span></div>
+                <div class="gm-stats"><span>Voluntad: <b>{getPlayerCharacter(player)?.will} / {getPlayerCharacter(player)?.maxWill}</b></span><span>Enfoques: <b>{APPROACHES.map(a => a + ' ' + (getPlayerCharacter(player)?.approaches?.[a] ?? 0)).join(' · ')}</b></span><span>Rasgos: <b>{(getPlayerCharacter(player)?.traits || []).map(traitLabel).join(', ')}</b></span></div><p class="muted"><b>Equipo:</b> {(getPlayerCharacter(player)?.inventory || []).map(equipmentDisplayName).join(' · ')}</p>
               {:else}<p class="muted">El jugador todavía no ha creado su ficha.</p>{/if}
               <h4>Estados actuales</h4><div class="state-grid">{#each STATES as state}<label class="check-row"><input type="checkbox" checked={playerTracker(player.id).states.includes(state.name)} on:change={() => toggleState(player.id, state.name)}><span><b>{state.name}</b><small>{state.enfoque}: {state.detail}</small></span></label>{/each}</div>
               <h4>Monedas de esfuerzo</h4><p class="muted">Disponibles: {playerTracker(player.id).effortCoins} / 3</p><small class="muted">Las monedas permiten añadir 1d6 a una tirada o repetir todos los dados de la última tirada. El descanso no las recupera.</small>
