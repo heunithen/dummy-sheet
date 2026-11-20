@@ -214,6 +214,7 @@
   let playerMagicRecord: any = { spells: [] };
   let magicEffect = '';
   let magicPrice = '';
+  let magicMagnitude: 'simple' | 'moderate' | 'extraordinary' = 'simple';
   let magicMessage = '';
   let gmTracker: any = { players: {}, conflict: { active: false, danger: 'Bajo', resistance: null } };
   let conflictActive = false;
@@ -391,6 +392,11 @@
     updateCharacter();
   }
 
+  function magicMagnitudeLabel(magnitude: string | undefined) {
+    if (magnitude === 'moderate') return 'Magia moderada (+1 éxito adicional)';
+    if (magnitude === 'extraordinary') return 'Magia extraordinaria (+2 éxitos adicionales)';
+    return 'Truco simple (sin éxitos adicionales)';
+  }
   function getMyMagicRecord() {
     return {
       proposals: magicData?.players?.[$currentPlayerId]?.proposals || [],
@@ -402,10 +408,10 @@
     const price = magicPrice.trim();
     if (!effect || !price) { magicMessage = 'Completa ambos campos antes de firmar el pacto.'; return; }
     if (!OBR.isAvailable || !$currentPlayerId || $isGM) { magicMessage = 'Debes estar dentro de una sala de Owlbear Rodeo como jugador para enviar el pacto.'; return; }
-    const pact = { id: 'pact_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8), effect, price, status: 'pending', createdAt: Date.now() };
+    const pact = { id: 'pact_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8), effect, price, magnitude: magicMagnitude, status: 'pending', createdAt: Date.now() };
     try {
       await OBR.broadcast.sendMessage(MAGIC_SUBMIT_CHANNEL, { playerId: $currentPlayerId, playerName: myPlayer?.name || character.name || 'Jugador', pact }, { destination: 'ALL' });
-      magicEffect = ''; magicPrice = ''; magicMessage = 'Pacto firmado y enviado al GM para su revisión.';
+      magicEffect = ''; magicPrice = ''; magicMagnitude = 'simple'; magicMessage = 'Pacto firmado y enviado al GM para su revisión.';
     } catch (error) { console.error('No se pudo enviar el pacto mágico', error); magicMessage = 'No se pudo enviar el pacto. Comprueba tu conexión con Owlbear Rodeo.'; }
   }
   async function updateMagicPact(playerId: string, pactId: string, decision: 'accepted' | 'rejected') {
@@ -1423,32 +1429,13 @@
       {/if}
     </main>
   {:else if !$isGM && activeTab === 'magia'}
-    <main class="content magic-content">
-      <div class="eyebrow">PACTOS Y CONDICIONES</div><h1>Magia</h1>
-      <p class="magic-intro">La magia funciona mediante pactos: defines qué quieres conseguir y qué estás dispuesto a entregar a cambio. El GM debe revisar y aprobar cada pacto antes de que puedas utilizarlo.</p>
-      <section class="card"><h2>¿Qué quieres conseguir?</h2>
-        <p>Describe el efecto del conjuro de manera muy específica. Indica exactamente qué hace, sobre quién o qué actúa, a qué distancia, durante cuánto tiempo y bajo qué circunstancias, cuando esos detalles sean relevantes. Evita expresiones vagas, interpretaciones alternativas o dobles lecturas. El texto debe permitir entender exactamente qué puede y qué no puede hacer el conjuro.</p>
-        <textarea bind:value={magicEffect} rows="5" maxlength="4000" placeholder="Describe exactamente el efecto que quieres obtener..."></textarea><small class="field-hint">{magicEffect.length} / 4000 caracteres</small></section>
-      <section class="card"><h2>¿Qué das a cambio?</h2>
-        <p>Describe detalladamente qué pierde, entrega o sacrifica tu personaje para obtener ese efecto. El precio puede ser mecánico o narrativo: una capacidad, un recurso, una posesión, un recuerdo, una obligación, una prohibición, un vínculo u otra pérdida concreta. Explica con precisión en qué consiste y cuándo o cómo se aplica.</p>
-        <textarea bind:value={magicPrice} rows="5" maxlength="4000" placeholder="Describe exactamente qué sacrifica o pierde tu personaje..."></textarea><small class="field-hint">{magicPrice.length} / 4000 caracteres</small>
-        <button class="full" on:click={submitMagicPact} disabled={!magicEffect.trim() || !magicPrice.trim()}>Firmar pacto</button>{#if magicMessage}<p class="magic-message">{magicMessage}</p>{/if}</section>
-      {#if getMyMagicRecord().proposals?.some((pact) => pact.status !== 'accepted')}<section class="card"><h2>Mis propuestas</h2>
-        {#each [...getMyMagicRecord().proposals].filter((pact) => pact.status !== 'accepted').sort((a, b) => b.createdAt - a.createdAt) as pact}<article class="pact-item">
-          <div class="pact-status" class:pending={pact.status === 'pending'} class:rejected={pact.status === 'rejected'}>{pact.status === 'pending' ? 'Pendiente de revisión' : 'Rechazado'}</div>
-          <h3>¿Qué quieres conseguir?</h3><p>{pact.effect}</p><h3>¿Qué das a cambio?</h3><p>{pact.price}</p></article>{/each}</section>{/if}
-      {#if getMyMagicRecord().spells?.length}<section class="card"><h2>Mis conjuros aprobados</h2>
-        {#each getMyMagicRecord().spells as pact}<article class="pact-item approved-spell"><div class="pact-status accepted">Pacto aprobado</div><h3>Efecto del conjuro</h3><p>{pact.effect}</p><h3>Precio del pacto</h3><p>{pact.price}</p></article>{/each}</section>{/if}
-    </main>
-  {:else if $isGM && activeTab === 'magia-gm'}
-    <main class="content magic-content"><div class="eyebrow">REVISIÓN DE PACTOS</div><h1>Magia</h1>
-      <p class="magic-intro">Revisa que el efecto esté definido sin ambigüedades y que el sacrificio describa con claridad lo que pierde el personaje. Solo al aceptar el pacto se incorpora a la lista de conjuros del jugador.</p>
-      {#each Object.entries(magicData?.players || {}) as [playerId, record]}
-        {#each (record.proposals || []).filter((pact) => pact.status === 'pending') as pact}<section class="card pact-review">
-          <div class="eyebrow">PROPUESTA DE {pact.playerName || 'JUGADOR'}</div><h2>¿Qué quiere conseguir?</h2><p class="pact-text">{pact.effect}</p>
-          <h2>¿Qué da a cambio?</h2><p class="pact-text">{pact.price}</p><div class="pact-actions">
-            <button on:click={() => updateMagicPact(playerId, pact.id, 'accepted')}>Aceptar pacto</button><button class="secondary" on:click={() => updateMagicPact(playerId, pact.id, 'rejected')}>Rechazar</button></div></section>{/each}{/each}
-      {#if !Object.values(magicData?.players || {}).some((record) => (record.proposals || []).some((pact) => pact.status === 'pending'))}<section class="card"><p>No hay pactos pendientes de revisión.</p></section>{/if}
+    <main class="content magic-content"><div class="eyebrow">PACTOS Y CONDICIONES</div><h1>Magia</h1>
+      <p class="magic-intro">Revisa el efecto, la magnitud y que el coste sea proporcional. La magia se resuelve con una tirada normal; los éxitos adicionales solo cuentan para reducir la Resistencia de un conflicto y no cambian el resultado narrativo ni cuentan para críticos.</p>
+      <section class="card"><h2>¿Qué quieres conseguir?</h2><p>Describe el efecto, su objetivo, alcance y duración. Puedes crear efectos para percibir, crear, alterar, controlar, proteger, comunicar, dañar o restaurar. Son ideas orientativas, no una lista cerrada.</p><textarea bind:value={magicEffect} rows="5" maxlength="4000" placeholder="Describe el efecto que quieres conseguir..."></textarea><small class="field-hint">{magicEffect.length} / 4000 caracteres</small></section>
+      <section class="card"><h2>Magnitud del conjuro</h2><label>Elige la magnitud propuesta<select bind:value={magicMagnitude}><option value="simple">Truco simple — sin éxitos adicionales</option><option value="moderate">Magia moderada — +1 éxito si la tirada tiene éxito</option><option value="extraordinary">Magia extraordinaria — +2 éxitos si la tirada tiene éxito</option></select></label><p class="muted">Los éxitos adicionales solo cuentan para reducir la Resistencia de un conflicto. No cambian el resultado narrativo ni cuentan para críticos.</p></section>
+      <section class="card"><h2>¿Qué das a cambio?</h2><p>El coste debe ser proporcional al poder. Puede consistir en perder Voluntad, recibir Mermado, Deprimido, Ansioso o Confundido, o ambas cosas. Abrumado aparece únicamente al llegar a 0 Voluntad. El precio puede pagarse una sola vez al establecer el pacto o cada vez que utilizas el poder.</p><textarea bind:value={magicPrice} rows="5" maxlength="4000" placeholder="Describe el coste y cuándo se paga..."></textarea><small class="field-hint">{magicPrice.length} / 4000 caracteres</small><button class="full" on:click={submitMagicPact} disabled={!magicEffect.trim() || !magicPrice.trim()}>Firmar pacto</button>{#if magicMessage}<p class="magic-message">{magicMessage}</p>{/if}</section>
+      {#if getMyMagicRecord().proposals?.some((pact) => pact.status !== 'accepted')}<section class="card"><h2>Mis propuestas</h2>{#each [...getMyMagicRecord().proposals].filter((pact) => pact.status !== 'accepted').sort((a, b) => b.createdAt - a.createdAt) as pact}<article class="pact-item"><div class="pact-status" class:pending={pact.status === 'pending'} class:rejected={pact.status === 'rejected'}>{pact.status === 'pending' ? 'Pendiente de revisión' : 'Rechazado'}</div><h3>Efecto</h3><p>{pact.effect}</p><h3>Magnitud</h3><p>{magicMagnitudeLabel(pact.magnitude)}</p><h3>Coste</h3><p>{pact.price}</p></article>{/each}</section>{/if}
+      {#if getMyMagicRecord().spells?.length}<section class="card"><h2>Mis conjuros aprobados</h2>{#each getMyMagicRecord().spells as pact}<article class="pact-item approved-spell"><div class="pact-status accepted">Pacto aprobado</div><h3>Efecto</h3><p>{pact.effect}</p><h3>Magnitud</h3><p>{magicMagnitudeLabel(pact.magnitude)}</p><h3>Precio</h3><p>{magicMagnitudeLabel(pact.magnitude)} · {pact.price}</p></article>{/each}</section>{/if}
     </main>
   {:else if !$isGM && activeTab === 'notas'}
     <main class="content notes-content">
@@ -1615,7 +1602,12 @@
       </section>
 
       <section class="card">
-        <h2>8. Dirección de juego</h2>
+        <h2>8. Magia y pactos</h2>
+        <p>La magia se resuelve mediante una tirada normal. Truco simple: sin éxitos adicionales; magia moderada: +1 éxito adicional; magia extraordinaria: +2 éxitos adicionales. Estos éxitos solo se suman si la tirada tiene éxito y únicamente cuentan para reducir la Resistencia de un conflicto. No cambian el resultado narrativo ni cuentan para críticos.</p>
+        <p>El coste debe ser proporcional al poder y puede consistir en perder Voluntad, recibir Mermado, Deprimido, Ansioso o Confundido, o ambas cosas. Abrumado aparece al llegar a 0 Voluntad. El precio puede pagarse una sola vez al establecer el pacto o cada vez que se utiliza el poder.</p>
+      </section>
+      <section class="card">
+        <h2>9. Dirección de juego</h2>
         <p>El narrador determina cuándo una acción requiere una tirada, qué Enfoque corresponde, si un Rasgo resulta aplicable y qué consecuencias tiene el resultado. Las reglas no establecen rondas, turnos, ataques ni movimientos automáticos: esos elementos se resuelven según la situación y la dirección del narrador.</p>
         <p>Las tiradas se realizan mediante Dice+. La aplicación sincroniza las fichas, la Voluntad, los Estados, las monedas de esfuerzo y el estado del conflicto con la sala de Owlbear Rodeo.</p>
       </section>
