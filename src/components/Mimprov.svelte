@@ -887,6 +887,7 @@
     traitDraft = ''; customTraitField = ''; updateCharacter();
   }
   function removeTrait(trait: string) {
+    if (ARCHETYPES[character.archetype]?.traits.includes(trait)) return;
     character.traits = character.traits.filter(t => t !== trait);
     character.inventory = character.inventory.filter(i => i.trait !== trait);
     updateCharacter();
@@ -1131,7 +1132,7 @@
               {#if traitDraft === 'Conocedor de...'}<input bind:value={customTraitField} placeholder="¿Conocedor de qué?">{/if}
               <button on:click={addTrait} disabled={!traitDraft || (traitDraft === 'Conocedor de...' && !customTraitField.trim())}>Añadir</button>
             </div>
-            <div class="selected-list">{#each character.traits as trait}<div class="selected-item trait-description"><div><strong>{trait}</strong><small>{trait.startsWith('Conocedor de ') ? 'Conocedor de...': trait} </small><p>{trait.startsWith('Conocedor de ') ? 'Posees conocimientos y experiencia en ' + trait.slice('Conocedor de '.length) + '. Puedes reconocer elementos propios de esa materia, comprender información especializada, recordar procedimientos y resolver problemas relacionados con ese ámbito.' : TRAIT_DESCRIPTIONS[trait]?.long || ''}</p></div><button class="remove" on:click={() => removeTrait(trait)}>Quitar</button></div>{/each}</div>
+            <div class="selected-list">{#each character.traits as trait}<div class="selected-item trait-description"><div><strong>{trait}</strong><small>{trait.startsWith('Conocedor de ') || trait === 'Conocedor de...' ? 'Conocedor de...': trait} </small><p>{trait.startsWith('Conocedor de ') ? 'Posees conocimientos y experiencia en ' + trait.slice('Conocedor de '.length) + '. Puedes reconocer elementos propios de esa materia, comprender información especializada, recordar procedimientos y resolver problemas relacionados con ese ámbito.' : TRAIT_DESCRIPTIONS[trait]?.long || ''}</p></div>{#if ARCHETYPES[character.archetype]?.traits.includes(trait)}<small>Fijo</small>{:else}<button class="remove" on:click={() => removeTrait(trait)}>Quitar</button>{/if}</div>{/each}</div>
             <div class="total-points" class:valid={character.traits.length === 4}>Rasgos seleccionados: {character.traits.length} / 4</div>
           {:else if step === 7}
             <h1>Prepara su equipo</h1>
@@ -1430,13 +1431,14 @@
 
       <section class="card">
         <h2>1. Creación de personajes</h2>
-        <p>Cada personaje se define mediante su nombre, concepto, edad, apariencia, cuatro Enfoques, cuatro Rasgos y su equipo.</p>
+        <p>Cada personaje se define mediante su nombre, arquetipo, concepto, edad, apariencia, cuatro Enfoques, cuatro Rasgos y su equipo. Elige primero el arquetipo y después escribe el concepto.</p>
         <ul>
-          <li><strong>Enfoques:</strong> distribuye exactamente 4 puntos entre Tenacidad, Disciplina, Instinto e Ingenio. Cada Enfoque puede tener entre 0 y 2 puntos.</li>
-          <li><strong>Rasgos:</strong> escoge cuatro. Cada Rasgo aporta +1 dado cuando resulta directamente relevante para la acción.</li>
+          <li><strong>Arquetipo:</strong> aporta 2 puntos de Enfoque, repartidos entre dos Enfoques distintos (1 punto en cada uno), y 2 Rasgos fijos.</li>
+          <li><strong>Enfoques:</strong> distribuye los otros 2 puntos entre los dos Enfoques que no recibieron puntos del arquetipo. Cada Enfoque puede tener como máximo 1 punto; empiezas con 4 puntos en total.</li>
+          <li><strong>Rasgos:</strong> conserva los 2 Rasgos fijos del arquetipo y escoge otros 2 de la lista. Cada Rasgo aporta +1 dado cuando resulta directamente relevante para la acción.</li>
           <li><strong>Equipo:</strong> cada Rasgo proporciona tres espacios de objetos asociados. Debes completar al menos 12 objetos para terminar la creación.</li>
           <li><strong>Voluntad:</strong> comienzas con 4 puntos y tu máximo inicial también es 4.</li>
-          <li><strong>Monedas de esfuerzo:</strong> comienzas cada sesión con 3 monedas. Solo puedes gastarlas en acciones relacionadas con tu concepto; puedes añadir 1d6 antes de tirar o volver a lanzar todos los dados.</li>
+          <li><strong>Monedas de esfuerzo:</strong> comienzas cada sesión con 3 monedas. El arquetipo y el concepto forman juntos la identidad del personaje: puedes gastar una moneda cuando la acción esté relacionada con el arquetipo o con el concepto. Puedes añadir 1d6 a una tirada o volver a lanzar todos sus dados.</li>
         </ul>
       </section>
 
