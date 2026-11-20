@@ -920,16 +920,6 @@
     else if (!t.states.includes('Incapacitado')) t.states = [...t.states.filter((s: string) => s !== 'Incapacitado'), stateName];
     saveGmTracker();
   }
-  function setOverexertion(id: string, value: number) {
-    playerTracker(id).overexertionUsed = Math.max(0, Math.min(2, value));
-    saveGmTracker();
-  }
-  function spendOverexertion(id: string, enfoque: string) {
-    const t = playerTracker(id);
-    if (t.effortCoins <= 0 || t.states.includes('Incapacitado')) return;
-    t.effortCoins -= 1;
-    saveGmTracker();
-  }
   async function deletePlayerCharacter(player: any, alreadyConfirmed = false) {
     const stored = getPlayerCharacter(player);
     if (!stored?.created) return;
@@ -1424,7 +1414,7 @@
           <li><strong>Rasgos:</strong> escoge cuatro. Cada Rasgo aporta +1 dado cuando resulta directamente relevante para la acción.</li>
           <li><strong>Equipo:</strong> cada Rasgo proporciona tres espacios de objetos asociados. Debes completar al menos 12 objetos para terminar la creación.</li>
           <li><strong>Voluntad:</strong> comienzas con 4 puntos y tu máximo inicial también es 4.</li>
-          <li><strong>Punto de Esfuerzo:</strong> comienzas con 1 punto disponible.</li>
+          <li><strong>Monedas de esfuerzo:</strong> comienzas cada sesión con 3 monedas. Solo puedes gastarlas en acciones relacionadas con tu concepto; puedes añadir 1d6 antes de tirar o volver a lanzar todos los dados.</li>
         </ul>
       </section>
 
