@@ -392,7 +392,7 @@
     return !!state && (state.enfoque === selectedApproach || state.enfoque === 'Todos');
   }) || '';
   $: selectedStatePenalty = selectedState ? 1 : 0;
-  $: displayedStates = [...visibleStates.filter((stateName) => stateName !== 'Incapacitado' && stateName !== 'Impedido'), ...(Number(character.will) <= 0 ? ['Impedido'] : [])];
+  $: displayedStates = [...visibleStates.filter((stateName) => stateName !== 'Incapacitado' && stateName !== 'Abrumado'), ...(Number(character.will) <= 0 ? ['Abrumado'] : [])];
   $: characterApproachTotal = APPROACHES.reduce((sum, name) => sum + (Number(character.approaches?.[name]) || 0), 0);
   $: characterApproachesValid = characterApproachTotal === 4 && APPROACHES.every(name => Number(character.approaches?.[name]) >= 0 && Number(character.approaches?.[name]) <= 2);
   $: inventoryValid = character.traits.length === 4 && character.traits.every(trait => {
@@ -589,7 +589,7 @@
             playerMagicRecord = (await OBR.player.getMetadata())?.[PLAYER_MAGIC_KEY] || { spells: [] };
             const syncStates = (metadata: any) => {
               const allStates = metadata?.[STATE_KEY] || {};
-              visibleStates = Array.isArray(allStates[$currentPlayerId]) ? allStates[$currentPlayerId].filter((stateName: string) => stateName !== 'Incapacitado' && stateName !== 'Impedido') : [];
+              visibleStates = Array.isArray(allStates[$currentPlayerId]) ? allStates[$currentPlayerId].filter((stateName: string) => stateName !== 'Incapacitado' && stateName !== 'Abrumado') : [];
               const allOverexertion = metadata?.[OVEREXERTION_KEY] || {};
               visibleEffortCoins = Math.max(0, Math.min(3, Number(allOverexertion[$currentPlayerId] ?? 3) || 0));
               const conflict = metadata?.[CONFLICT_KEY] || {};
@@ -970,7 +970,7 @@
       if (remainingWill >= resistance) {
         conflict.result = `Victoria por resistencia: ${remainingWill} de Voluntad frente a ${resistance} de Resistencia.`;
       } else {
-        conflict.result = `Derrota: ${remainingWill} de Voluntad frente a ${resistance} de Resistencia. Los personajes con 0 Voluntad quedan Impedidos.`;
+        conflict.result = `Derrota: ${remainingWill} de Voluntad frente a ${resistance} de Resistencia. Los personajes con 0 Voluntad quedan Abrumados.`;
       }
     }
     conflict.active = false;
@@ -1154,7 +1154,7 @@
             <section class="card"><h2>Rasgos</h2>{#each character.traits as trait}<div class="trait-line"><strong>{trait}</strong><small>{trait.startsWith('Conocedor de ') ? 'Conocedor de...' : trait} </small><p>{trait.startsWith('Conocedor de ') ? 'Conocimientos y experiencia en ' + trait.slice('Conocedor de '.length) + '.' : TRAIT_DESCRIPTIONS[trait]?.short || ''}</p></div>{/each}</section>
             <section class="card"><h2>Voluntad</h2><div class="will-value">{character.will}<small> / {character.maxWill}</small></div><div class="will-controls"><button on:click={() => adjustWill(-1)} disabled={character.will <= 0}>−</button><button on:click={() => adjustWill(1)} disabled={character.will >= character.maxWill}>+</button></div><button class="secondary full" on:click={restCharacter}>Descansar</button><p class="muted">Recuperas 2 puntos de Voluntad (sin superar el máximo). El descanso no recupera monedas de esfuerzo. Con 0 Voluntad, siempre tiras 2d6 y conservas el menor, sin importar ventaja o desventaja.</p></section>
             <section class="card extra-info"><h2>Monedas de esfuerzo</h2><div class="will-value">{visibleEffortCoins}<small> / 3 disponibles</small></div><p class="muted">Cada moneda permite añadir 1d6 a la próxima tirada o repetir todos los dados de la última tirada. Se restablecen a 3 al comenzar cada sesión.</p><button class="secondary full" on:click={() => spendEffort('extra-die')} disabled={visibleEffortCoins <= 0 || !!pendingDiceRoll || effortDiceBonus > 0}>Gastar moneda: +1d6 a la próxima tirada</button>{#if lastRoll}<button class="secondary full" on:click={() => spendEffort('reroll')} disabled={visibleEffortCoins <= 0 || !!pendingDiceRoll}>Gastar moneda: repetir última tirada</button>{/if}</section>
-            <section class="card"><h2>Estados</h2><div class="state-grid">{#each [...STATES, ...(Number(character.will) <= 0 ? [{ name: 'Impedido', enfoque: 'Todos', detail: 'Con 0 Voluntad, todas las tiradas usan 2d6 y conservan el menor.' }] : [])] as state}<label class="check-row"><input type="checkbox" checked={displayedStates.includes(state.name)} disabled><span><b>{state.name}</b><small>{state.enfoque}: {state.detail}</small></span></label>{/each}</div></section>
+            <section class="card"><h2>Estados</h2><div class="state-grid">{#each [...STATES, ...(Number(character.will) <= 0 ? [{ name: 'Abrumado', enfoque: 'Todos', detail: 'Con 0 Voluntad, todas las tiradas usan 2d6 y conservan el menor.' }] : [])] as state}<label class="check-row"><input type="checkbox" checked={displayedStates.includes(state.name)} disabled><span><b>{state.name}</b><small>{state.enfoque}: {state.detail}</small></span></label>{/each}</div></section>
             <section class="card"><h2>Equipo</h2>{#each character.inventory as item}<div class="inventory-line"><input bind:value={item.name} placeholder="Objeto por definir" on:input={updateCharacter}><small>{item.trait}</small><button class="remove" on:click={() => removeInventoryItem(item.id)}>×</button></div>{/each}<button class="secondary full" on:click={addInventoryItem}>Añadir objeto</button></section>
           </div>
           <p class="sync-note">{OBR.isAvailable ? 'La ficha se sincroniza con Owlbear Rodeo.' : 'Modo de vista previa: la ficha se guarda en este navegador.'}</p>
@@ -1451,9 +1451,9 @@
           <li><strong>Deprimido — Tenacidad:</strong> enfermedad, intoxicación o debilidad.</li>
           <li><strong>Ansioso — Disciplina:</strong> miedo, terror o intimidación.</li>
           <li><strong>Confundido — Ingenio:</strong> percepción o pensamiento alterados.</li>
-          <li><strong>Impedido:</strong> cuando la Voluntad llega a 0, todas las tiradas se realizan con 2d6 y se conserva el resultado menor, independientemente de la reserva, la ventaja o la desventaja. Este efecto termina al recuperar al menos 1 punto de Voluntad.</li>
+          <li><strong>Abrumado:</strong> cuando la Voluntad llega a 0, todas las tiradas se realizan con 2d6 y se conserva el resultado menor, independientemente de la reserva, la ventaja o la desventaja. Este efecto termina al recuperar al menos 1 punto de Voluntad.</li>
         </ul>
-        <p>Descansar no elimina Estados. Cada Estado debe resolverse mediante su propio procedimiento; quitar uno no elimina los demás. Impedido desaparece automáticamente al recuperar al menos 1 punto de Voluntad.</p>
+        <p>Descansar no elimina Estados. Cada Estado debe resolverse mediante su propio procedimiento; quitar uno no elimina los demás. Abrumado desaparece automáticamente al recuperar al menos 1 punto de Voluntad.</p>
       </section>
 
       <section class="card">
