@@ -750,7 +750,7 @@
   }
 
   function exportCharacter() {
-    const data = JSON.stringify({ format: 'MIMPROV-character', version: 1, character }, null, 2);
+    const data = JSON.stringify({ format: 'MIMPROV-character', version: 2, character, spells: playerMagicRecord?.spells || [], states: visibleStates || [] }, null, 2);
     const blob = new Blob([data], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -769,10 +769,34 @@
       if (!incoming || typeof incoming !== 'object' || !incoming.approaches || !Array.isArray(incoming.traits) || !Array.isArray(incoming.inventory)) {
         throw new Error('El archivo no contiene una ficha MIMPROV válida.');
       }
-      character = { ...blankCharacter(), ...incoming, approaches: normalizeApproaches(incoming.approaches), created: true };
+      const normalizedInventory = incoming.inventory.map((item: any, index: number) => ({
+        id: Number(item?.id) || Date.now() + index,
+        name: String(item?.name ?? '').trim(),
+        trait: String(item?.trait ?? 'Personal')
+      })).filter((item: Item) => item.name);
+      character = {
+        ...blankCharacter(),
+        ...incoming,
+        approaches: normalizeApproaches(incoming.approaches),
+        traits: incoming.traits.map((trait: any) => String(trait)),
+        inventory: normalizedInventory,
+        will: Math.max(0, Math.min(4, Number(incoming.will ?? 4))),
+        maxWill: 4,
+        created: true
+      };
+      approachDraft = { ...character.approaches };
+      playerMagicRecord = { spells: Array.isArray(parsed?.spells) ? parsed.spells : [] };
+      visibleStates = Array.isArray(parsed?.states) ? parsed.states.filter((state: string) => STATES.some(item => item.name === state)) : [];
       updateCharacter();
       editingCharacter = false;
       step = 0;
+      if (OBR.isAvailable) {
+        await OBR.player.setMetadata({ [DATA_KEY]: clone(character), [PLAYER_MAGIC_KEY]: clone(playerMagicRecord) });
+        const roomMetadata = await OBR.room.getMetadata();
+        const allStates = { ...(roomMetadata?.[STATE_KEY] || {}) };
+        allStates[$currentPlayerId] = [...visibleStates];
+        await OBR.room.setMetadata({ [STATE_KEY]: allStates });
+      }
     } catch (error) {
       console.error('No se pudo importar la ficha MIMPROV', error);
       alert('No se pudo importar el archivo. Selecciona una exportación JSON de MIMPROV.');
@@ -1498,6 +1522,11 @@
               <button type="button" class="name-dice" on:click={generateRandomName} aria-label="Generar nombre aleatorio">🎲 Generar nombre</button>
             </div>
             <small class="muted">Puedes escribir el nombre completo o generar un nombre y apellido aleatorios.</small>
+            <div class="card" style="margin-top:1rem">
+              <strong>¿Ya tienes tu personaje creado en la página de MIMPROV?</strong>
+              <p class="muted">Importa su archivo JSON para cargar la ficha completa y saltarte todos los pasos de creación.</p>
+              <label class="import-button">Importar ficha MIMPROV desde JSON<input type="file" accept="application/json,.json" on:change={importCharacter}></label>
+            </div>
           {:else if step === 1}
             <h1>¿Cuál es su arquetipo?</h1>
             <p>El arquetipo aporta 2 puntos de Enfoque y 2 Rasgos fijos. Junto con el concepto, también define cuándo puedes gastar monedas de esfuerzo.</p>
