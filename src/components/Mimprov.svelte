@@ -1629,7 +1629,7 @@
               <select bind:value={selectedMagicSpellId}>
                 <option value="">Tirada normal, sin magia</option>
                 {#each playerMagicRecord.spells as spell}
-                  <option value={spell.id}>{spell.effect.slice(0, 90)} · {magicMagnitudeLabel(spell.magnitude)}</option>
+                  <option value={spell.id}>{spell.name || spell.effect.slice(0, 90)} · {magicMagnitudeLabel(spell.magnitude)}{#if spell.willCost} · {spell.willCost} Voluntad{/if}</option>
                 {/each}
               </select>
             </label>
