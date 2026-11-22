@@ -28,6 +28,304 @@
     { name: 'Confundido', enfoque: 'Ingenio', detail: 'Percepción o pensamiento alterados.' },
   ];
   const APPROACHES = ['Tenacidad', 'Disciplina', 'Instinto', 'Ingenio'];
+  const MAGIC_CATALOG = [
+  {
+    "id": "catalog_1",
+    "category": "Percepción",
+    "name": "Ojo del rastro",
+    "effect": "Percibes huellas, rastros y señales recientes que normalmente pasarían inadvertidos.",
+    "magnitude": "simple",
+    "willCost": 1
+  },
+  {
+    "id": "catalog_2",
+    "category": "Percepción",
+    "name": "Visión oculta",
+    "effect": "Ves en la oscuridad o distingues detalles a gran distancia.",
+    "magnitude": "simple",
+    "willCost": 1
+  },
+  {
+    "id": "catalog_3",
+    "category": "Percepción",
+    "name": "Lectura de vestigios",
+    "effect": "Obtienes impresiones sobre un objeto o lugar a partir de los rastros que conserva.",
+    "magnitude": "moderate",
+    "willCost": 2
+  },
+  {
+    "id": "catalog_4",
+    "category": "Percepción",
+    "name": "Sentidos compartidos",
+    "effect": "Percibes durante un breve tiempo a través de los sentidos de una criatura conocida.",
+    "magnitude": "moderate",
+    "willCost": 2
+  },
+  {
+    "id": "catalog_5",
+    "category": "Comunicación",
+    "name": "Voz distante",
+    "effect": "Envías un mensaje breve a alguien cuya ubicación conoces.",
+    "magnitude": "simple",
+    "willCost": 1
+  },
+  {
+    "id": "catalog_6",
+    "category": "Comunicación",
+    "name": "Lengua universal",
+    "effect": "Comprendes y te haces entender por criaturas que hablan otros idiomas.",
+    "magnitude": "moderate",
+    "willCost": 2
+  },
+  {
+    "id": "catalog_7",
+    "category": "Comunicación",
+    "name": "Eco de los ausentes",
+    "effect": "Formulas preguntas sencillas a un espíritu ligado al lugar u objeto.",
+    "magnitude": "moderate",
+    "willCost": 2
+  },
+  {
+    "id": "catalog_8",
+    "category": "Protección",
+    "name": "Manto protector",
+    "effect": "Una fuerza invisible amortigua un golpe o peligro inmediato.",
+    "magnitude": "simple",
+    "willCost": 1
+  },
+  {
+    "id": "catalog_9",
+    "category": "Protección",
+    "name": "Círculo de resguardo",
+    "effect": "Delimita un área pequeña que dificulta la entrada de amenazas.",
+    "magnitude": "moderate",
+    "willCost": 2
+  },
+  {
+    "id": "catalog_10",
+    "category": "Protección",
+    "name": "Velo de resistencia",
+    "effect": "Protege a una criatura de un elemento o peligro concreto durante un tiempo limitado.",
+    "magnitude": "moderate",
+    "willCost": 2
+  },
+  {
+    "id": "catalog_11",
+    "category": "Protección",
+    "name": "Barrera arcana",
+    "effect": "Levanta una barrera que bloquea el paso o detiene una amenaza importante.",
+    "magnitude": "extraordinary",
+    "willCost": 3
+  },
+  {
+    "id": "catalog_12",
+    "category": "Restauración",
+    "name": "Aliento vital",
+    "effect": "Estabiliza a una criatura al borde de la muerte y la mantiene con vida.",
+    "magnitude": "moderate",
+    "willCost": 2
+  },
+  {
+    "id": "catalog_13",
+    "category": "Restauración",
+    "name": "Manos restauradoras",
+    "effect": "Cierra heridas leves y alivia el dolor de una criatura.",
+    "magnitude": "simple",
+    "willCost": 1
+  },
+  {
+    "id": "catalog_14",
+    "category": "Restauración",
+    "name": "Purificación",
+    "effect": "Elimina una contaminación, veneno o influencia menor del cuerpo o de un objeto.",
+    "magnitude": "moderate",
+    "willCost": 2
+  },
+  {
+    "id": "catalog_15",
+    "category": "Restauración",
+    "name": "Restauración profunda",
+    "effect": "Revierte una alteración física o espiritual grave, si existe una forma razonable de hacerlo.",
+    "magnitude": "extraordinary",
+    "willCost": 3
+  },
+  {
+    "id": "catalog_16",
+    "category": "Movimiento",
+    "name": "Paso ligero",
+    "effect": "Te desplazas brevemente sin hacer ruido y con mayor agilidad.",
+    "magnitude": "simple",
+    "willCost": 1
+  },
+  {
+    "id": "catalog_17",
+    "category": "Movimiento",
+    "name": "Caída suspendida",
+    "effect": "Reduce o anula el daño de una caída para una criatura.",
+    "magnitude": "simple",
+    "willCost": 1
+  },
+  {
+    "id": "catalog_18",
+    "category": "Movimiento",
+    "name": "Salto imposible",
+    "effect": "Permite superar de un salto una distancia u obstáculo extraordinarios.",
+    "magnitude": "moderate",
+    "willCost": 2
+  },
+  {
+    "id": "catalog_19",
+    "category": "Movimiento",
+    "name": "Umbral distante",
+    "effect": "Abres un paso mágico entre dos lugares que puedes identificar con precisión.",
+    "magnitude": "extraordinary",
+    "willCost": 3
+  },
+  {
+    "id": "catalog_20",
+    "category": "Creación",
+    "name": "Lumbre evocada",
+    "effect": "Creas una pequeña llama o fuente de luz que dura un tiempo limitado.",
+    "magnitude": "simple",
+    "willCost": 1
+  },
+  {
+    "id": "catalog_21",
+    "category": "Creación",
+    "name": "Manos invisibles",
+    "effect": "Manipulas objetos pequeños a distancia, como si una mano invisible los moviera.",
+    "magnitude": "simple",
+    "willCost": 1
+  },
+  {
+    "id": "catalog_22",
+    "category": "Transformación",
+    "name": "Forma prestada",
+    "effect": "Alteras temporalmente un rasgo visible de tu apariencia o la de otra criatura.",
+    "magnitude": "moderate",
+    "willCost": 2
+  },
+  {
+    "id": "catalog_23",
+    "category": "Transformación",
+    "name": "Materia mutable",
+    "effect": "Cambias temporalmente la forma o consistencia de una cantidad limitada de materia.",
+    "magnitude": "extraordinary",
+    "willCost": 3
+  },
+  {
+    "id": "catalog_24",
+    "category": "Control",
+    "name": "Raíces apresadoras",
+    "effect": "Haces surgir raíces, lianas o fibras que inmovilizan a un objetivo o bloquean un paso.",
+    "magnitude": "moderate",
+    "willCost": 2
+  },
+  {
+    "id": "catalog_25",
+    "category": "Control",
+    "name": "Orden imperceptible",
+    "effect": "Implantas una instrucción breve y sencilla que una criatura puede resistir.",
+    "magnitude": "moderate",
+    "willCost": 2
+  },
+  {
+    "id": "catalog_26",
+    "category": "Control",
+    "name": "Dominio elemental",
+    "effect": "Manipulas una masa importante de agua, fuego, aire o tierra dentro de límites claros.",
+    "magnitude": "extraordinary",
+    "willCost": 3
+  },
+  {
+    "id": "catalog_27",
+    "category": "Control",
+    "name": "Voluntad sometida",
+    "effect": "Restringes temporalmente las acciones de una criatura que no logra resistir el conjuro.",
+    "magnitude": "extraordinary",
+    "willCost": 3
+  },
+  {
+    "id": "catalog_28",
+    "category": "Daño",
+    "name": "Proyectil arcano",
+    "effect": "Lanzas un impacto mágico preciso contra un objetivo visible.",
+    "magnitude": "simple",
+    "willCost": 1
+  },
+  {
+    "id": "catalog_29",
+    "category": "Daño",
+    "name": "Estallido elemental",
+    "effect": "Provocas una explosión localizada de fuego, hielo, electricidad u otra fuerza elemental.",
+    "magnitude": "moderate",
+    "willCost": 2
+  },
+  {
+    "id": "catalog_30",
+    "category": "Daño",
+    "name": "Lanza devastadora",
+    "effect": "Concentras energía en un ataque mágico de gran potencia contra un objetivo.",
+    "magnitude": "extraordinary",
+    "willCost": 3
+  },
+  {
+    "id": "catalog_31",
+    "category": "Daño",
+    "name": "Tormenta desatada",
+    "effect": "Desatas una fuerza elemental sobre una zona amplia, afectando a varios objetivos expuestos.",
+    "magnitude": "extraordinary",
+    "willCost": 3
+  },
+  {
+    "id": "catalog_32",
+    "category": "Ilusión",
+    "name": "Imagen fugaz",
+    "effect": "Creas una imagen o sonido breve que puede engañar a quien no lo examine de cerca.",
+    "magnitude": "simple",
+    "willCost": 1
+  },
+  {
+    "id": "catalog_33",
+    "category": "Ilusión",
+    "name": "Rostro ajeno",
+    "effect": "Adoptas la apariencia de otra persona durante un tiempo limitado.",
+    "magnitude": "moderate",
+    "willCost": 2
+  },
+  {
+    "id": "catalog_34",
+    "category": "Ilusión",
+    "name": "Escenario ilusorio",
+    "effect": "Proyectas una escena compleja que altera lo que otros ven y oyen en un área.",
+    "magnitude": "extraordinary",
+    "willCost": 3
+  },
+  {
+    "id": "catalog_35",
+    "category": "Invocación",
+    "name": "Familiar espiritual",
+    "effect": "Llamas a un pequeño espíritu que observa, transmite señales o realiza tareas sencillas.",
+    "magnitude": "moderate",
+    "willCost": 2
+  },
+  {
+    "id": "catalog_36",
+    "category": "Invocación",
+    "name": "Compañero salvaje",
+    "effect": "Convocas temporalmente una criatura natural que puede ayudarte en tareas sencillas.",
+    "magnitude": "moderate",
+    "willCost": 2
+  },
+  {
+    "id": "catalog_37",
+    "category": "Invocación",
+    "name": "Guardián espectral",
+    "effect": "Invocas una presencia protectora que defiende un lugar o a una criatura durante un tiempo limitado.",
+    "magnitude": "extraordinary",
+    "willCost": 3
+  }
+] as const;
   const ARCHETYPES: Record<string, { description: string; approaches: Record<string, number>; traits: string[] }> = {
     'Valiente': { description: 'Se enfrenta a los peligros sin retroceder. Actúa con decisión cuando otros dudan, soporta la presión y está dispuesto a ponerse en riesgo para proteger o defender aquello que considera importante.', approaches: { Tenacidad: 1, Disciplina: 0, Instinto: 1, Ingenio: 0 }, traits: ['Peleador', 'Superviviente'] },
     'Místico': { description: 'Se interesa por lo oculto, lo inexplicable y las fuerzas que escapan a la comprensión cotidiana. Observa señales, busca significados y conoce prácticas, tradiciones o saberes poco comunes.', approaches: { Tenacidad: 0, Disciplina: 1, Instinto: 1, Ingenio: 0 }, traits: ['Observador', 'Conocedor de...'] },
@@ -393,6 +691,19 @@
     updateCharacter();
   }
 
+  function addCatalogSpell(spell: typeof MAGIC_CATALOG[number]) {
+    const spells = [...(playerMagicRecord?.spells || [])];
+    if (spells.some((item: any) => item.id === spell.id)) { magicMessage = 'Este conjuro ya está en tu lista.'; return; }
+    spells.push({ ...spell, price: '', status: 'accepted', source: 'catalog' });
+    playerMagicRecord = { ...playerMagicRecord, spells };
+    if (OBR.isAvailable) OBR.player.setMetadata({ [PLAYER_MAGIC_KEY]: playerMagicRecord }).catch((error) => console.error('No se pudo guardar el conjuro', error));
+    magicMessage = 'Conjuro añadido a tu personaje.';
+  }
+  function removeCatalogSpell(spellId: string) {
+    playerMagicRecord = { ...playerMagicRecord, spells: (playerMagicRecord?.spells || []).filter((spell: any) => !(spell.id === spellId && spell.source === 'catalog')) };
+    if (selectedMagicSpellId === spellId) selectedMagicSpellId = '';
+    if (OBR.isAvailable) OBR.player.setMetadata({ [PLAYER_MAGIC_KEY]: playerMagicRecord }).catch((error) => console.error('No se pudo actualizar la lista de conjuros', error));
+  }
   function magicMagnitudeLabel(magnitude: string | undefined) {
     if (magnitude === 'moderate') return 'Magia moderada (+1 éxito adicional)';
     if (magnitude === 'extraordinary') return 'Magia extraordinaria (+2 éxitos adicionales)';
@@ -548,6 +859,16 @@
       return;
     }
     if (pendingDiceRoll) return;
+    const spellCost = Number(selectedMagicSpell?.willCost || 0);
+    if (selectedMagicSpell && spellCost > Number(character.will || 0)) {
+      dicePlusError = `No tienes suficiente Voluntad para lanzar ${selectedMagicSpell.name || 'este conjuro'} (necesitas ${spellCost}).`;
+      return;
+    }
+    if (selectedMagicSpell && spellCost > 0) {
+      character.will = Math.max(0, Number(character.will || 0) - spellCost);
+      updateCharacter();
+      dicePlusError = `Has gastado ${spellCost} Voluntad para lanzar ${selectedMagicSpell.name || 'el conjuro'}.`;
+    }
     const retryPool = selectedApproachScore + selectedTraitBonus + effortDiceBonus + (rollModifier === 'advantage' ? 1 : 0);
     const retryNotation = forcedLowRoll ? '2d6kl1' : retryPool <= 0 ? '2d6kl1' : `${retryPool}d6kh1`;
     await sendDiceRoll(diceNotation, dicePool, selectedApproach, false, retryNotation, retryPool);
@@ -1312,7 +1633,7 @@
                 {/each}
               </select>
             </label>
-            {#if selectedMagicSpell}<p class="muted">Conjuro seleccionado: {selectedMagicSpell.effect} · {magicMagnitudeLabel(selectedMagicSpell.magnitude)}. Se realiza esta misma tirada normal.</p>{/if}
+            {#if selectedMagicSpell}<p class="muted">Conjuro seleccionado: {selectedMagicSpell.name || selectedMagicSpell.effect} · {magicMagnitudeLabel(selectedMagicSpell.magnitude)}{#if selectedMagicSpell.willCost} · Coste: {selectedMagicSpell.willCost} Voluntad{/if}. Se realiza esta misma tirada normal.</p>{/if}
           {/if}
           <label>Rasgo
             <select bind:value={selectedTrait}>
@@ -1450,6 +1771,27 @@
   {:else if !$isGM && activeTab === 'magia'}
     <main class="content magic-content"><div class="eyebrow">PACTOS Y CONDICIONES</div><h1>Magia</h1>
       <p class="magic-intro">Crea poderes mediante pactos. Describe el efecto, elige su magnitud y acuerda con el GM un coste proporcional. La magia se resuelve con una tirada normal.</p>
+      <section class="card"><h2>Catálogo de conjuros</h2>
+        <p class="muted">Elige directamente los conjuros de ejemplo que quieras incorporar a tu personaje. No necesitan aprobación del GM. El coste se paga en Voluntad al realizar la tirada.</p>
+        {#each [...new Set(MAGIC_CATALOG.map((spell) => spell.category))] as category}
+          <div class="magic-catalog-group"><h3>{category}</h3>
+            {#each MAGIC_CATALOG.filter((spell) => spell.category === category) as spell}
+              <article class="pact-item catalog-spell"><h3>{spell.name}</h3><p>{spell.effect}</p>
+                <p class="muted">{magicMagnitudeLabel(spell.magnitude)} · Coste: {spell.willCost} {spell.willCost === 1 ? 'punto' : 'puntos'} de Voluntad</p>
+                {#if playerMagicRecord?.spells?.some((item: any) => item.id === spell.id)}<button class="secondary" disabled>Ya está en tu lista</button>
+                {:else}<button on:click={() => addCatalogSpell(spell)}>Añadir a mi personaje</button>{/if}
+              </article>
+            {/each}
+          </div>
+        {/each}
+      </section>
+      {#if (playerMagicRecord?.spells || []).some((spell: any) => spell.source === 'catalog')}
+        <section class="card"><h2>Mis conjuros de catálogo</h2>
+          {#each playerMagicRecord.spells.filter((spell: any) => spell.source === 'catalog') as spell}
+            <article class="pact-item approved-spell"><h3>{spell.name}</h3><p>{spell.effect}</p><p class="muted">{magicMagnitudeLabel(spell.magnitude)} · Coste: {spell.willCost} Voluntad</p><button class="secondary" on:click={() => removeCatalogSpell(spell.id)}>Quitar de mi lista</button></article>
+          {/each}
+        </section>
+      {/if}
       <section class="card"><h2>¿Qué quieres conseguir?</h2><p>Describe el efecto, su objetivo, alcance y duración. Puedes crear efectos para percibir, crear, alterar, controlar, proteger, comunicar, dañar o restaurar. Son ideas orientativas, no una lista cerrada.</p><textarea bind:value={magicEffect} rows="5" maxlength="4000" placeholder="Describe el efecto que quieres conseguir..."></textarea><small class="field-hint">{magicEffect.length} / 4000 caracteres</small></section>
       <section class="card"><h2>Magnitud del conjuro</h2><label>Elige la magnitud propuesta<select bind:value={magicMagnitude}><option value="simple">Truco simple — sin éxitos adicionales</option><option value="moderate">Magia moderada — +1 éxito si la tirada tiene éxito</option><option value="extraordinary">Magia extraordinaria — +2 éxitos si la tirada tiene éxito</option></select></label><p class="muted">Los éxitos adicionales solo cuentan para reducir la Resistencia de un conflicto. No cambian el resultado narrativo ni cuentan para críticos.</p></section>
       <section class="card"><h2>¿Qué das a cambio?</h2><p>El coste debe ser proporcional al poder. Puede consistir en perder Voluntad, recibir Mermado, Deprimido, Ansioso o Confundido, o ambas cosas. Abrumado aparece únicamente al llegar a 0 Voluntad. El precio puede pagarse una sola vez al establecer el pacto o cada vez que utilizas el poder.</p><textarea bind:value={magicPrice} rows="5" maxlength="4000" placeholder="Describe el coste y cuándo se paga..."></textarea><small class="field-hint">{magicPrice.length} / 4000 caracteres</small><button class="full" on:click={submitMagicPact} disabled={!magicEffect.trim() || !magicPrice.trim()}>Firmar pacto</button>{#if magicMessage}<p class="magic-message">{magicMessage}</p>{/if}</section>
