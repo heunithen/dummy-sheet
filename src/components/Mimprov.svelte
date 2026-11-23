@@ -2048,11 +2048,12 @@
         <h2>7. Conflictos</h2>
         <p>El Narrador selecciona qué personajes participan. Solo ellos cuentan para la Resistencia y pueden contribuir a resolver el conflicto.</p>
         <ul>
-          <li>El conflicto tiene un nivel de peligro: <strong>Bajo, Medio o Alto</strong>.</li>
-          <li>Cuando un personaje falla una tirada durante el conflicto, pierde Voluntad según el peligro: <strong>Bajo −1, Medio −2, Alto −3</strong>.</li>
+          <li>El conflicto dura un máximo de dos rondas. Cada participante dispone de una acción por ronda.</li>
           <li>La Resistencia base equivale a 2 puntos por participante. El Narrador puede ajustarla antes de comenzar para representar la escala o fortaleza de la oposición.</li>
-          <li>El narrador puede ajustar la Resistencia manualmente. Esta no disminuye automáticamente por los fracasos.</li>
-          <li>El narrador administra el nivel de peligro, la Resistencia y los Estados de los personajes.</li>
+          <li>Cada dado que muestre un 6 reduce la Resistencia en 1. Un 5 logra la acción con una consecuencia, pero no reduce Resistencia. Un fracaso pierde Voluntad según el peligro: <strong>Bajo −1, Medio −2, Alto −3</strong>.</li>
+          <li>Victoria decisiva: la Resistencia llega a 0. Victoria por resistencia: al terminar la segunda ronda, la Voluntad conjunta de los participantes, incluidos los Abrumados, iguala o supera la Resistencia restante. La igualdad es victoria.</li>
+          <li>Derrota: todos los participantes llegan a 0 Voluntad o, al terminar la segunda ronda, la Voluntad conjunta es inferior a la Resistencia restante.</li>
+          <li>El Narrador administra el nivel de peligro, la Resistencia y los Estados de los personajes. El Riesgo determina el coste del fracaso, no la dificultad de la oposición.</li>
         </ul>
       </section>
 
