@@ -1966,8 +1966,8 @@
           <li><strong>Atlético:</strong> Tenacidad 1 e Instinto 1; Atlético y Superviviente.</li>
           <li><strong>Sociable:</strong> Disciplina 1 e Ingenio 1; Persuasivo y Liderazgo.</li>
           <li><strong>Arquetipo:</strong> aporta 2 puntos de Enfoque, repartidos entre dos Enfoques distintos (1 punto en cada uno), y 2 Rasgos fijos.</li>
-          <li><strong>Enfoques:</strong> distribuye los otros 2 puntos entre los Enfoques que no recibieron puntos del arquetipo. Puedes asignar ambos puntos al mismo Enfoque o repartirlos entre dos. Ningún Enfoque puede superar 2 puntos; empiezas con 4 puntos en total.</li>
-          <li><strong>Rasgos:</strong> conserva los 2 Rasgos fijos del arquetipo y escoge otros 2 de la lista. Cada Rasgo aporta +1 dado cuando resulta directamente relevante para la acción.</li>
+          <li><strong>Enfoques:</strong> distribuye los otros 2 puntos exclusivamente entre los dos Enfoques que no recibieron puntos del arquetipo. Puedes asignarlos ambos al mismo o repartirlos entre ambos. Los Enfoques del arquetipo permanecen en 1 y ninguno puede superar 2; empiezas con 4 puntos en total.</li>
+          <li><strong>Rasgos:</strong> conserva los 2 Rasgos fijos y escoge otros 2. Cada Rasgo aporta +1 dado cuando resulta directamente relevante. «Iniciado en lo arcano» es opcional. También puedes elegir «Personalizado», escribir un nombre y una descripción, y acordar su alcance con el Narrador.</li>
           <li><strong>Equipo:</strong> cada Rasgo proporciona tres espacios de objetos asociados. Debes completar al menos 12 objetos para terminar la creación.</li>
           <li><strong>Voluntad:</strong> comienzas con 4 puntos y tu máximo inicial también es 4.</li>
           <li><strong>Monedas de esfuerzo:</strong> comienzas cada sesión con 3 monedas. El arquetipo y el concepto forman juntos la identidad del personaje: puedes gastar una moneda cuando la acción esté relacionada con el arquetipo o con el concepto. Puedes añadir 1d6 a una tirada o volver a lanzar todos sus dados. Gastar una moneda no genera Estados.</li>
@@ -1977,13 +1977,16 @@
       <section class="card">
         <h2>2. Resolución de acciones</h2>
         <p>Cuando una acción tiene un resultado incierto y relevante, el narrador pide una tirada. La reserva se calcula así:</p>
-        <div class="rules-formula">Enfoque + Rasgo aplicable − penalización por Estado</div>
+        <div class="rules-formula">Reserva base = Enfoque + Rasgo aplicable + Ayuda</div>
         <ul>
           <li><strong>Enfoque:</strong> aporta tantos dados como puntos tengas en el Enfoque elegido.</li>
-          <li><strong>Rasgo:</strong> añade 1 dado si el Rasgo es pertinente para la acción.</li>
+          <li><strong>Rasgo:</strong> añade 1 dado si el Rasgo es pertinente para la acción. Solo se aplica un Rasgo por tirada.</li>
+          <li><strong>Ayuda:</strong> añade 1 dado si otro personaje tiene el mismo Rasgo y puede colaborar. En un conflicto, ayudar consume la acción de quien ayuda; solo una persona puede ayudar por tirada.</li>
           <li><strong>Estado:</strong> resta 1 dado cuando el Estado correspondiente afecta al Enfoque utilizado.</li>
           <li><strong>Ventaja:</strong> añade 1 dado a la reserva.</li>
-          <li><strong>Desventaja:</strong> resta 1 dado a la reserva.</li>
+          <li><strong>Desventaja:</strong> resta 1 dado a la reserva. Ventaja y Desventaja se cancelan entre sí.</li>
+          <li><strong>Equipo:</strong> no concede dados por sí mismo; puede ser necesario para usar un Rasgo o justificar Ventaja.</li>
+          <li><strong>Monedas de esfuerzo:</strong> permiten añadir 1d6 o repetir la tirada ignorando penalizaciones de Estados y Desventaja.</li>
           <li><strong>Reserva de 0 o menos:</strong> tira 2d6 y conserva el resultado menor.</li>
         </ul>
         <p>En una tirada normal se conserva el dado más alto. Con desventaja también se conserva el más alto de los dados que se tiren.</p>
@@ -2009,7 +2012,7 @@
 
       <section class="card">
         <h2>4. Estados</h2>
-        <p>Los Estados representan condiciones que dificultan determinadas acciones. Cada Estado aplica una penalización de −1 dado al Enfoque asociado. Puedes proponer un Rasgo personalizado: escribe su nombre y descripción, acuerda su alcance con el Narrador y define el equipo que necesita.</p>
+        <p>Los Estados representan condiciones que dificultan determinadas acciones. Cada Estado aplica una penalización de −1 dado al Enfoque asociado.</p>
         <ul>
           <li><strong>Mermado — Instinto:</strong> lesión o limitación física.</li>
           <li><strong>Debilitado — Tenacidad:</strong> enfermedad, intoxicación o debilidad física.</li>
