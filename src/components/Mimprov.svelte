@@ -2018,7 +2018,7 @@
           <li><strong>Debilitado — Tenacidad:</strong> enfermedad, intoxicación o debilidad física.</li>
           <li><strong>Ansioso — Disciplina:</strong> miedo, terror o intimidación.</li>
           <li><strong>Confundido — Ingenio:</strong> percepción o pensamiento alterados.</li>
-          <li><strong>Abrumado no es un Estado:</strong> es una condición automática al llegar a 0 Voluntad. El personaje sigue actuando, pero tira 2d6 y conserva el menor, incluso con Ventaja o Desventaja. Desaparece al recuperar al menos 1 punto.</li>
+          <li><strong>Abrumado no es un Estado:</strong> es una condición automática al llegar a 0 Voluntad. El personaje sigue actuando, pero tira 2d6 y conserva el menor, incluso con Ventaja o Desventaja. Solo obtiene un crítico si ambos dados muestran 6. Desaparece al recuperar al menos 1 punto.</li>
         </ul>
         <p>Descansar no elimina Estados. Cada Estado debe resolverse mediante su propio procedimiento; quitar uno no elimina los demás. Abrumado no es un Estado seleccionable: aparece automáticamente al llegar a 0 Voluntad y desaparece al recuperar al menos 1 punto.</p>
       </section>
