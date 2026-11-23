@@ -988,6 +988,15 @@
             }
           }
           if (role === 'PLAYER') {
+            // Las fichas incompletas se reinician para que el arquetipo siempre se elija explícitamente.
+            if (!character.created) {
+              step = 0;
+              character = blankCharacter();
+              approachDraft = { Tenacidad: 0, Disciplina: 0, Instinto: 0, Ingenio: 0 };
+              localStorage.removeItem('mimprov-character-v1');
+              await OBR.player.setMetadata({ [DATA_KEY]: clone(character), [PLAYER_MAGIC_KEY]: { spells: [] } });
+              playerMagicRecord = { spells: [] };
+            }
             const savedMagic = (await OBR.player.getMetadata())?.[PLAYER_MAGIC_KEY] || { spells: [] };
              playerMagicRecord = { spells: (savedMagic.spells || []).filter((spell: any) => MAGIC_CATALOG.some((catalog) => catalog.id === spell.id || catalog.name === spell.name)) };
             const syncStates = (metadata: any) => {
@@ -1204,7 +1213,16 @@
     return stored ? { ...stored, approaches: normalizeApproaches(stored.approaches) } : undefined;
   }
 
-  function startCreation() { step = 0; character = blankCharacter(); approachDraft = { Tenacidad: 0, Disciplina: 0, Instinto: 0, Ingenio: 0 }; }
+  function startCreation() {
+    step = 0;
+    character = blankCharacter();
+    approachDraft = { Tenacidad: 0, Disciplina: 0, Instinto: 0, Ingenio: 0 };
+    playerMagicRecord = { spells: [] };
+    localStorage.removeItem('mimprov-character-v1');
+    if (OBR.isAvailable && loaded && !$isGM) {
+      OBR.player.setMetadata({ [DATA_KEY]: clone(character), [PLAYER_MAGIC_KEY]: { spells: [] } }).catch((error) => console.error('No se pudo reiniciar la creación del personaje', error));
+    }
+  }
   function isFixedArchetypeTrait(trait: string): boolean {
     return (ARCHETYPES[character.archetype]?.traits || []).some((fixed) => fixed === trait || (fixed === 'Conocedor de...' && trait.startsWith('Conocedor de ')));
   }
