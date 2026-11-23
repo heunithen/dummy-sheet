@@ -335,7 +335,7 @@
   };
   const TRAITS = [
     'Atlético', 'Conocedor de...', 'Espadachín', 'Investigador', 'Furtivo',
-    'Intimidante', 'Liderazgo', 'Maestro Chasquilla', 'Observador',
+    'Iniciado en lo arcano', 'Intimidante', 'Liderazgo', 'Maestro Chasquilla', 'Observador',
     'Peleador', 'Persuasivo', 'Sanador', 'Superviviente', 'Tirador'
   ];
   const GENRE_KEY = 'com.heunithen.dummysheet-mimprov/genre';
@@ -390,6 +390,10 @@
       long: 'Posees conocimientos y experiencia en un campo específico que defines al elegir el Rasgo. Puedes reconocer elementos propios de esa materia, comprender información especializada, recordar procedimientos y resolver problemas relacionados con ese ámbito.',
       short: 'Aplicar conocimientos y experiencia en el campo que definiste.'
     },
+    'Iniciado en lo arcano': {
+      long: 'Has comenzado a estudiar o practicar las artes arcanas. Reconoces símbolos, tradiciones y principios mágicos, y sabes realizar conjuros cuando la ambientación permite la magia.',
+      short: 'Reconocer y practicar principios básicos de la magia.'
+    },
     'Espadachín': {
       long: 'Tienes entrenamiento y experiencia en el uso de espadas. Sabes manejar este tipo de arma, medir distancias, encontrar aperturas y aprovechar sus características en un enfrentamiento o en otras situaciones donde sea relevante tu dominio de la espada.',
       short: 'Usar espadas con técnica y experiencia.'
@@ -442,6 +446,7 @@
   const EQUIPMENT: Record<string, string[]> = {
     'Atlético': ['Cuerda', 'Guantes de agarre', 'Botella de agua'],
     'Conocedor de...': ['Cuaderno de referencia', 'Instrumento de medición', 'Kit básico de trabajo'],
+    'Iniciado en lo arcano': ['Cuaderno o grimorio arcano', 'Foco mágico', 'Componentes rituales'],
     'Espadachín': ['Espada', 'Escudo', 'Vaina'],
     'Furtivo': ['Capa con capucha', 'Ropa oscura', 'Herramientas de apertura sencillas'],
     'Intimidante': ['Vestimenta intimidante', 'Insignia o símbolo de autoridad', 'Accesorio amenazante'],
@@ -546,7 +551,11 @@
   let pendingDiceRoll: { rollId: string; pool: number; notation: string; approach: string; effortReroll: boolean; conflictActive: boolean; danger: string } | null = null;
 
   $: approachTotal = APPROACHES.reduce((sum, name) => sum + (Number(approachDraft[name]) || 0), 0);
-  $: approachValid = approachTotal === 4 && APPROACHES.every(name => approachDraft[name] >= 0 && approachDraft[name] <= 2);
+  $: approachValid = approachTotal === 4 && APPROACHES.every(name => {
+    const value = Number(approachDraft[name]) || 0;
+    const fixed = ARCHETYPES[character.archetype]?.approaches[name] || 0;
+    return value >= 0 && value <= 2 && (fixed === 0 || value === 1);
+  });
   $: myPlayer = $PartyStore.find(p => p.id === $currentPlayerId);
   // El rol llega de forma asíncrona desde Owlbear. Asegura una pestaña válida al cambiar de rol.
   $: if ($isGM && activeTab !== 'gm' && activeTab !== 'conflicto' && activeTab !== 'reglamento' && activeTab !== 'magia-gm' && activeTab !== 'lineas-velos' && activeTab !== 'pnj') activeTab = 'gm';
@@ -820,7 +829,11 @@
   $: selectedStatePenalty = selectedState ? 1 : 0;
   $: displayedStates = [...visibleStates.filter((stateName) => stateName !== 'Incapacitado' && stateName !== 'Abrumado'), ...(Number(character.will) <= 0 ? ['Abrumado'] : [])];
   $: characterApproachTotal = APPROACHES.reduce((sum, name) => sum + (Number(character.approaches?.[name]) || 0), 0);
-  $: characterApproachesValid = characterApproachTotal === 4 && APPROACHES.every(name => Number(character.approaches?.[name]) >= 0 && Number(character.approaches?.[name]) <= 2);
+  $: characterApproachesValid = characterApproachTotal === 4 && APPROACHES.every(name => {
+    const value = Number(character.approaches?.[name]) || 0;
+    const fixed = ARCHETYPES[character.archetype]?.approaches[name] || 0;
+    return value >= 0 && value <= 2 && (fixed === 0 || value === 1);
+  });
   $: inventoryValid = character.traits.length === 4 && character.traits.every(trait => {
     const items = character.inventory.filter(item => item.trait === trait);
     return items.length === 3 && items.every(item => typeof item.name === 'string' && item.name.trim().length > 0);
@@ -1307,14 +1320,14 @@
   function setApproach(name: string, value: number) {
     const fixedValue = ARCHETYPES[character.archetype]?.approaches[name] || 0;
     if (fixedValue > 0 && value < fixedValue) return;
-    const nextValue = Math.max(fixedValue, Math.min(2, value));
+    const nextValue = fixedValue > 0 ? fixedValue : Math.max(0, Math.min(2, value));
     const currentValue = Number(approachDraft[name]) || 0;
     if (approachTotal - currentValue + nextValue > 4) return;
     approachDraft = { ...approachDraft, [name]: nextValue };
   }
   function setCharacterApproach(name: string, value: number) {
     const fixedValue = ARCHETYPES[character.archetype]?.approaches[name] || 0;
-    const nextValue = Math.max(fixedValue, Math.min(2, value));
+    const nextValue = fixedValue > 0 ? fixedValue : Math.max(0, Math.min(2, value));
     const currentValue = Number(character.approaches[name]) || 0;
     if (characterApproachTotal - currentValue + nextValue > 4) return;
     character.approaches = { ...character.approaches, [name]: nextValue };
@@ -1567,14 +1580,14 @@
             <small class="muted">Cada generación combina al azar rasgos independientes —piel, ojos, cabello, rostro y complexión— en una sola descripción. La selección de rasgos ocurre internamente.</small>
           {:else if step === 5}
             <h1>Distribuye sus Enfoques</h1>
-            <p>El arquetipo aporta 2 puntos. Distribuye los otros 2 entre los Enfoques restantes. Ningún Enfoque puede superar 2 puntos.</p>
+            <p>Los dos Enfoques del arquetipo quedan fijados en 1 punto. Distribuye los otros 2 entre los otros dos Enfoques, hasta 2 puntos en cada uno.</p>
             {#each APPROACHES as name}
-              <div class="approach-row"><div><strong>{name}</strong><small>{APPROACH_DESCRIPTIONS[name].long}{#if ARCHETYPES[character.archetype]?.approaches[name]} · Punto asignado por el arquetipo.{/if}</small></div><div class="stepper"><button on:click={() => setApproach(name, approachDraft[name] - 1)} disabled={approachDraft[name] <= (ARCHETYPES[character.archetype]?.approaches[name] || 0)}>−</button><b>{approachDraft[name]}</b><button on:click={() => setApproach(name, approachDraft[name] + 1)} disabled={approachDraft[name] >= 2 || approachTotal >= 4}>+</button></div></div>
+              <div class="approach-row"><div><strong>{name}</strong><small>{APPROACH_DESCRIPTIONS[name].long}{#if ARCHETYPES[character.archetype]?.approaches[name]} · Punto asignado por el arquetipo.{/if}</small></div><div class="stepper"><button on:click={() => setApproach(name, approachDraft[name] - 1)} disabled={approachDraft[name] <= (ARCHETYPES[character.archetype]?.approaches[name] || 0)}>−</button><b>{approachDraft[name]}</b><button on:click={() => setApproach(name, approachDraft[name] + 1)} disabled={(ARCHETYPES[character.archetype]?.approaches[name] || 0) > 0 || approachDraft[name] >= 2 || approachTotal >= 4}>+</button></div></div>
             {/each}
             <div class:valid={approachValid} class="total-points">Puntos distribuidos: {approachTotal} / 4</div>
           {:else if step === 6}
             <h1>Completa tus cuatro Rasgos</h1>
-            <p>El arquetipo aporta dos Rasgos fijos. Escoge otros dos de la lista disponible.</p>
+            <p>El arquetipo aporta dos Rasgos fijos. Escoge otros dos de la lista disponible. «Iniciado en lo arcano» es una opción adicional y opcional.</p>
             <div class="selected-list"><strong>Rasgos fijos del arquetipo</strong>{#each character.traits.slice(0, 2) as trait}<div class="selected-item"><span>{traitLabel(trait, selectedGenre)}</span><small>Fijo</small></div>{/each}</div>
             {#if ARCHETYPES[character.archetype]?.traits.includes('Conocedor de...')}<label>{traitLabel('Conocedor de...', selectedGenre)}<input list="mimprov-knowledge-options" value={character.traits.find((trait) => trait.startsWith('Conocedor de '))?.replace('Conocedor de ', '') || ''} on:input={(event) => updateArchetypeKnowledge(event.currentTarget.value)} placeholder="Elige o escribe un conocimiento"></label><datalist id="mimprov-knowledge-options">{#each knowledgeOptions(selectedGenre) as option}<option value={option}></option>{/each}</datalist>{/if}
             <div class="trait-picker">
