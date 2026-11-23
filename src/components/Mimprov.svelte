@@ -756,7 +756,7 @@
         created: true
       };
       approachDraft = { ...character.approaches };
-      playerMagicRecord = { spells: Array.isArray(parsed?.spells) ? parsed.spells : [] };
+      playerMagicRecord = { spells: Array.isArray(parsed?.spells) ? parsed.spells.filter((spell: any) => MAGIC_CATALOG.some((catalog) => catalog.id === spell.id || catalog.name === spell.name)) : [] };
       visibleStates = Array.isArray(parsed?.states) ? parsed.states.filter((state: string) => STATES.some(item => item.name === state)) : [];
       updateCharacter();
       editingCharacter = false;
@@ -987,7 +987,8 @@
             }
           }
           if (role === 'PLAYER') {
-            playerMagicRecord = (await OBR.player.getMetadata())?.[PLAYER_MAGIC_KEY] || { spells: [] };
+            const savedMagic = (await OBR.player.getMetadata())?.[PLAYER_MAGIC_KEY] || { spells: [] };
+             playerMagicRecord = { spells: (savedMagic.spells || []).filter((spell: any) => MAGIC_CATALOG.some((catalog) => catalog.id === spell.id || catalog.name === spell.name)) };
             const syncStates = (metadata: any) => {
               const allStates = metadata?.[STATE_KEY] || {};
               visibleStates = Array.isArray(allStates[$currentPlayerId]) ? allStates[$currentPlayerId].filter((stateName: string) => stateName !== 'Incapacitado' && stateName !== 'Abrumado').map((stateName: string) => stateName === 'Deprimido' ? 'Debilitado' : stateName) : [];
