@@ -1040,7 +1040,7 @@
             playerMagicRecord = (await OBR.player.getMetadata())?.[PLAYER_MAGIC_KEY] || { spells: [] };
             const syncStates = (metadata: any) => {
               const allStates = metadata?.[STATE_KEY] || {};
-              visibleStates = Array.isArray(allStates[$currentPlayerId]) ? allStates[$currentPlayerId].filter((stateName: string) => stateName !== 'Incapacitado' && stateName !== 'Abrumado').map((stateName: string) => stateName === 'Debilitado' ? 'Debilitado' : stateName) : [];
+              visibleStates = Array.isArray(allStates[$currentPlayerId]) ? allStates[$currentPlayerId].filter((stateName: string) => stateName !== 'Incapacitado' && stateName !== 'Abrumado').map((stateName: string) => stateName === 'Deprimido' ? 'Debilitado' : stateName) : [];
               const allOverexertion = metadata?.[OVEREXERTION_KEY] || {};
               visibleEffortCoins = Math.max(0, Math.min(3, Number(allOverexertion[$currentPlayerId] ?? 3) || 0));
               const conflict = metadata?.[CONFLICT_KEY] || {};
@@ -1272,7 +1272,7 @@
   function playerTracker(id: string) {
     if (!gmTracker.players[id]) gmTracker.players[id] = { states: [], risk: 'Ninguno', effortCoins: 3 };
     const tracker = gmTracker.players[id];
-    if (Array.isArray(tracker.states)) tracker.states = tracker.states.map((stateName: string) => stateName === 'Debilitado' ? 'Debilitado' : stateName).filter((stateName: string) => stateName !== 'Abrumado' && stateName !== 'Incapacitado');
+    if (Array.isArray(tracker.states)) tracker.states = tracker.states.map((stateName: string) => stateName === 'Deprimido' ? 'Debilitado' : stateName).filter((stateName: string) => stateName !== 'Abrumado' && stateName !== 'Incapacitado');
     if (!Number.isFinite(Number(tracker.effortCoins))) tracker.effortCoins = Math.max(0, 3 - (Number(tracker.overexertionUsed) || 0));
     tracker.effortCoins = Math.max(0, Math.min(3, Number(tracker.effortCoins)));
     return gmTracker.players[id];
@@ -1674,7 +1674,8 @@
             <section class="card"><h2>Rasgos</h2>{#each character.traits as trait}<div class="trait-line"><strong>{traitLabel(trait, selectedGenre)}</strong><small>{traitLabel(trait.startsWith('Conocedor de ') ? 'Conocedor de...' : trait, selectedGenre)} </small><p>{trait.startsWith('Conocedor de ') ? 'Conocimientos y experiencia en ' + trait.slice('Conocedor de '.length) + '.' : TRAIT_DESCRIPTIONS[trait]?.short || ''}</p></div>{/each}</section>
             <section class="card"><h2>Voluntad</h2><div class="will-value">{character.will}<small> / {character.maxWill}</small></div><div class="will-controls"><button on:click={() => adjustWill(-1)} disabled={character.will <= 0}>−</button><button on:click={() => adjustWill(1)} disabled={character.will >= character.maxWill}>+</button></div><button class="secondary full" on:click={restCharacter}>Descansar</button><p class="muted">Recuperas 2 puntos de Voluntad (sin superar el máximo). El descanso no recupera monedas de esfuerzo. Con 0 Voluntad, siempre tiras 2d6 y conservas el menor, sin importar ventaja o desventaja.</p></section>
             <section class="card extra-info"><h2>Monedas de esfuerzo</h2><div class="will-value">{visibleEffortCoins}<small> / 3 disponibles</small></div><p class="muted">Cada moneda permite añadir 1d6 a la próxima tirada o repetir todos los dados de la última tirada ignorando los Estados o Desventajas que resten dados. Gastarla no genera Estados. Se restablecen a 3 al comenzar cada sesión.</p><button class="secondary full" on:click={() => spendEffort('extra-die')} disabled={visibleEffortCoins <= 0 || !!pendingDiceRoll || effortDiceBonus > 0 || forcedLowRoll}>Gastar moneda: +1d6 a la próxima tirada</button>{#if forcedLowRoll}<p class="muted">Abrumado: añadir +1d6 no modifica la tirada. Puedes gastar una moneda para repetir los 2d6, conservando el menor.</p>{/if}{#if lastRoll}<button class="secondary full" on:click={() => spendEffort('reroll')} disabled={visibleEffortCoins <= 0 || !!pendingDiceRoll}>Gastar moneda: repetir última tirada</button>{/if}</section>
-            <section class="card"><h2>Estados</h2><div class="state-grid">{#each [...STATES, ...(Number(character.will) <= 0 ? [{ name: 'Abrumado', enfoque: 'Todos', detail: 'Con 0 Voluntad, todas las tiradas usan 2d6 y conservan el menor.' }] : [])] as state}<label class="check-row"><input type="checkbox" checked={displayedStates.includes(state.name)} disabled><span><b>{state.name}</b><small>{state.enfoque}: {state.detail}</small></span></label>{/each}</div></section>
+            <section class="card"><h2>Estados</h2><div class="state-grid">{#each STATES as state}<label class="check-row"><input type="checkbox" checked={displayedStates.includes(state.name)} disabled><span><b>{state.name}</b><small>{state.enfoque}: {state.detail}</small></span></label>{/each}</div></section>
+            {#if Number(character.will) <= 0}<section class="card"><h2>Condición: Abrumado</h2><p>Automática por tener 0 Voluntad. Sigues actuando, pero tiras 2d6 y conservas el menor. Desaparece al recuperar al menos 1 punto.</p></section>{/if}
             <section class="card"><h2>Equipo</h2>{#each character.inventory as item}<div class="inventory-line"><input value={equipmentDisplayName(item, selectedGenre)} placeholder="Objeto por definir" on:input={(event) => { item.name = event.currentTarget.value; updateCharacter(); }}><small>{traitLabel(item.trait, selectedGenre)}</small><button class="remove" on:click={() => removeInventoryItem(item.id)}>×</button></div>{/each}<button class="secondary full" on:click={addInventoryItem}>Añadir objeto</button></section>
           </div>
           <p class="sync-note">{OBR.isAvailable ? 'La ficha se sincroniza con Owlbear Rodeo.' : 'Modo de vista previa: la ficha se guarda en este navegador.'}</p>
@@ -1997,7 +1998,7 @@
 
       <section class="card">
         <h2>3. Voluntad</h2>
-        <p>La Voluntad representa la capacidad del personaje para sostenerse frente a la presión.</p>
+        <p>La Voluntad representa la capacidad del personaje para sostenerse frente a la presión. Su máximo es 4. El Narrador determina cuándo un descanso suficiente o una atención médica adecuada permite recuperar 2 puntos; la recuperación no se duplica por combinar ambos ni se repite sin un nuevo periodo de descanso o atención.</p>
         <ul>
           <li>Comienzas con 4 puntos de Voluntad.</li>
           <li>Un éxito crítico recupera 1 punto, sin superar el máximo.</li>
@@ -2016,14 +2017,14 @@
           <li><strong>Confundido — Ingenio:</strong> percepción o pensamiento alterados.</li>
           <li><strong>Abrumado no es un Estado:</strong> es una condición automática al llegar a 0 Voluntad. El personaje sigue actuando, pero tira 2d6 y conserva el menor, incluso con Ventaja o Desventaja. Desaparece al recuperar al menos 1 punto.</li>
         </ul>
-        <p>Descansar no elimina Estados. Cada Estado debe resolverse mediante su propio procedimiento; quitar uno no elimina los demás. Abrumado desaparece automáticamente al recuperar al menos 1 punto de Voluntad.</p>
+        <p>Descansar no elimina Estados. Cada Estado debe resolverse mediante su propio procedimiento; quitar uno no elimina los demás. Abrumado no es un Estado seleccionable: aparece automáticamente al llegar a 0 Voluntad y desaparece al recuperar al menos 1 punto.</p>
       </section>
 
       <section class="card">
         <h2>5. Monedas de esfuerzo</h2>
         <p>Cada personaje recibe 3 monedas de esfuerzo al comienzo de cada sesión. Las monedas no gastadas no se acumulan: al iniciar una nueva sesión, todos vuelven a tener 3.</p>
         <ul>
-          <li>Solo puedes gastar una moneda si la acción que intentas realizar está relacionada con el arquetipo o el concepto de tu personaje. No necesitas explicar ni justificar el gasto.</li>
+          <li>El jugador señala brevemente cómo la acción se relaciona con su Arquetipo o Concepto; el Narrador decide si es pertinente para la ficción. No hace falta una justificación extensa.</li>
           <li>Antes de una tirada, puedes gastar una moneda para añadir 1d6 a la reserva. Si estás Abrumado, esta opción no modifica la tirada: debes respetar los 2d6 y conservar el menor.</li>
           <li>Después de una tirada, puedes gastar una moneda para repetir todos los dados ignorando las penalizaciones de Estados y Desventaja. Debes aceptar el nuevo resultado. Si estás Abrumado, repites 2d6 y conservas el menor.</li>
           <li>Gastar una moneda no genera Estados ni consecuencias automáticas adicionales.</li>
@@ -2034,9 +2035,7 @@
       <section class="card">
         <h2>6. Descanso</h2>
         <p>El Narrador determina cuándo ha transcurrido un periodo suficiente y seguro para descansar o cuándo la atención médica es adecuada. En ese caso recuperas 2 puntos de Voluntad en total, sin superar 4; no se acumulan ambas cosas ni se repite la recuperación sin un nuevo periodo de descanso o atención.</p>
-        <p>Al realizar un descanso:</p>
         <ul>
-          <li>Recuperas 2 puntos de Voluntad, sin superar tu máximo.</li>
           <li>El descanso no recupera monedas de esfuerzo.</li>
           <li>Conservas los Estados que tengas; el descanso no los elimina.</li>
         </ul>
