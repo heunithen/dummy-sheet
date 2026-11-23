@@ -15,10 +15,7 @@
   const REST_REQUEST_CHANNEL = 'com.heunithen.dummysheet-mimprov/rest';
   const DICE_PLUS_SOURCE = 'com.heunithen.dummysheet-mimprov';
   const DELETE_CHARACTER_CHANNEL = 'com.heunithen.dummysheet-mimprov/delete-character';
-  const MAGIC_KEY = 'com.heunithen.dummysheet-mimprov/magic-pacts';
   const PLAYER_MAGIC_KEY = 'com.heunithen.dummysheet-mimprov/player-magic';
-  const MAGIC_SUBMIT_CHANNEL = 'com.heunithen.dummysheet-mimprov/magic-submit';
-  const MAGIC_APPROVED_CHANNEL = 'com.heunithen.dummysheet-mimprov/magic-approved';
   const LINES_VEILS_KEY = 'com.heunithen.dummysheet-mimprov/lines-veils';
   const LINES_VEILS_REQUEST_CHANNEL = 'com.heunithen.dummysheet-mimprov/lines-veils-update';
   const STATES = [
@@ -519,13 +516,8 @@
   let equipmentDraft: string[] = [];
   let editingCharacter = false;
   let activeTab = 'personaje';
-  let magicData: any = { players: {} };
   let playerMagicRecord: any = { spells: [] };
-  let magicEffect = '';
-  let magicPrice = '';
-  let magicMagnitude: 'simple' | 'moderate' | 'extraordinary' = 'simple';
   let selectedMagicSpellId = '';
-  let magicMessage = '';
   let gmTracker: any = { players: {}, conflict: { active: false, danger: 'Bajo', resistance: null } };
   let conflictActive = false;
   let conflictDanger = 'Bajo';
@@ -549,7 +541,7 @@
   let rollHistory: Array<{ id: string; timestamp: number; approach: string; dice: number[]; kept: number; result: string; critical: boolean; notation: string }> = [];
   let rollHistoryKey = '';
   let dicePlusError = '';
-  let pendingDiceRoll: { rollId: string; pool: number; notation: string; approach: string; effortReroll: boolean; conflictActive: boolean; danger: string } | null = null;
+  let pendingDiceRoll: { rollId: string; pool: number; notation: string; approach: string; effortReroll: boolean; conflictActive: boolean; danger: string; spellCost?: number; spellName?: string } | null = null;
 
   $: approachTotal = APPROACHES.reduce((sum, name) => sum + (Number(approachDraft[name]) || 0), 0);
   $: approachValid = approachTotal === 4 && APPROACHES.every(name => {
@@ -559,8 +551,8 @@
   });
   $: myPlayer = $PartyStore.find(p => p.id === $currentPlayerId);
   // El rol llega de forma asíncrona desde Owlbear. Asegura una pestaña válida al cambiar de rol.
-  $: if ($isGM && activeTab !== 'gm' && activeTab !== 'conflicto' && activeTab !== 'reglamento' && activeTab !== 'magia-gm' && activeTab !== 'lineas-velos' && activeTab !== 'pnj') activeTab = 'gm';
-  $: if (!$isGM && (activeTab === 'gm' || activeTab === 'conflicto' || activeTab === 'magia-gm')) activeTab = 'personaje';
+  $: if ($isGM && activeTab !== 'gm' && activeTab !== 'conflicto' && activeTab !== 'reglamento' && activeTab !== 'lineas-velos' && activeTab !== 'pnj') activeTab = 'gm';
+  $: if (!$isGM && (activeTab === 'gm' || activeTab === 'conflicto')) activeTab = 'personaje';
   $: partyMembers = $PartyStore.filter(p => p.role !== 'GM' && getPlayerCharacter(p)?.created === true);
   $: if ($isGM && partyMembers.length && !partyMembers.some(p => p.id === selectedPlayerId)) selectedPlayerId = partyMembers[0].id;
   $: selectedPlayer = partyMembers.find(p => p.id === selectedPlayerId);
@@ -721,50 +713,13 @@
     if (selectedMagicSpellId === spellId) selectedMagicSpellId = '';
     if (OBR.isAvailable) OBR.player.setMetadata({ [PLAYER_MAGIC_KEY]: playerMagicRecord }).catch((error) => console.error('No se pudo actualizar la lista de conjuros', error));
   }
+  function spellDuration(name: string) { const durations: Record<string, string> = {"Ojo del rastro":"Hasta terminar de examinar el lugar.","Visión oculta":"Mientras mantengas la mirada, hasta el final de la escena.","Lectura de vestigios":"Durante unos instantes al examinar el objeto o lugar.","Sentidos compartidos":"Unos minutos o hasta que se interrumpa el vínculo.","Voz distante":"Un único mensaje, al instante.","Lengua universal":"Hasta el final de la escena.","Eco de los ausentes":"Hasta formular tres preguntas o hasta que el eco se retire.","Manto protector":"Hasta amortiguar un peligro inmediato.","Círculo de resguardo":"Hasta el final de la escena o hasta que sea alterado.","Velo de resistencia":"Hasta el final de la escena.","Barrera arcana":"Hasta el final de la escena o hasta que sea quebrada.","Aliento vital":"Hasta recibir ayuda o sufrir un nuevo deterioro.","Manos restauradoras":"Efecto inmediato.","Purificación":"Efecto inmediato.","Restauración profunda":"Efecto inmediato.","Paso ligero":"Durante una maniobra o hasta el final de la escena.","Caída suspendida":"Hasta llegar al suelo.","Salto imposible":"Un único salto.","Umbral distante":"Un minuto.","Lumbre evocada":"Hasta una hora o hasta que se disipe.","Manos invisibles":"Hasta un minuto.","Forma prestada":"Hasta el final de la escena o hasta que se disipe.","Materia mutable":"Hasta el final de la escena; luego recupera su forma original.","Raíces apresadoras":"Hasta liberarse o terminar la escena.","Orden imperceptible":"Una única instrucción.","Dominio elemental":"Hasta el final de la escena, mientras el elemento siga al alcance.","Voluntad sometida":"Hasta el final de la escena; termina antes si el objetivo recibe daño o afronta un peligro inmediato.","Proyectil arcano":"Instantánea.","Estallido elemental":"Instantánea.","Lanza devastadora":"Instantánea.","Tormenta desatada":"Una única descarga.","Imagen fugaz":"Unos segundos.","Rostro ajeno":"Hasta el final de la escena o hasta que se disipe.","Escenario ilusorio":"Hasta el final de la escena o hasta que se disipe.","Familiar espiritual":"Hasta el final de la escena o hasta que sea dispersado.","Compañero salvaje":"Hasta el final de la escena.","Guardián espectral":"Hasta el final de la escena o hasta que sea dispersado."}; return durations[name] || 'Según la descripción del conjuro.'; }
   function magicMagnitudeLabel(magnitude: string | undefined) {
     if (magnitude === 'moderate') return 'Magia moderada (+1 éxito adicional)';
     if (magnitude === 'extraordinary') return 'Magia extraordinaria (+2 éxitos adicionales)';
     return 'Truco simple (sin éxitos adicionales)';
   }
-  function getMyMagicRecord() {
-    return {
-      proposals: magicData?.players?.[$currentPlayerId]?.proposals || [],
-      spells: playerMagicRecord?.spells || []
-    };
-  }
-  async function submitMagicPact() {
-    const effect = magicEffect.trim();
-    const price = magicPrice.trim();
-    if (!effect || !price) { magicMessage = 'Completa ambos campos antes de firmar el pacto.'; return; }
-    if (!OBR.isAvailable || !$currentPlayerId || $isGM) { magicMessage = 'Debes estar dentro de una sala de Owlbear Rodeo como jugador para enviar el pacto.'; return; }
-    const pact = { id: 'pact_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8), effect, price, magnitude: magicMagnitude, status: 'pending', createdAt: Date.now() };
-    try {
-      await OBR.broadcast.sendMessage(MAGIC_SUBMIT_CHANNEL, { playerId: $currentPlayerId, playerName: myPlayer?.name || character.name || 'Jugador', pact }, { destination: 'ALL' });
-      magicEffect = ''; magicPrice = ''; magicMagnitude = 'simple'; magicMessage = 'Pacto firmado y enviado al GM para su revisión.';
-    } catch (error) { console.error('No se pudo enviar el pacto mágico', error); magicMessage = 'No se pudo enviar el pacto. Comprueba tu conexión con Owlbear Rodeo.'; }
-  }
-  async function updateMagicPact(playerId: string, pactId: string, decision: 'accepted' | 'rejected') {
-    if (!$isGM || !OBR.isAvailable) return;
-    const next = clone(magicData || { players: {} }); if (!next.players) next.players = {};
-    const record = next.players[playerId] || { proposals: [] };
-    const pact = (record.proposals || []).find((item) => item.id === pactId);
-    if (!pact || pact.status !== 'pending') return;
-    if (decision === 'accepted') {
-      try {
-        await OBR.broadcast.sendMessage(MAGIC_APPROVED_CHANNEL, {
-          playerId, pact: { ...pact, status: 'accepted', reviewedAt: Date.now() }
-        }, { destination: 'ALL' });
-      } catch (error) {
-        console.error('No se pudo entregar el conjuro aprobado al jugador', error);
-        return;
-      }
-    }
-    record.proposals = (record.proposals || []).filter((item) => item.id !== pactId);
-    if (record.proposals.length) next.players[playerId] = record;
-    else delete next.players[playerId];
-    try { await OBR.room.setMetadata({ [MAGIC_KEY]: next }); magicData = next; }
-    catch (error) { console.error('No se pudo retirar la propuesta revisada', error); }
-  }
+
 
   function exportCharacter() {
     const data = JSON.stringify({ format: 'MIMPROV-character', version: 2, character, spells: playerMagicRecord?.spells || [], states: visibleStates || [] }, null, 2);
@@ -862,13 +817,13 @@
     });
   }
 
-  async function sendDiceRoll(notation: string, pool: number, approach: string, effortReroll = false, retryNotation = notation, retryPool = pool) {
+  async function sendDiceRoll(notation: string, pool: number, approach: string, effortReroll = false, retryNotation = notation, retryPool = pool, spellCost = 0, spellName = '') {
     if (!OBR.isAvailable || !loaded || pendingDiceRoll) return;
     dicePlusError = '';
     try {
       const rollId = `mimprov_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
       pendingDiceRoll = {
-        rollId, pool, notation, approach, effortReroll, retryNotation, retryPool,
+        rollId, pool, notation, approach, effortReroll, retryNotation, retryPool, spellCost, spellName,
         conflictActive, danger: conflictDanger
       };
       lastRoll = { dice: [], kept: 0, pool, result: effortReroll ? 'Repitiendo todos los dados…' : 'Tirando en Dice+…', critical: false, notation };
@@ -909,14 +864,9 @@
       dicePlusError = `No tienes suficiente Voluntad para lanzar ${selectedMagicSpell.name || 'este conjuro'} (necesitas ${spellCost}).`;
       return;
     }
-    if (selectedMagicSpell && spellCost > 0) {
-      character.will = Math.max(0, Number(character.will || 0) - spellCost);
-      updateCharacter();
-      dicePlusError = `Has gastado ${spellCost} Voluntad para lanzar ${selectedMagicSpell.name || 'el conjuro'}.`;
-    }
     const retryPool = selectedApproachScore + selectedTraitBonus + effortDiceBonus + (rollModifier === 'advantage' ? 1 : 0);
     const retryNotation = forcedLowRoll ? '2d6kl1' : retryPool <= 0 ? '2d6kl1' : `${retryPool}d6kh1`;
-    await sendDiceRoll(diceNotation, dicePool, selectedApproach, false, retryNotation, retryPool);
+    await sendDiceRoll(diceNotation, dicePool, selectedApproach, false, retryNotation, retryPool, selectedMagicSpell ? spellCost : 0, selectedMagicSpell?.name || 'el conjuro');
     effortDiceBonus = 0;
   }
 
@@ -972,6 +922,7 @@
       retryNotation: roll.retryNotation, retryPool: roll.retryPool
     };
     recordRoll(roll, dice, kept, finalResult, critical);
+    if (roll.spellCost > 0) { character.will = Math.max(0, Number(character.will || 0) - roll.spellCost); updateCharacter(); dicePlusError = `Has gastado ${roll.spellCost} Voluntad para lanzar ${roll.spellName || 'el conjuro'}.`; }
     pendingDiceRoll = null;
     if (critical) {
       adjustWill(1);
@@ -1066,34 +1017,6 @@
               console.error('No se pudo registrar la moneda de esfuerzo', error);
             }
           });
-          OBR.broadcast.onMessage(MAGIC_SUBMIT_CHANNEL, async (event) => {
-            if (role !== 'GM') return;
-            const data = event.data as any;
-            if (!data?.playerId || !data?.pact?.id || !data.pact.effect?.trim() || !data.pact.price?.trim()) return;
-            try {
-              const party = await OBR.party.getPlayers();
-              const sender = party.find((p: any) => p.connectionId === event.connectionId);
-              if (!sender || sender.role !== 'PLAYER' || sender.id !== data.playerId) return;
-              const current = (await OBR.room.getMetadata())?.[MAGIC_KEY] || { players: {} };
-              const next = clone(current); if (!next.players) next.players = {};
-              const record = next.players[sender.id] || { proposals: [], spells: [] };
-              record.proposals = Array.isArray(record.proposals) ? record.proposals : [];
-              if (record.proposals.some((item) => item.id === data.pact.id)) return;
-              record.proposals = [...record.proposals, { id: String(data.pact.id), effect: String(data.pact.effect).trim(), price: String(data.pact.price).trim(), status: 'pending', createdAt: Number(data.pact.createdAt) || Date.now(), playerName: sender.name || data.playerName || 'Jugador' }];
-              next.players[sender.id] = record; await OBR.room.setMetadata({ [MAGIC_KEY]: next }); magicData = next;
-            } catch (error) { console.error('No se pudo registrar la propuesta de pacto', error); }
-          });
-          OBR.broadcast.onMessage(MAGIC_APPROVED_CHANNEL, async (event) => {
-            const data = event.data as any;
-            if (role !== 'PLAYER' || data?.playerId !== $currentPlayerId || !data?.pact?.id) return;
-            const spells = Array.isArray(playerMagicRecord?.spells) ? [...playerMagicRecord.spells] : [];
-            if (!spells.some((item) => item.id === data.pact.id)) spells.push(data.pact);
-            playerMagicRecord = { spells };
-            try { await OBR.player.setMetadata({ [PLAYER_MAGIC_KEY]: playerMagicRecord }); }
-            catch (error) { console.error('No se pudo guardar el conjuro en la ficha del jugador', error); }
-          });
-          OBR.room.onMetadataChange((metadata) => { magicData = metadata?.[MAGIC_KEY] || { players: {} }; });
-          OBR.room.getMetadata().then((metadata) => { magicData = metadata?.[MAGIC_KEY] || { players: {} }; }).catch((error) => console.error('No se pudieron cargar los pactos mágicos', error));
           OBR.broadcast.onMessage(REST_REQUEST_CHANNEL, async (event) => {
             if (role !== 'GM') return;
             const data = event.data as any;
@@ -1134,8 +1057,6 @@
               localStorage.removeItem('mimprov-character-v1');
               await OBR.player.setMetadata({ [DATA_KEY]: clone(character), [PLAYER_MAGIC_KEY]: { spells: [] } });
               playerMagicRecord = { spells: [] };
-              magicData = { ...magicData, players: { ...(magicData.players || {}) } };
-              delete magicData.players[$currentPlayerId];
             } catch (error) {
               console.error('No se pudo borrar la ficha del personaje', error);
             }
@@ -1418,10 +1339,6 @@
       const tracker = playerTracker(player.id);
       tracker.states = [];
       tracker.effortCoins = 3;
-      const currentMagic = clone(magicData || { players: {} });
-      if (currentMagic.players) delete currentMagic.players[player.id];
-      await OBR.room.setMetadata({ [MAGIC_KEY]: currentMagic });
-      magicData = currentMagic;
       saveGmTracker();
     } catch (error) {
       console.error('No se pudo solicitar el borrado de la ficha', error);
@@ -1431,7 +1348,7 @@
 
   async function requestOwnCharacterDeletion() {
     if (!character.created) return;
-    if (!confirm(`¿Eliminar tu personaje ${character.name || ''}? Se borrarán también tus propuestas y conjuros.`)) return;
+    if (!confirm(`¿Eliminar tu personaje ${character.name || ''}? También se eliminarán los conjuros guardados en tu ficha.`)) return;
     if (!OBR.isAvailable || !$currentPlayerId) {
       character = blankCharacter();
       localStorage.removeItem('mimprov-character-v1');
@@ -1536,7 +1453,6 @@
       <button class:active={activeTab === 'gm'} on:click={() => { activeTab = 'gm'; }}>Personajes</button>
       <button class:active={activeTab === 'conflicto'} on:click={() => { activeTab = 'conflicto'; }}>Conflicto</button>
       <button class:active={activeTab === 'reglamento'} on:click={() => { activeTab = 'reglamento'; }}>Reglamento</button>
-      <button class:active={activeTab === 'magia-gm'} on:click={() => { activeTab = 'magia-gm'; }}>Magia</button>
       <button class:active={activeTab === 'lineas-velos'} on:click={() => { activeTab = 'lineas-velos'; }}>Líneas y velos</button>
       <button class:active={activeTab === 'pnj'} on:click={() => { activeTab = 'pnj'; }}>PNJ</button>
     </nav>
@@ -1844,51 +1760,25 @@
       {/if}
     </main>
   {:else if !$isGM && activeTab === 'magia'}
-    <main class="content magic-content"><div class="eyebrow">PACTOS Y CONDICIONES</div><h1>Magia</h1>
-      <p class="magic-intro">Crea poderes mediante pactos. Describe el efecto, elige su magnitud y acuerda con el GM un coste proporcional. La magia se resuelve con una tirada normal.</p>
-      <section class="card"><h2>Catálogo de conjuros</h2>
-        <p class="muted">Elige directamente los conjuros de ejemplo que quieras incorporar a tu personaje. No necesitan aprobación del GM. El coste se paga en Voluntad al realizar la tirada.</p>
+    <main class="content magic-content"><div class="eyebrow">CATÁLOGO DE CONJUROS</div><h1>Magia</h1>
+      <p class="magic-intro">Selecciona los conjuros que tu personaje conoce. Todos requieren una tirada normal. El coste de Voluntad se descuenta después de resolverla, tanto si tiene éxito como si fracasa.</p>
+      <section class="card"><h2>Catálogo de conjuros</h2><p class="muted">Puedes añadir directamente cualquier conjuro del catálogo a tu personaje.</p>
         {#each [...new Set(MAGIC_CATALOG.map((spell) => spell.category))] as category}
           <div class="magic-catalog-group"><h3>{category}</h3>
             {#each MAGIC_CATALOG.filter((spell) => spell.category === category) as spell}
-              <article class="pact-item catalog-spell"><h3>{spell.name}</h3><p>{spell.effect}</p>
-                <p class="muted">{magicMagnitudeLabel(spell.magnitude)} · Coste: {spell.willCost} {spell.willCost === 1 ? 'punto' : 'puntos'} de Voluntad</p>
-                {#if playerMagicRecord?.spells?.some((item) => item.id === spell.id)}<button class="secondary" disabled>Ya está en tu lista</button>
-                {:else}<button on:click={() => addCatalogSpell(spell)}>Añadir a mi personaje</button>{/if}
+              <article class="catalog-spell"><h3>{spell.name}</h3><p>{spell.effect}</p><p class="muted">{magicMagnitudeLabel(spell.magnitude)} · Coste: {spell.willCost} Voluntad</p><p class="muted"><strong>Duración:</strong> {spellDuration(spell.name)}</p>
+                {#if playerMagicRecord?.spells?.some((item) => item.id === spell.id)}<button class="secondary" disabled>Ya está en tu lista</button>{:else}<button on:click={() => addCatalogSpell(spell)}>Añadir a mi personaje</button>{/if}
               </article>
             {/each}
           </div>
         {/each}
       </section>
       {#if (playerMagicRecord?.spells || []).some((spell) => spell.source === 'catalog')}
-        <section class="card"><h2>Mis conjuros de catálogo</h2>
-          {#each playerMagicRecord.spells.filter((spell) => spell.source === 'catalog') as spell}
-            <article class="pact-item approved-spell"><h3>{spell.name}</h3><p>{spell.effect}</p><p class="muted">{magicMagnitudeLabel(spell.magnitude)} · Coste: {spell.willCost} Voluntad</p><button class="secondary" on:click={() => removeCatalogSpell(spell.id)}>Quitar de mi lista</button></article>
-          {/each}
-        </section>
+        <section class="card"><h2>Mis conjuros</h2>{#each playerMagicRecord.spells.filter((spell) => spell.source === 'catalog') as spell}
+          <article class="catalog-spell"><h3>{spell.name}</h3><p>{spell.effect}</p><p class="muted">{magicMagnitudeLabel(spell.magnitude)} · Coste: {spell.willCost} Voluntad</p><p class="muted"><strong>Duración:</strong> {spellDuration(spell.name)}</p><button class="secondary" on:click={() => removeCatalogSpell(spell.id)}>Quitar de mi lista</button></article>
+        {/each}</section>
       {/if}
-      <section class="card"><h2>¿Qué quieres conseguir?</h2><p>Describe el efecto, su objetivo, alcance y duración. Puedes crear efectos para percibir, crear, alterar, controlar, proteger, comunicar, dañar o restaurar. Son ideas orientativas, no una lista cerrada.</p><textarea bind:value={magicEffect} rows="5" maxlength="4000" placeholder="Describe el efecto que quieres conseguir..."></textarea><small class="field-hint">{magicEffect.length} / 4000 caracteres</small></section>
-      <section class="card"><h2>Magnitud del conjuro</h2><label>Elige la magnitud propuesta<select bind:value={magicMagnitude}><option value="simple">Truco simple — sin éxitos adicionales</option><option value="moderate">Magia moderada — +1 éxito si la tirada tiene éxito</option><option value="extraordinary">Magia extraordinaria — +2 éxitos si la tirada tiene éxito</option></select></label><p class="muted">Los éxitos adicionales solo cuentan para reducir la Resistencia de un conflicto. No cambian el resultado narrativo ni cuentan para críticos.</p></section>
-      <section class="card"><h2>¿Qué das a cambio?</h2><p>El coste debe ser proporcional al poder. Puede consistir en perder Voluntad, recibir Mermado, Debilitado, Ansioso o Confundido, o ambas cosas. Abrumado aparece únicamente al llegar a 0 Voluntad. El precio puede pagarse una sola vez al establecer el pacto o cada vez que utilizas el poder.</p><textarea bind:value={magicPrice} rows="5" maxlength="4000" placeholder="Describe el coste y cuándo se paga..."></textarea><small class="field-hint">{magicPrice.length} / 4000 caracteres</small><button class="full" on:click={submitMagicPact} disabled={!magicEffect.trim() || !magicPrice.trim()}>Firmar pacto</button>{#if magicMessage}<p class="magic-message">{magicMessage}</p>{/if}</section>
-      {#if getMyMagicRecord().proposals?.some((pact) => pact.status !== 'accepted')}<section class="card"><h2>Mis propuestas</h2>{#each [...getMyMagicRecord().proposals].filter((pact) => pact.status !== 'accepted').sort((a, b) => b.createdAt - a.createdAt) as pact}<article class="pact-item"><div class="pact-status" class:pending={pact.status === 'pending'} class:rejected={pact.status === 'rejected'}>{pact.status === 'pending' ? 'Pendiente de revisión' : 'Rechazado'}</div><h3>Efecto</h3><p>{pact.effect}</p><h3>Magnitud</h3><p>{magicMagnitudeLabel(pact.magnitude)}</p><h3>Coste</h3><p>{pact.price}</p></article>{/each}</section>{/if}
-      {#if getMyMagicRecord().spells?.length}<section class="card"><h2>Mis conjuros aprobados</h2>{#each getMyMagicRecord().spells as pact}<article class="pact-item approved-spell"><div class="pact-status accepted">Pacto aprobado</div><h3>Efecto</h3><p>{pact.effect}</p><h3>Magnitud</h3><p>{magicMagnitudeLabel(pact.magnitude)}</p><h3>Precio</h3><p>{pact.price}</p></article>{/each}</section>{/if}
-    </main>
-  {:else if $isGM && activeTab === 'magia-gm'}
-    <main class="content magic-content"><div class="eyebrow">REVISIÓN DE PACTOS</div><h1>Magia</h1>
-      <p class="magic-intro">Revisa el efecto, la magnitud y que el coste sea proporcional. La magia se resuelve con una tirada normal; los éxitos adicionales solo cuentan para reducir la Resistencia de un conflicto y no cambian el resultado narrativo ni cuentan para críticos.</p>
-      {#each Object.entries(magicData?.players || {}) as [playerId, record]}
-        {#each (record.proposals || []).filter((pact) => pact.status === 'pending') as pact}
-          <section class="card pact-review"><div class="eyebrow">PROPUESTA DE {pact.playerName || 'JUGADOR'}</div>
-            <h2>¿Qué quiere conseguir?</h2><p class="pact-text">{pact.effect}</p>
-            <h2>Magnitud</h2><p>{magicMagnitudeLabel(pact.magnitude)}</p>
-            <h2>¿Qué da a cambio?</h2><p class="pact-text">{pact.price}</p>
-            <div class="pact-actions"><button on:click={() => updateMagicPact(playerId, pact.id, 'accepted')}>Aceptar pacto</button><button class="secondary" on:click={() => updateMagicPact(playerId, pact.id, 'rejected')}>Rechazar</button></div>
-          </section>
-        {/each}
-      {/each}
-      {#if !Object.values(magicData?.players || {}).some((record) => (record.proposals || []).some((pact) => pact.status === 'pending'))}
-        <section class="card"><p>No hay pactos pendientes de revisión.</p></section>
-      {/if}
+      <section class="card"><h2>Resolver la magia</h2><p>Todos los conjuros requieren una tirada normal. Si la tirada tiene éxito, los éxitos adicionales amplían el efecto descrito; no se convierten en resultados de 6, no reducen Resistencia ni generan críticos.</p><p>Primero se resuelve la tirada y después se descuenta el coste de Voluntad. Debes tener Voluntad suficiente al comenzar el lanzamiento. Si fracasa, se aplica también la pérdida de Voluntad correspondiente al fracaso.</p><p>La resistencia a los efectos de control mental se resuelve narrativamente según el resultado de la tirada y la situación, sin tirada opuesta independiente. Los conjuros no requieren concentración y puedes mantener varios simultáneamente.</p></section>
     </main>
   {:else if !$isGM && activeTab === 'notas'}
     <main class="content notes-content">
@@ -2058,9 +1948,10 @@
       </section>
 
       <section class="card">
-        <h2>8. Magia y pactos</h2>
-        <p>La magia se resuelve mediante una tirada normal. Truco simple: sin éxitos adicionales; magia moderada: +1 éxito adicional; magia extraordinaria: +2 éxitos adicionales. Estos éxitos solo se suman si la tirada tiene éxito y únicamente cuentan para reducir la Resistencia de un conflicto. No cambian el resultado narrativo ni cuentan para críticos.</p>
-        <p>El coste debe ser proporcional al poder y puede consistir en perder Voluntad, recibir Mermado, Debilitado, Ansioso o Confundido, o ambas cosas. Abrumado aparece al llegar a 0 Voluntad. El precio puede pagarse una sola vez al establecer el pacto o cada vez que se utiliza el poder.</p>
+        <h2>8. Magia</h2>
+        <p>Todos los conjuros requieren una tirada normal. Truco simple: sin éxitos adicionales; magia moderada: +1 éxito adicional; magia extraordinaria: +2 éxitos adicionales. Los éxitos adicionales solo amplían el efecto del conjuro si la tirada tiene éxito; no cuentan como resultados de 6, no reducen Resistencia ni generan críticos.</p>
+        <p>El personaje debe tener Voluntad suficiente al comenzar el lanzamiento. Primero se resuelve la tirada y después se descuenta el coste, tanto si tiene éxito como si fracasa. Si fracasa, también se aplica la pérdida de Voluntad correspondiente.</p>
+        <p>La resistencia a los efectos de control mental se resuelve narrativamente según la tirada y la situación, sin una tirada opuesta independiente. Los conjuros no requieren concentración y pueden mantenerse varios simultáneamente. Sus duraciones se indican en el catálogo.</p>
       </section>
       <section class="card">
         <h2>9. Dirección de juego</h2>
