@@ -23,7 +23,7 @@
   const LINES_VEILS_REQUEST_CHANNEL = 'com.heunithen.dummysheet-mimprov/lines-veils-update';
   const STATES = [
     { name: 'Mermado', enfoque: 'Instinto', detail: 'Lesión o limitación física.' },
-    { name: 'Deprimido', enfoque: 'Tenacidad', detail: 'Enfermedad, intoxicación o debilidad.' },
+    { name: 'Debilitado', enfoque: 'Tenacidad', detail: 'Enfermedad, intoxicación o debilidad física.' },
     { name: 'Ansioso', enfoque: 'Disciplina', detail: 'Miedo, terror o intimidación.' },
     { name: 'Confundido', enfoque: 'Ingenio', detail: 'Percepción o pensamiento alterados.' },
   ];
@@ -336,7 +336,7 @@
   const TRAITS = [
     'Atlético', 'Conocedor de...', 'Espadachín', 'Investigador', 'Furtivo',
     'Iniciado en lo arcano', 'Intimidante', 'Liderazgo', 'Maestro Chasquilla', 'Observador',
-    'Peleador', 'Persuasivo', 'Sanador', 'Superviviente', 'Tirador'
+    'Peleador', 'Persuasivo', 'Sanador', 'Superviviente', 'Tirador', 'Personalizado'
   ];
   const GENRE_KEY = 'com.heunithen.dummysheet-mimprov/genre';
   const SESSION_KEY = 'com.heunithen.dummysheet-mimprov/session';
@@ -464,13 +464,13 @@
   type Item = { id: number; name: string; trait: string };
   type Character = {
     name: string; archetype: string; concept: string; age: string; appearance: string; experience: string; notes: string; portrait?: string;
-    approaches: Record<string, number>; traits: string[]; inventory: Item[];
+    approaches: Record<string, number>; traits: string[]; inventory: Item[]; customTraits?: Record<string, string>;
     will: number; maxWill: number; created: boolean;
   };
   const blankCharacter = (): Character => ({
     name: '', archetype: '', concept: '', age: '', appearance: '', experience: '', notes: '', portrait: '',
     approaches: { Tenacidad: 0, Disciplina: 0, Instinto: 0, Ingenio: 0 },
-    traits: [], inventory: [], will: 4, maxWill: 4, created: false
+    traits: [], inventory: [], customTraits: {}, will: 4, maxWill: 4, created: false
   });
 
   function normalizeApproaches(value: any): Record<string, number> {
@@ -515,6 +515,7 @@
   let approachDraft: Record<string, number> = { Tenacidad: 0, Disciplina: 0, Instinto: 0, Ingenio: 0 };
   let traitDraft = '';
   let customTraitField = '';
+  let customTraitDescription = '';
   let equipmentDraft: string[] = [];
   let editingCharacter = false;
   let activeTab = 'personaje';
@@ -565,8 +566,10 @@
   $: selectedPlayer = partyMembers.find(p => p.id === selectedPlayerId);
   $: selectedCharacter = selectedPlayer?.metadata?.[DATA_KEY] as Character;
   $: createdCharacterCount = partyMembers.filter(p => getPlayerCharacter(p)?.created).length;
-  $: initialConflictResistance = createdCharacterCount * 2;
-  $: if ($isGM && gmTracker.conflict?.active && partyMembers.length > 0 && partyMembers.every((player) => (Number(getPlayerCharacter(player)?.will) || 0) <= 0)) resolveConflict('defeat');
+  $: conflictParticipantIds = Array.isArray(gmTracker.conflict?.participantIds) ? gmTracker.conflict.participantIds : partyMembers.map(player => player.id);
+  $: conflictParticipants = partyMembers.filter(player => conflictParticipantIds.includes(player.id));
+  $: initialConflictResistance = conflictParticipants.length * 2;
+  $: if ($isGM && gmTracker.conflict?.active && conflictParticipants.length > 0 && conflictParticipants.every((player) => (Number(getPlayerCharacter(player)?.will) || 0) <= 0)) resolveConflict('defeat');
 
 
   function traitLabel(trait: string, genre: string = selectedGenre): string {
@@ -1037,11 +1040,11 @@
             playerMagicRecord = (await OBR.player.getMetadata())?.[PLAYER_MAGIC_KEY] || { spells: [] };
             const syncStates = (metadata: any) => {
               const allStates = metadata?.[STATE_KEY] || {};
-              visibleStates = Array.isArray(allStates[$currentPlayerId]) ? allStates[$currentPlayerId].filter((stateName: string) => stateName !== 'Incapacitado' && stateName !== 'Abrumado') : [];
+              visibleStates = Array.isArray(allStates[$currentPlayerId]) ? allStates[$currentPlayerId].filter((stateName: string) => stateName !== 'Incapacitado' && stateName !== 'Abrumado').map((stateName: string) => stateName === 'Debilitado' ? 'Debilitado' : stateName) : [];
               const allOverexertion = metadata?.[OVEREXERTION_KEY] || {};
               visibleEffortCoins = Math.max(0, Math.min(3, Number(allOverexertion[$currentPlayerId] ?? 3) || 0));
               const conflict = metadata?.[CONFLICT_KEY] || {};
-              conflictActive = conflict.active === true;
+              conflictActive = conflict.active === true && (!Array.isArray(conflict.participantIds) || conflict.participantIds.includes($currentPlayerId));
               conflictDanger = ['Bajo', 'Medio', 'Alto'].includes(conflict.danger) ? conflict.danger : 'Bajo';
             };
             syncStates(await OBR.room.getMetadata());
@@ -1269,6 +1272,7 @@
   function playerTracker(id: string) {
     if (!gmTracker.players[id]) gmTracker.players[id] = { states: [], risk: 'Ninguno', effortCoins: 3 };
     const tracker = gmTracker.players[id];
+    if (Array.isArray(tracker.states)) tracker.states = tracker.states.map((stateName: string) => stateName === 'Debilitado' ? 'Debilitado' : stateName).filter((stateName: string) => stateName !== 'Abrumado' && stateName !== 'Incapacitado');
     if (!Number.isFinite(Number(tracker.effortCoins))) tracker.effortCoins = Math.max(0, 3 - (Number(tracker.overexertionUsed) || 0));
     tracker.effortCoins = Math.max(0, Math.min(3, Number(tracker.effortCoins)));
     return gmTracker.players[id];
@@ -1334,17 +1338,26 @@
     updateCharacter();
   }
   function addTrait() {
-    const trait = traitDraft === 'Conocedor de...' && customTraitField.trim() ? 'Conocedor de ' + customTraitField.trim() : traitDraft;
+    const trait = traitDraft === 'Conocedor de...' && customTraitField.trim()
+      ? 'Conocedor de ' + customTraitField.trim()
+      : traitDraft === 'Personalizado' ? customTraitField.trim() : traitDraft;
     if (!trait || character.traits.length >= 4 || character.traits.includes(trait)) return;
+    if (traitDraft === 'Personalizado') {
+      if (!customTraitDescription.trim()) return;
+      character.customTraits = { ...(character.customTraits || {}), [trait]: customTraitDescription.trim() };
+    }
     character.traits = [...character.traits, trait];
-    const equipment = equipmentForTrait(trait);
+    const equipment = traitDraft === 'Personalizado'
+      ? ['Objeto o herramienta 1', 'Objeto o herramienta 2', 'Objeto o herramienta 3']
+      : equipmentForTrait(trait);
     equipment.forEach((name, i) => character.inventory.push({ id: Date.now() + i + character.inventory.length, name, trait }));
-    traitDraft = ''; customTraitField = ''; updateCharacter();
+    traitDraft = ''; customTraitField = ''; customTraitDescription = ''; updateCharacter();
   }
   function removeTrait(trait: string) {
     if (isFixedArchetypeTrait(trait)) return;
     character.traits = character.traits.filter(t => t !== trait);
     character.inventory = character.inventory.filter(i => i.trait !== trait);
+    if (character.customTraits) { delete character.customTraits[trait]; }
     updateCharacter();
   }
   function addInventoryItem() {
@@ -1364,6 +1377,7 @@
   }
   function adjustWill(delta: number) { character.will = Math.max(0, Math.min(character.maxWill, character.will + delta)); updateCharacter(); }
   async function restCharacter() {
+    if (!confirm('¿El Narrador ha confirmado que hubo un descanso suficiente o atención médica adecuada?')) return;
     try {
       if (OBR.isAvailable) {
         await OBR.broadcast.sendMessage(REST_REQUEST_CHANNEL, {
@@ -1443,7 +1457,7 @@
     if (outcome === 'decisive' || resistance <= 0) {
       conflict.result = 'Victoria decisiva: la Resistencia llegó a 0.';
     } else {
-      const remainingWill = partyMembers.reduce((total, player) => {
+      const remainingWill = conflictParticipants.reduce((total, player) => {
         const will = Number(getPlayerCharacter(player)?.will) || 0;
         return total + Math.max(0, will);
       }, 0);
@@ -1458,9 +1472,21 @@
     saveGmTracker();
   }
 
+  function setConflictParticipant(id: string, included: boolean) {
+    if (!gmTracker.conflict) gmTracker.conflict = { active: false, danger: 'Bajo', resistance: null };
+    if (gmTracker.conflict.active) return;
+    const ids = Array.isArray(gmTracker.conflict.participantIds) ? [...gmTracker.conflict.participantIds] : partyMembers.map(player => player.id);
+    gmTracker.conflict.participantIds = included ? [...new Set([...ids, id])] : ids.filter(playerId => playerId !== id);
+    gmTracker.conflict.resistance = null;
+    saveGmTracker();
+  }
+
   function setConflictActive(active: boolean) {
     if (!gmTracker.conflict) gmTracker.conflict = { active: false, danger: 'Bajo', resistance: null };
     if (active) {
+      if (!Array.isArray(gmTracker.conflict.participantIds)) gmTracker.conflict.participantIds = partyMembers.map(player => player.id);
+      if (!gmTracker.conflict.participantIds.length) { alert('Selecciona al menos un personaje participante.'); return; }
+      gmTracker.conflict.resistance = gmTracker.conflict.resistance ?? initialConflictResistance;
       gmTracker.conflict.active = true;
       gmTracker.conflict.result = '';
       saveGmTracker();
@@ -1592,10 +1618,10 @@
             {#if ARCHETYPES[character.archetype]?.traits.includes('Conocedor de...')}<label>{traitLabel('Conocedor de...', selectedGenre)}<input list="mimprov-knowledge-options" value={character.traits.find((trait) => trait.startsWith('Conocedor de '))?.replace('Conocedor de ', '') || ''} on:input={(event) => updateArchetypeKnowledge(event.currentTarget.value)} placeholder="Elige o escribe un conocimiento"></label><datalist id="mimprov-knowledge-options">{#each knowledgeOptions(selectedGenre) as option}<option value={option}></option>{/each}</datalist>{/if}
             <div class="trait-picker">
               <select bind:value={traitDraft}><option value="">Seleccionar Rasgo...</option>{#each TRAITS as trait}<option value={trait} disabled={character.traits.includes(trait) || character.traits.length >= 4}>{traitLabel(trait, selectedGenre)}</option>{/each}</select>
-              {#if traitDraft === 'Conocedor de...'}<input bind:value={customTraitField} list="mimprov-knowledge-options" placeholder="¿Conocedor de qué?"><datalist id="mimprov-knowledge-options">{#each knowledgeOptions(selectedGenre) as option}<option value={option}></option>{/each}</datalist>{/if}
-              <button on:click={addTrait} disabled={!traitDraft || (traitDraft === 'Conocedor de...' && !customTraitField.trim())}>Añadir</button>
+              {#if traitDraft === 'Conocedor de...'}<input bind:value={customTraitField} list="mimprov-knowledge-options" placeholder="¿Conocedor de qué?"><datalist id="mimprov-knowledge-options">{#each knowledgeOptions(selectedGenre) as option}<option value={option}></option>{/each}</datalist>{:else if traitDraft === 'Personalizado'}<input bind:value={customTraitField} placeholder="Nombre del Rasgo"><textarea bind:value={customTraitDescription} rows="2" placeholder="Describe qué representa y cuándo se aplica."></textarea>{/if}
+              <button on:click={addTrait} disabled={!traitDraft || (traitDraft === 'Conocedor de...' && !customTraitField.trim()) || (traitDraft === 'Personalizado' && (!customTraitField.trim() || !customTraitDescription.trim()))}>Añadir</button>
             </div>
-            <div class="selected-list">{#each character.traits as trait}<div class="selected-item trait-description"><div><strong>{traitLabel(trait, selectedGenre)}</strong><small>{traitLabel(trait.startsWith('Conocedor de ') ? 'Conocedor de...' : trait, selectedGenre)} </small><p>{trait.startsWith('Conocedor de ') ? 'Posees conocimientos y experiencia en ' + trait.slice('Conocedor de '.length) + '. Puedes reconocer elementos propios de esa materia, comprender información especializada, recordar procedimientos y resolver problemas relacionados con ese ámbito.' : TRAIT_DESCRIPTIONS[trait]?.long || ''}</p></div>{#if isFixedArchetypeTrait(trait)}<small>Fijo</small>{:else}<button class="remove" on:click={() => removeTrait(trait)}>Quitar</button>{/if}</div>{/each}</div>
+            <div class="selected-list">{#each character.traits as trait}<div class="selected-item trait-description"><div><strong>{traitLabel(trait, selectedGenre)}</strong><small>{traitLabel(trait.startsWith('Conocedor de ') ? 'Conocedor de...' : trait, selectedGenre)} </small><p>{trait.startsWith('Conocedor de ') ? 'Posees conocimientos y experiencia en ' + trait.slice('Conocedor de '.length) + '. Puedes reconocer elementos propios de esa materia, comprender información especializada, recordar procedimientos y resolver problemas relacionados con ese ámbito.' : character.customTraits?.[trait] || TRAIT_DESCRIPTIONS[trait]?.long || 'Rasgo personalizado acordado con el Narrador.'}</p></div>{#if isFixedArchetypeTrait(trait)}<small>Fijo</small>{:else}<button class="remove" on:click={() => removeTrait(trait)}>Quitar</button>{/if}</div>{/each}</div>
             <div class="total-points" class:valid={character.traits.length === 4}>Rasgos seleccionados: {character.traits.length} / 4</div>
           {:else if step === 7}
             <h1>Prepara su equipo</h1>
@@ -1647,7 +1673,7 @@
             <section class="card"><h2>Enfoques</h2>{#each APPROACHES as name}<div class="approach-row compact"><div><strong>{name}</strong><small>{APPROACH_DESCRIPTIONS[name].short}</small></div><span class="score">{character.approaches[name]}</span></div>{/each}</section>
             <section class="card"><h2>Rasgos</h2>{#each character.traits as trait}<div class="trait-line"><strong>{traitLabel(trait, selectedGenre)}</strong><small>{traitLabel(trait.startsWith('Conocedor de ') ? 'Conocedor de...' : trait, selectedGenre)} </small><p>{trait.startsWith('Conocedor de ') ? 'Conocimientos y experiencia en ' + trait.slice('Conocedor de '.length) + '.' : TRAIT_DESCRIPTIONS[trait]?.short || ''}</p></div>{/each}</section>
             <section class="card"><h2>Voluntad</h2><div class="will-value">{character.will}<small> / {character.maxWill}</small></div><div class="will-controls"><button on:click={() => adjustWill(-1)} disabled={character.will <= 0}>−</button><button on:click={() => adjustWill(1)} disabled={character.will >= character.maxWill}>+</button></div><button class="secondary full" on:click={restCharacter}>Descansar</button><p class="muted">Recuperas 2 puntos de Voluntad (sin superar el máximo). El descanso no recupera monedas de esfuerzo. Con 0 Voluntad, siempre tiras 2d6 y conservas el menor, sin importar ventaja o desventaja.</p></section>
-            <section class="card extra-info"><h2>Monedas de esfuerzo</h2><div class="will-value">{visibleEffortCoins}<small> / 3 disponibles</small></div><p class="muted">Cada moneda permite añadir 1d6 a la próxima tirada o repetir todos los dados de la última tirada ignorando los Estados o Desventajas que resten dados. Gastarla no genera Estados. Se restablecen a 3 al comenzar cada sesión.</p><button class="secondary full" on:click={() => spendEffort('extra-die')} disabled={visibleEffortCoins <= 0 || !!pendingDiceRoll || effortDiceBonus > 0}>Gastar moneda: +1d6 a la próxima tirada</button>{#if lastRoll}<button class="secondary full" on:click={() => spendEffort('reroll')} disabled={visibleEffortCoins <= 0 || !!pendingDiceRoll}>Gastar moneda: repetir última tirada</button>{/if}</section>
+            <section class="card extra-info"><h2>Monedas de esfuerzo</h2><div class="will-value">{visibleEffortCoins}<small> / 3 disponibles</small></div><p class="muted">Cada moneda permite añadir 1d6 a la próxima tirada o repetir todos los dados de la última tirada ignorando los Estados o Desventajas que resten dados. Gastarla no genera Estados. Se restablecen a 3 al comenzar cada sesión.</p><button class="secondary full" on:click={() => spendEffort('extra-die')} disabled={visibleEffortCoins <= 0 || !!pendingDiceRoll || effortDiceBonus > 0 || forcedLowRoll}>Gastar moneda: +1d6 a la próxima tirada</button>{#if forcedLowRoll}<p class="muted">Abrumado: añadir +1d6 no modifica la tirada. Puedes gastar una moneda para repetir los 2d6, conservando el menor.</p>{/if}{#if lastRoll}<button class="secondary full" on:click={() => spendEffort('reroll')} disabled={visibleEffortCoins <= 0 || !!pendingDiceRoll}>Gastar moneda: repetir última tirada</button>{/if}</section>
             <section class="card"><h2>Estados</h2><div class="state-grid">{#each [...STATES, ...(Number(character.will) <= 0 ? [{ name: 'Abrumado', enfoque: 'Todos', detail: 'Con 0 Voluntad, todas las tiradas usan 2d6 y conservan el menor.' }] : [])] as state}<label class="check-row"><input type="checkbox" checked={displayedStates.includes(state.name)} disabled><span><b>{state.name}</b><small>{state.enfoque}: {state.detail}</small></span></label>{/each}</div></section>
             <section class="card"><h2>Equipo</h2>{#each character.inventory as item}<div class="inventory-line"><input value={equipmentDisplayName(item, selectedGenre)} placeholder="Objeto por definir" on:input={(event) => { item.name = event.currentTarget.value; updateCharacter(); }}><small>{traitLabel(item.trait, selectedGenre)}</small><button class="remove" on:click={() => removeInventoryItem(item.id)}>×</button></div>{/each}<button class="secondary full" on:click={addInventoryItem}>Añadir objeto</button></section>
           </div>
@@ -1787,9 +1813,10 @@
       <div class="eyebrow">SEGUIMIENTO DEL NARRADOR</div><h1>Conflicto</h1>
       <section class="card">
         <h2>Estado del conflicto</h2>
-        <p class="muted">Al activar el conflicto, todos los personajes creados quedan involucrados. Sus tiradas fallidas aplican la pérdida de Voluntad según el peligro.</p>
+        <p class="muted">Selecciona qué personajes participan. Solo sus tiradas fallidas aplican la pérdida de Voluntad según el peligro.</p>
+        <div class="participant-list">{#each partyMembers as player}<label class="check-row"><input type="checkbox" checked={conflictParticipantIds.includes(player.id)} disabled={gmTracker.conflict.active} on:change={(event) => setConflictParticipant(player.id, event.currentTarget.checked)}><span>{getPlayerCharacter(player)?.name || player.name}</span></label>{/each}</div>
         <button class:active={gmTracker.conflict.active} on:click={() => setConflictActive(!gmTracker.conflict.active)}>{gmTracker.conflict.active ? 'Terminar conflicto' : 'Iniciar conflicto'}</button>
-        <p class="muted">{gmTracker.conflict.active ? 'Conflicto activo para todos los personajes.' : 'No hay un conflicto activo.'}</p>
+        <p class="muted">{gmTracker.conflict.active ? 'Conflicto activo para los personajes seleccionados.' : conflictParticipants.length + ' participante(s) seleccionado(s).'}</p>
         {#if gmTracker.conflict.result}<p class="conflict-result">{gmTracker.conflict.result}</p>{/if}
       </section>
       <section class="card">
@@ -1803,9 +1830,9 @@
       </section>
       <section class="card">
         <h2>Resistencia</h2>
-        <p class="muted">Resistencia inicial: 2 por personaje creado (Voluntad base 4 ÷ 2).</p>
+        <p class="muted">Resistencia base: 2 por participante. El Narrador puede ajustarla para reflejar la escala o fortaleza de la oposición.</p>
         <div class="resistance-value">{gmTracker.conflict.resistance ?? initialConflictResistance}</div>
-        <p class="muted">{createdCharacterCount} personaje(s) creado(s) · Resistencia inicial: {initialConflictResistance}</p>
+        <p class="muted">{conflictParticipants.length} participante(s) · Resistencia base: {initialConflictResistance}</p>
         <div class="resistance-controls">
           <button class="secondary" on:click={() => adjustConflictResistance(-1)} disabled={(gmTracker.conflict.resistance ?? initialConflictResistance) <= 0}>−1</button>
           <button on:click={() => adjustConflictResistance(1)}>+1</button>
@@ -1841,7 +1868,7 @@
       {/if}
       <section class="card"><h2>¿Qué quieres conseguir?</h2><p>Describe el efecto, su objetivo, alcance y duración. Puedes crear efectos para percibir, crear, alterar, controlar, proteger, comunicar, dañar o restaurar. Son ideas orientativas, no una lista cerrada.</p><textarea bind:value={magicEffect} rows="5" maxlength="4000" placeholder="Describe el efecto que quieres conseguir..."></textarea><small class="field-hint">{magicEffect.length} / 4000 caracteres</small></section>
       <section class="card"><h2>Magnitud del conjuro</h2><label>Elige la magnitud propuesta<select bind:value={magicMagnitude}><option value="simple">Truco simple — sin éxitos adicionales</option><option value="moderate">Magia moderada — +1 éxito si la tirada tiene éxito</option><option value="extraordinary">Magia extraordinaria — +2 éxitos si la tirada tiene éxito</option></select></label><p class="muted">Los éxitos adicionales solo cuentan para reducir la Resistencia de un conflicto. No cambian el resultado narrativo ni cuentan para críticos.</p></section>
-      <section class="card"><h2>¿Qué das a cambio?</h2><p>El coste debe ser proporcional al poder. Puede consistir en perder Voluntad, recibir Mermado, Deprimido, Ansioso o Confundido, o ambas cosas. Abrumado aparece únicamente al llegar a 0 Voluntad. El precio puede pagarse una sola vez al establecer el pacto o cada vez que utilizas el poder.</p><textarea bind:value={magicPrice} rows="5" maxlength="4000" placeholder="Describe el coste y cuándo se paga..."></textarea><small class="field-hint">{magicPrice.length} / 4000 caracteres</small><button class="full" on:click={submitMagicPact} disabled={!magicEffect.trim() || !magicPrice.trim()}>Firmar pacto</button>{#if magicMessage}<p class="magic-message">{magicMessage}</p>{/if}</section>
+      <section class="card"><h2>¿Qué das a cambio?</h2><p>El coste debe ser proporcional al poder. Puede consistir en perder Voluntad, recibir Mermado, Debilitado, Ansioso o Confundido, o ambas cosas. Abrumado aparece únicamente al llegar a 0 Voluntad. El precio puede pagarse una sola vez al establecer el pacto o cada vez que utilizas el poder.</p><textarea bind:value={magicPrice} rows="5" maxlength="4000" placeholder="Describe el coste y cuándo se paga..."></textarea><small class="field-hint">{magicPrice.length} / 4000 caracteres</small><button class="full" on:click={submitMagicPact} disabled={!magicEffect.trim() || !magicPrice.trim()}>Firmar pacto</button>{#if magicMessage}<p class="magic-message">{magicMessage}</p>{/if}</section>
       {#if getMyMagicRecord().proposals?.some((pact) => pact.status !== 'accepted')}<section class="card"><h2>Mis propuestas</h2>{#each [...getMyMagicRecord().proposals].filter((pact) => pact.status !== 'accepted').sort((a, b) => b.createdAt - a.createdAt) as pact}<article class="pact-item"><div class="pact-status" class:pending={pact.status === 'pending'} class:rejected={pact.status === 'rejected'}>{pact.status === 'pending' ? 'Pendiente de revisión' : 'Rechazado'}</div><h3>Efecto</h3><p>{pact.effect}</p><h3>Magnitud</h3><p>{magicMagnitudeLabel(pact.magnitude)}</p><h3>Coste</h3><p>{pact.price}</p></article>{/each}</section>{/if}
       {#if getMyMagicRecord().spells?.length}<section class="card"><h2>Mis conjuros aprobados</h2>{#each getMyMagicRecord().spells as pact}<article class="pact-item approved-spell"><div class="pact-status accepted">Pacto aprobado</div><h3>Efecto</h3><p>{pact.effect}</p><h3>Magnitud</h3><p>{magicMagnitudeLabel(pact.magnitude)}</p><h3>Precio</h3><p>{pact.price}</p></article>{/each}</section>{/if}
     </main>
@@ -1984,10 +2011,10 @@
         <p>Los Estados representan condiciones que dificultan determinadas acciones. Cada Estado aplica una penalización de −1 dado al Enfoque asociado.</p>
         <ul>
           <li><strong>Mermado — Instinto:</strong> lesión o limitación física.</li>
-          <li><strong>Deprimido — Tenacidad:</strong> enfermedad, intoxicación o debilidad.</li>
+          <li><strong>Debilitado — Tenacidad:</strong> enfermedad, intoxicación o debilidad física.</li>
           <li><strong>Ansioso — Disciplina:</strong> miedo, terror o intimidación.</li>
           <li><strong>Confundido — Ingenio:</strong> percepción o pensamiento alterados.</li>
-          <li><strong>Abrumado:</strong> cuando la Voluntad llega a 0, todas las tiradas se realizan con 2d6 y se conserva el resultado menor, independientemente de la reserva, la ventaja o la desventaja. Este efecto termina al recuperar al menos 1 punto de Voluntad.</li>
+          <li><strong>Abrumado no es un Estado:</strong> es una condición automática al llegar a 0 Voluntad. El personaje sigue actuando, pero tira 2d6 y conserva el menor, incluso con Ventaja o Desventaja. Desaparece al recuperar al menos 1 punto.</li>
         </ul>
         <p>Descansar no elimina Estados. Cada Estado debe resolverse mediante su propio procedimiento; quitar uno no elimina los demás. Abrumado desaparece automáticamente al recuperar al menos 1 punto de Voluntad.</p>
       </section>
@@ -1997,8 +2024,8 @@
         <p>Cada personaje recibe 3 monedas de esfuerzo al comienzo de cada sesión. Las monedas no gastadas no se acumulan: al iniciar una nueva sesión, todos vuelven a tener 3.</p>
         <ul>
           <li>Solo puedes gastar una moneda si la acción que intentas realizar está relacionada con el arquetipo o el concepto de tu personaje. No necesitas explicar ni justificar el gasto.</li>
-          <li>Antes de una tirada, puedes gastar una moneda para añadir 1d6 al pool.</li>
-          <li>Después de una tirada, puedes gastar una moneda para volver a lanzar todos los dados, ignorando los Estados o Desventajas que resten dados. Debes aceptar el nuevo resultado.</li>
+          <li>Antes de una tirada, puedes gastar una moneda para añadir 1d6 a la reserva. Si estás Abrumado, esta opción no modifica la tirada: debes respetar los 2d6 y conservar el menor.</li>
+          <li>Después de una tirada, puedes gastar una moneda para repetir todos los dados ignorando las penalizaciones de Estados y Desventaja. Debes aceptar el nuevo resultado. Si estás Abrumado, repites 2d6 y conservas el menor.</li>
           <li>Gastar una moneda no genera Estados ni consecuencias automáticas adicionales.</li>
           <li>El descanso no recupera monedas de esfuerzo.</li>
         </ul>
@@ -2006,6 +2033,7 @@
 
       <section class="card">
         <h2>6. Descanso</h2>
+        <p>El Narrador determina cuándo ha transcurrido un periodo suficiente y seguro para descansar o cuándo la atención médica es adecuada. En ese caso recuperas 2 puntos de Voluntad en total, sin superar 4; no se acumulan ambas cosas ni se repite la recuperación sin un nuevo periodo de descanso o atención.</p>
         <p>Al realizar un descanso:</p>
         <ul>
           <li>Recuperas 2 puntos de Voluntad, sin superar tu máximo.</li>
@@ -2016,11 +2044,11 @@
 
       <section class="card">
         <h2>7. Conflictos</h2>
-        <p>El narrador puede activar un conflicto. Cuando lo hace, todos los personajes creados quedan involucrados.</p>
+        <p>El Narrador selecciona qué personajes participan. Solo ellos cuentan para la Resistencia y pueden contribuir a resolver el conflicto.</p>
         <ul>
           <li>El conflicto tiene un nivel de peligro: <strong>Bajo, Medio o Alto</strong>.</li>
           <li>Cuando un personaje falla una tirada durante el conflicto, pierde Voluntad según el peligro: <strong>Bajo −1, Medio −2, Alto −3</strong>.</li>
-          <li>La Resistencia inicial equivale a 2 puntos por cada personaje creado.</li>
+          <li>La Resistencia base equivale a 2 puntos por participante. El Narrador puede ajustarla antes de comenzar para representar la escala o fortaleza de la oposición.</li>
           <li>El narrador puede ajustar la Resistencia manualmente. Esta no disminuye automáticamente por los fracasos.</li>
           <li>El narrador administra el nivel de peligro, la Resistencia y los Estados de los personajes.</li>
         </ul>
@@ -2029,11 +2057,11 @@
       <section class="card">
         <h2>8. Magia y pactos</h2>
         <p>La magia se resuelve mediante una tirada normal. Truco simple: sin éxitos adicionales; magia moderada: +1 éxito adicional; magia extraordinaria: +2 éxitos adicionales. Estos éxitos solo se suman si la tirada tiene éxito y únicamente cuentan para reducir la Resistencia de un conflicto. No cambian el resultado narrativo ni cuentan para críticos.</p>
-        <p>El coste debe ser proporcional al poder y puede consistir en perder Voluntad, recibir Mermado, Deprimido, Ansioso o Confundido, o ambas cosas. Abrumado aparece al llegar a 0 Voluntad. El precio puede pagarse una sola vez al establecer el pacto o cada vez que se utiliza el poder.</p>
+        <p>El coste debe ser proporcional al poder y puede consistir en perder Voluntad, recibir Mermado, Debilitado, Ansioso o Confundido, o ambas cosas. Abrumado aparece al llegar a 0 Voluntad. El precio puede pagarse una sola vez al establecer el pacto o cada vez que se utiliza el poder.</p>
       </section>
       <section class="card">
         <h2>9. Dirección de juego</h2>
-        <p>El narrador determina cuándo una acción requiere una tirada, qué Enfoque corresponde, si un Rasgo resulta aplicable y qué consecuencias tiene el resultado. Las reglas no establecen rondas, turnos, ataques ni movimientos automáticos: esos elementos se resuelven según la situación y la dirección del narrador.</p>
+        <p>El Narrador determina cuándo una acción requiere una tirada, qué Enfoque corresponde, si un Rasgo resulta aplicable y qué consecuencias tiene el resultado. Durante un conflicto, ayudar a otro participante consume la acción de quien ayuda; el ayudante debe tener el mismo Rasgo y solo una persona puede ayudar en cada tirada. Las reglas no establecen rondas, turnos, ataques ni movimientos automáticos: esos elementos se resuelven según la situación y la dirección del narrador.</p>
         <p>Las tiradas se realizan mediante Dice+. La aplicación sincroniza las fichas, la Voluntad, los Estados, las monedas de esfuerzo y el estado del conflicto con la sala de Owlbear Rodeo.</p>
       </section>
     </main>
@@ -2237,6 +2265,8 @@
   .check-row input { width:auto; margin:.2rem 0 0; }
   .check-row small { display:block; color:#999; margin-top:.2rem; }
   .danger-levels, .resistance-controls { display:flex; flex-wrap:wrap; gap:.5rem; }
+  .participant-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.4rem; margin:.7rem 0; }
+  .participant-list .check-row { margin:0; }
   .danger-levels button.active { background:#6d542b; border-color:#d8b66f; color:#fff; }
   .resistance-value { color:#f2c879; font-size:3rem; font-weight:750; margin:.4rem 0; }
   @media(max-width:600px) {
