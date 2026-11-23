@@ -2009,7 +2009,7 @@
 
       <section class="card">
         <h2>4. Estados</h2>
-        <p>Los Estados representan condiciones que dificultan determinadas acciones. Cada Estado aplica una penalización de −1 dado al Enfoque asociado.</p>
+        <p>Los Estados representan condiciones que dificultan determinadas acciones. Cada Estado aplica una penalización de −1 dado al Enfoque asociado. Puedes proponer un Rasgo personalizado: escribe su nombre y descripción, acuerda su alcance con el Narrador y define el equipo que necesita.</p>
         <ul>
           <li><strong>Mermado — Instinto:</strong> lesión o limitación física.</li>
           <li><strong>Debilitado — Tenacidad:</strong> enfermedad, intoxicación o debilidad física.</li>
