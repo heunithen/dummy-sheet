@@ -1853,7 +1853,7 @@
             {#each MAGIC_CATALOG.filter((spell) => spell.category === category) as spell}
               <article class="pact-item catalog-spell"><h3>{spell.name}</h3><p>{spell.effect}</p>
                 <p class="muted">{magicMagnitudeLabel(spell.magnitude)} · Coste: {spell.willCost} {spell.willCost === 1 ? 'punto' : 'puntos'} de Voluntad</p>
-                {#if playerMagicRecord?.spells?.some((item: any) => item.id === spell.id)}<button class="secondary" disabled>Ya está en tu lista</button>
+                {#if playerMagicRecord?.spells?.some((item) => item.id === spell.id)}<button class="secondary" disabled>Ya está en tu lista</button>
                 {:else}<button on:click={() => addCatalogSpell(spell)}>Añadir a mi personaje</button>{/if}
               </article>
             {/each}
