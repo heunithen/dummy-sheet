@@ -340,10 +340,10 @@
   const GENRES = [{id:'fantasy',label:'Fantasía'},{id:'scifi',label:'Ciencia ficción'},{id:'horror',label:'Terror'},{id:'modern',label:'Contemporánea'},{id:'postapoc',label:'Postapocalíptica'}];
   const GENRE_TRAIT_LABELS: Record<string, Record<string,string>> = {
     fantasy:{'Maestro Chasquilla':'Herrero','Tirador':'Arquero'},
-    scifi:{,'Espadachín':'Duelista','Investigador':'Analista','Furtivo':'Infiltrador','Liderazgo':'Coordinador','Maestro Chasquilla':'Técnico'},
+    scifi:{'Espadachín':'Duelista','Investigador':'Analista','Furtivo':'Infiltrador','Liderazgo':'Coordinador','Maestro Chasquilla':'Técnico'},
     horror:{'Maestro Chasquilla':'Reparador'},
     modern:{'Maestro Chasquilla':'Técnico'},
-    postapoc:{,'Furtivo':'Merodeador','Maestro Chasquilla':'Mecánico'}
+    postapoc:{'Furtivo':'Merodeador','Maestro Chasquilla':'Mecánico'}
   };
   const KNOWLEDGE_BY_GENRE: Record<string,string[]> = {
     fantasy:["Historia","Geografía","Religión","Ocultismo","Naturaleza","Bestiario","Alquimia","Política","Sociedad","Tecnología","Guerra","Arte","Comercio"],
