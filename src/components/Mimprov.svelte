@@ -834,7 +834,7 @@
         playerName: await OBR.player.getName(),
         rollTarget: 'everyone',
         diceNotation: notation + ' # MIMPROV',
-        showResults: true,
+        showResults: false,
         timestamp: Date.now(),
         source: DICE_PLUS_SOURCE
       }, { destination: 'ALL' });
