@@ -329,14 +329,14 @@
   const ARCHETYPES: Record<string, { description: string; approaches: Record<string, number>; traits: string[] }> = {
     'Valiente': { description: 'Se enfrenta a los peligros sin retroceder. Actúa con decisión cuando otros dudan, soporta la presión y está dispuesto a ponerse en riesgo para proteger o defender aquello que considera importante.', approaches: { Tenacidad: 1, Disciplina: 0, Instinto: 1, Ingenio: 0 }, traits: ['Peleador', 'Superviviente'] },
     'Místico': { description: 'Se interesa por lo oculto, lo inexplicable y las fuerzas que escapan a la comprensión cotidiana. Observa señales, busca significados y conoce prácticas, tradiciones o saberes poco comunes.', approaches: { Tenacidad: 0, Disciplina: 1, Instinto: 1, Ingenio: 0 }, traits: ['Observador', 'Conocedor de...'] },
-    'Académico': { description: 'Se apoya en el estudio, la investigación y el pensamiento metódico. Reúne información, examina pruebas y utiliza conocimientos especializados para comprender problemas y encontrar respuestas.', approaches: { Tenacidad: 0, Disciplina: 1, Instinto: 0, Ingenio: 1 }, traits: ['Investigador', 'Conocedor de...'] },
+    'Investigador': { description: 'Se dedica a descubrir respuestas mediante el estudio, la observación y el análisis. Reúne información, examina pruebas, reconstruye acontecimientos y conecta indicios para comprender lo ocurrido.', approaches: { Tenacidad: 0, Disciplina: 1, Instinto: 0, Ingenio: 1 }, traits: ['Investigador', 'Conocedor de...'] },
     'Atlético': { description: 'Destaca por su preparación física y el dominio de su cuerpo. Confía en su fuerza, coordinación, velocidad y resistencia para superar obstáculos y realizar esfuerzos exigentes.', approaches: { Tenacidad: 1, Disciplina: 0, Instinto: 1, Ingenio: 0 }, traits: ['Atlético', 'Superviviente'] },
     'Sociable': { description: 'Se desenvuelve con facilidad entre otras personas. Sabe comunicarse, generar confianza, negociar y reunir voluntades para alcanzar objetivos compartidos.', approaches: { Tenacidad: 0, Disciplina: 1, Instinto: 0, Ingenio: 1 }, traits: ['Persuasivo', 'Liderazgo'] }
   };
   const TRAITS = [
     'Atlético', 'Conocedor de...', 'Espadachín', 'Investigador', 'Furtivo',
     'Intimidante', 'Liderazgo', 'Maestro Chasquilla', 'Observador',
-    'Peleador', 'Persuasivo', 'Superviviente', 'Tirador'
+    'Peleador', 'Persuasivo', 'Sanador', 'Superviviente', 'Tirador'
   ];
   const GENRE_KEY = 'com.heunithen.dummysheet-mimprov/genre';
   const SESSION_KEY = 'com.heunithen.dummysheet-mimprov/session';
@@ -395,8 +395,8 @@
       short: 'Usar espadas con técnica y experiencia.'
     },
     'Investigador': {
-      long: 'Sabes buscar información, examinar indicios y reconstruir lo ocurrido a partir de pistas. Puedes interrogar, comparar testimonios, revisar documentos, relacionar detalles y seguir un método para descubrir respuestas que no son evidentes.',
-      short: 'Buscar pistas, analizar indicios y reconstruir información.'
+      long: 'Sigues pistas, interrogas testigos, comparas declaraciones, descubres mentiras y conectas indicios.',
+      short: 'Seguir pistas, relacionar indicios y reconstruir hechos.'
     },
     'Furtivo': {
       long: 'Sabes evitar llamar la atención y desplazarte sin ser detectado. Puedes ocultarte, moverte en silencio, aprovechar sombras y coberturas, infiltrarte o pasar inadvertido cuando la situación permite actuar con discreción.',
@@ -415,8 +415,8 @@
       short: 'Reparar, adaptar e improvisar soluciones prácticas.'
     },
     'Observador': {
-      long: 'Prestas atención a los detalles del entorno y sabes percibir aquello que otros pasan por alto. Puedes advertir movimientos, cambios, objetos fuera de lugar, señales sutiles o comportamientos extraños antes de que resulten evidentes.',
-      short: 'Percibir detalles y notar cambios en el entorno.'
+      long: 'Percibes detalles fuera de lugar y detectas movimientos, sonidos o señales que otros pasan por alto. Observas lo que ocurre, pero no interpretas indicios ni reconstruyes hechos: eso corresponde a Investigador.',
+      short: 'Detectar detalles, movimientos, sonidos y señales.'
     },
     'Peleador': {
       long: 'Tienes experiencia enfrentándote físicamente a otras personas, especialmente en combate cuerpo a cuerpo. Sabes golpear, forcejear, derribar, defenderte y aprovechar tu cuerpo en una pelea sin depender necesariamente de armas.',
@@ -425,6 +425,10 @@
     'Persuasivo': {
       long: 'Sabes comunicarte para convencer, negociar y conseguir la cooperación de otras personas. Puedes argumentar, generar confianza, presentar propuestas de manera convincente y adaptar tu discurso a lo que le importa a tu interlocutor.',
       short: 'Convencer, negociar y conseguir la cooperación de otros.'
+    },
+    'Sanador': {
+      long: 'Sabes atender heridas, estabilizar a personas, reconocer síntomas y aplicar cuidados. Puedes prestar primeros auxilios y tratar lesiones dentro de tus conocimientos; los procedimientos complejos requieren instrumental y suministros adecuados.',
+      short: 'Atender heridas, estabilizar y aplicar cuidados.'
     },
     'Superviviente': {
       long: 'Sabes desenvolverte en entornos difíciles y cubrir necesidades básicas cuando faltan comodidades o recursos. Puedes orientarte, encontrar refugio, reconocer peligros naturales, conseguir recursos y tomar precauciones para mantenerte a salvo.',
@@ -445,6 +449,7 @@
     'Observador': ['Lupa', 'Linterna', 'Espejo de inspección'],
     'Peleador': ['Guantes de combate', 'Vendas para las manos', 'Protector corporal ligero'],
     'Persuasivo': ['Vestimenta apropiada para negociar', 'Documento o credencial de presentación', 'Objeto de intercambio o cortesía'],
+    'Sanador': ['Botiquín', 'Vendas y apósitos', 'Instrumental médico básico'],
     'Tirador': ['Arco', 'Carcaj', 'Flechas'],
     'Investigador': ['Libreta de notas', 'Lápiz', 'Lupa'],
     'Liderazgo': ['Insignia de autoridad', 'Silbato', 'Mapa del grupo'],
@@ -1916,7 +1921,7 @@
         <ul>
           <li><strong>Valiente:</strong> Tenacidad 1 e Instinto 1; Peleador y Superviviente.</li>
           <li><strong>Místico:</strong> Disciplina 1 e Instinto 1; Observador y Conocedor de...</li>
-          <li><strong>Académico:</strong> Disciplina 1 e Ingenio 1; Investigador y Conocedor de...</li>
+          <li><strong>Investigador:</strong> Disciplina 1 e Ingenio 1; Investigador y Conocedor de...</li>
           <li><strong>Atlético:</strong> Tenacidad 1 e Instinto 1; Atlético y Superviviente.</li>
           <li><strong>Sociable:</strong> Disciplina 1 e Ingenio 1; Persuasivo y Liderazgo.</li>
           <li><strong>Arquetipo:</strong> aporta 2 puntos de Enfoque, repartidos entre dos Enfoques distintos (1 punto en cada uno), y 2 Rasgos fijos.</li>
