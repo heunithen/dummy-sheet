@@ -717,7 +717,7 @@
     magicMessage = 'Conjuro añadido a tu personaje.';
   }
   function removeCatalogSpell(spellId: string) {
-    playerMagicRecord = { ...playerMagicRecord, spells: (playerMagicRecord?.spells || []).filter((spell: any) => !(spell.id === spellId && spell.source === 'catalog')) };
+    playerMagicRecord = { ...playerMagicRecord, spells: (playerMagicRecord?.spells || []).filter((spell) => !(spell.id === spellId && spell.source === 'catalog')) };
     if (selectedMagicSpellId === spellId) selectedMagicSpellId = '';
     if (OBR.isAvailable) OBR.player.setMetadata({ [PLAYER_MAGIC_KEY]: playerMagicRecord }).catch((error) => console.error('No se pudo actualizar la lista de conjuros', error));
   }
@@ -821,7 +821,7 @@
       input.value = '';
     }
   }
-  $: selectedMagicSpell = (playerMagicRecord?.spells || []).find((spell: any) => spell.id === selectedMagicSpellId);
+  $: selectedMagicSpell = (playerMagicRecord?.spells || []).find((spell) => spell.id === selectedMagicSpellId);
   $: selectedMagicSpellBonus = selectedMagicSpell?.magnitude === 'moderate' ? 1 : selectedMagicSpell?.magnitude === 'extraordinary' ? 2 : 0;
   $: selectedApproachScore = Number(character.approaches?.[selectedApproach] || 0);
   $: selectedTraitBonus = selectedTrait && character.traits.includes(selectedTrait) ? 1 : 0;
@@ -1860,9 +1860,9 @@
           </div>
         {/each}
       </section>
-      {#if (playerMagicRecord?.spells || []).some((spell: any) => spell.source === 'catalog')}
+      {#if (playerMagicRecord?.spells || []).some((spell) => spell.source === 'catalog')}
         <section class="card"><h2>Mis conjuros de catálogo</h2>
-          {#each playerMagicRecord.spells.filter((spell: any) => spell.source === 'catalog') as spell}
+          {#each playerMagicRecord.spells.filter((spell) => spell.source === 'catalog') as spell}
             <article class="pact-item approved-spell"><h3>{spell.name}</h3><p>{spell.effect}</p><p class="muted">{magicMagnitudeLabel(spell.magnitude)} · Coste: {spell.willCost} Voluntad</p><button class="secondary" on:click={() => removeCatalogSpell(spell.id)}>Quitar de mi lista</button></article>
           {/each}
         </section>
