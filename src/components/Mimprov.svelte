@@ -14,6 +14,7 @@
   const EFFORT_REQUEST_CHANNEL = 'com.heunithen.dummysheet-mimprov/spend-effort';
   const REST_REQUEST_CHANNEL = 'com.heunithen.dummysheet-mimprov/rest';
   const DICE_PLUS_SOURCE = 'com.heunithen.dummysheet-mimprov';
+  const ROLL_NOTICE_CHANNEL = 'com.heunithen.dummysheet-mimprov/roll-notification';
   const DELETE_CHARACTER_CHANNEL = 'com.heunithen.dummysheet-mimprov/delete-character';
   const PLAYER_MAGIC_KEY = 'com.heunithen.dummysheet-mimprov/player-magic';
   const LINES_VEILS_KEY = 'com.heunithen.dummysheet-mimprov/lines-veils';
@@ -900,6 +901,19 @@
     adjustWill(-loss);
   }
 
+  async function showRollNotification(data: { playerName?: string; approach?: string; result: string; dice?: number[]; kept?: number; spellName?: string }) {
+    const diceText = Array.isArray(data.dice) && data.dice.length ? ` · Dados: ${data.dice.join(', ')}` : '';
+    const approachText = data.approach ? ` · ${data.approach}` : '';
+    const spellText = data.spellName ? ` · ${data.spellName}` : '';
+    const keptText = Number.isFinite(data.kept) ? ` · Dado final: ${data.kept}` : '';
+    try {
+      const id = await OBR.notification.show(`${data.playerName || 'Jugador'}: ${data.result}${approachText}${spellText}${keptText}${diceText}`, data.result === 'Fracaso' ? 'WARNING' : 'SUCCESS');
+      setTimeout(() => { OBR.notification.close(id).catch(() => undefined); }, 5500);
+    } catch (error) {
+      console.error('No se pudo mostrar la notificación de la tirada', error);
+    }
+  }
+
   function handleDicePlusResult(event: any) {
     const data = event.data as any;
     if (!pendingDiceRoll || data?.rollId !== pendingDiceRoll.rollId || !data.result) return;
@@ -922,6 +936,19 @@
       retryNotation: roll.retryNotation, retryPool: roll.retryPool
     };
     recordRoll(roll, dice, kept, finalResult, critical);
+    const notice = {
+      rollId: data.rollId,
+      playerId: data.playerId,
+      playerName: String(data.playerName || 'Jugador'),
+      approach: roll.approach,
+      result: finalResult,
+      dice,
+      kept,
+      spellName: roll.spellName || ''
+    };
+    showRollNotification(notice);
+    OBR.broadcast.sendMessage(ROLL_NOTICE_CHANNEL, notice, { destination: 'REMOTE' })
+      .catch((error) => console.error('No se pudo compartir el resultado de la tirada', error));
     if (roll.spellCost > 0) { character.will = Math.max(0, Number(character.will || 0) - roll.spellCost); updateCharacter(); dicePlusError = `Has gastado ${roll.spellCost} Voluntad para lanzar ${roll.spellName || 'el conjuro'}.`; }
     pendingDiceRoll = null;
     if (critical) {
@@ -1071,7 +1098,12 @@
               console.error('No se pudo borrar la ficha del personaje', error);
             }
           });
-                    OBR.broadcast.onMessage(`${DICE_PLUS_SOURCE}/roll-result`, handleDicePlusResult);
+                    OBR.broadcast.onMessage(ROLL_NOTICE_CHANNEL, (event) => {
+            const notice = event.data as any;
+            if (!notice?.rollId || !notice?.result) return;
+            showRollNotification(notice);
+          });
+          OBR.broadcast.onMessage(`${DICE_PLUS_SOURCE}/roll-result`, handleDicePlusResult);
           OBR.broadcast.onMessage(`${DICE_PLUS_SOURCE}/roll-error`, handleDicePlusError);
           loaded = true;
         } catch (error) {
