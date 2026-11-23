@@ -702,11 +702,10 @@
 
   function addCatalogSpell(spell: typeof MAGIC_CATALOG[number]) {
     const spells = [...(playerMagicRecord?.spells || [])];
-    if (spells.some((item: any) => item.id === spell.id)) { magicMessage = 'Este conjuro ya está en tu lista.'; return; }
+    if (spells.some((item: any) => item.id === spell.id)) return;
     spells.push({ ...spell, price: '', status: 'accepted', source: 'catalog' });
     playerMagicRecord = { ...playerMagicRecord, spells };
     if (OBR.isAvailable) OBR.player.setMetadata({ [PLAYER_MAGIC_KEY]: playerMagicRecord }).catch((error) => console.error('No se pudo guardar el conjuro', error));
-    magicMessage = 'Conjuro añadido a tu personaje.';
   }
   function removeCatalogSpell(spellId: string) {
     playerMagicRecord = { ...playerMagicRecord, spells: (playerMagicRecord?.spells || []).filter((spell) => !(spell.id === spellId && spell.source === 'catalog')) };
@@ -1977,15 +1976,6 @@
   .magic-content .field-hint { display:block; color:#999; text-align:right; font-size:.75rem; margin-top:.3rem; }
   .magic-content textarea { min-height:7rem; line-height:1.55; }
   .magic-message { color:#f2c879; margin:.8rem 0 0; }
-  .pact-item { border-top:1px solid #45484c; padding:1rem 0; }
-  .pact-item:first-of-type { margin-top:.6rem; }
-  .pact-item h3 { margin:.8rem 0 .25rem; }
-  .pact-item p, .pact-text { white-space:pre-wrap; overflow-wrap:anywhere; line-height:1.65; }
-  .pact-status { display:inline-block; padding:.3rem .6rem; border-radius:4px; font-size:.75rem; font-weight:700; background:#393c40; color:#ddd; }
-  .pact-status.pending { background:#514326; color:#f2d18e; }
-  .pact-status.accepted { background:#294735; color:#a8e0b6; }
-  .pact-status.rejected { background:#4c2d31; color:#f0b2b2; }
-  .pact-actions { display:flex; flex-wrap:wrap; gap:.6rem; margin-top:1rem; }
   .rules-content .rules-intro { margin:.2rem 0 1.2rem; }
   .rules-content .card { padding:1.35rem 1.5rem; }
   .rules-content h2 { margin-bottom:.65rem; }
