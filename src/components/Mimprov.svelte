@@ -701,6 +701,7 @@
   }
 
   function addCatalogSpell(spell: typeof MAGIC_CATALOG[number]) {
+    if (!character.traits.includes('Iniciado en lo arcano')) return;
     const spells = [...(playerMagicRecord?.spells || [])];
     if (spells.some((item: any) => item.id === spell.id)) return;
     spells.push({ ...spell, price: '', status: 'accepted', source: 'catalog' });
@@ -1761,13 +1762,13 @@
     </main>
   {:else if !$isGM && activeTab === 'magia'}
     <main class="content magic-content"><div class="eyebrow">CATÁLOGO DE CONJUROS</div><h1>Magia</h1>
-      <p class="magic-intro">Selecciona los conjuros que tu personaje conoce. Todos requieren una tirada normal. El coste de Voluntad se descuenta después de resolverla, tanto si tiene éxito como si fracasa.</p>
+      <p class="magic-intro">Selecciona los conjuros que tu personaje conoce. Todos requieren una tirada normal. El coste de Voluntad se descuenta después de resolverla, tanto si tiene éxito como si fracasa.</p>{#if !character.traits.includes('Iniciado en lo arcano')}<section class="card"><p>Para escoger conjuros necesitas tener el Rasgo <strong>Iniciado en lo arcano</strong>. Añádelo a tu personaje durante la creación o edición de la ficha.</p></section>{/if}
       <section class="card"><h2>Catálogo de conjuros</h2><p class="muted">Puedes añadir directamente cualquier conjuro del catálogo a tu personaje.</p>
         {#each [...new Set(MAGIC_CATALOG.map((spell) => spell.category))] as category}
           <div class="magic-catalog-group"><h3>{category}</h3>
             {#each MAGIC_CATALOG.filter((spell) => spell.category === category) as spell}
               <article class="catalog-spell"><h3>{spell.name}</h3><p>{spell.effect}</p><p class="muted">{magicMagnitudeLabel(spell.magnitude)} · Coste: {spell.willCost} Voluntad</p><p class="muted"><strong>Duración:</strong> {spellDuration(spell.name)}</p>
-                {#if playerMagicRecord?.spells?.some((item) => item.id === spell.id)}<button class="secondary" disabled>Ya está en tu lista</button>{:else}<button on:click={() => addCatalogSpell(spell)}>Añadir a mi personaje</button>{/if}
+                {#if !character.traits.includes('Iniciado en lo arcano')}<button class="secondary" disabled>Requiere «Iniciado en lo arcano»</button>{:else if playerMagicRecord?.spells?.some((item) => item.id === spell.id)}<button class="secondary" disabled>Ya está en tu lista</button>{:else}<button on:click={() => addCatalogSpell(spell)}>Añadir a mi personaje</button>{/if}
               </article>
             {/each}
           </div>
