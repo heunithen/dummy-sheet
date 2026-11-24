@@ -2243,7 +2243,7 @@
         </section>
       {/if}
     </main>
-  {:else if $isGM && (activeTab === 'gm' || activeTab === 'conflicto')}
+  {:else if $isGM && (activeTab === 'gm' || activeTab === 'conflicto' || activeTab === 'cofres')}
     <main class="content gm-content">
       {#if activeTab === 'gm'}
       <div class="eyebrow">HERRAMIENTAS DEL NARRADOR</div><h1>Personajes</h1>
