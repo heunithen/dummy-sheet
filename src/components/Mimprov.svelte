@@ -563,7 +563,7 @@
   });
   $: myPlayer = $PartyStore.find(p => p.id === $currentPlayerId);
   // El rol llega de forma asíncrona desde Owlbear. Asegura una pestaña válida al cambiar de rol.
-  $: if ($isGM && activeTab !== 'gm' && activeTab !== 'conflicto' && activeTab !== 'reglamento' && activeTab !== 'lineas-velos' && activeTab !== 'pnj') activeTab = 'gm';
+  $: if ($isGM && activeTab !== 'gm' && activeTab !== 'reglamento' && activeTab !== 'lineas-velos' && activeTab !== 'pnj') activeTab = 'gm';
   $: if (!$isGM && (activeTab === 'gm' || activeTab === 'conflicto')) activeTab = 'hoja';
   $: partyMembers = $PartyStore.filter(p => p.role !== 'GM' && getPlayerCharacter(p)?.created === true);
   $: if ($isGM && partyMembers.length && !partyMembers.some(p => p.id === selectedPlayerId)) selectedPlayerId = partyMembers[0].id;
@@ -1525,7 +1525,6 @@
   {:else if $isGM}
     <nav class="main-tabs">
       <button class:active={activeTab === 'gm'} on:click={() => { activeTab = 'gm'; }}>Personajes</button>
-      <button class:active={activeTab === 'conflicto'} on:click={() => { activeTab = 'conflicto'; }}>Conflicto</button>
       <button class:active={activeTab === 'reglamento'} on:click={() => { activeTab = 'reglamento'; }}>Reglamento</button>
       <button class:active={activeTab === 'lineas-velos'} on:click={() => { activeTab = 'lineas-velos'; }}>Líneas y velos</button>
       <button class:active={activeTab === 'pnj'} on:click={() => { activeTab = 'pnj'; }}>PNJ</button>
@@ -1812,7 +1811,32 @@
       <div class="eyebrow">HERRAMIENTAS DEL NARRADOR</div><h1>Personajes</h1>
       <section class="card"><h2>Ambientación de la partida</h2><p class="muted">Esta selección aplica una skin global a todos los personajes de la sala: adapta los nombres de Rasgos, conocimientos y objetos de equipo, incluidos los personajes ya creados. No cambia sus Enfoques, capacidades, reglas ni objetos personalizados.</p><label for="mimprov-genre">Género o ambientación</label><select id="mimprov-genre" value={selectedGenre} on:change={(event) => changeGenre(event.currentTarget.value)}>{#each GENRES as genre}<option value={genre.id}>{genre.label}</option>{/each}</select><p class="muted">La ambientación se comparte con todos los jugadores de esta sala.</p></section>
       <p class="muted">Seguimiento independiente. Estos controles no modifican las fichas de los jugadores.</p>
-            <section class="card"><h2>Sesión</h2><p class="muted">{sessionStarted ? 'Sesión iniciada. Los jugadores pueden crear sus personajes y utilizar la ficha.' : 'La sesión todavía no ha comenzado. Los jugadores verán una pantalla de espera y no podrán iniciar la creación de personajes.'}</p><button on:click={startNewSession}>Iniciar nueva sesión</button></section>
+      <section class="card session-conflict-card">
+        <h2>Sesión</h2>
+        <p class="muted">{sessionStarted ? 'Sesión iniciada. Los jugadores pueden crear sus personajes y utilizar la ficha.' : 'Configura el conflicto y la sesión antes de permitir que los jugadores comiencen.'}</p>
+        <h3>Participantes del conflicto</h3>
+        <p class="muted">Selecciona qué personajes participan. Solo sus tiradas fallidas aplican la pérdida de Voluntad según el peligro.</p>
+        <div class="participant-list">{#each partyMembers as player}<label class="check-row"><input type="checkbox" checked={conflictParticipantIds.includes(player.id)} disabled={gmTracker.conflict.active} on:change={(event) => setConflictParticipant(player.id, event.currentTarget.checked)}><span>{getPlayerCharacter(player)?.name || player.name}</span></label>{/each}</div>
+        <h3>Peligro</h3>
+        <p class="muted">El peligro determina la pérdida de Voluntad al fracasar una tirada.</p>
+        <div class="danger-levels">{#each ['Bajo', 'Medio', 'Alto'] as danger}<button class:active={gmTracker.conflict.danger === danger} class="secondary" on:click={() => setConflictDanger(danger)}>{danger}</button>{/each}</div>
+        <h3>Resistencia</h3>
+        <p class="muted">Resistencia base: 2 por participante. Puedes ajustarla para reflejar la escala o fortaleza de la oposición.</p>
+        <div class="resistance-value">{gmTracker.conflict.resistance ?? initialConflictResistance}</div>
+        <p class="muted">{conflictParticipants.length} participante(s) · Resistencia base: {initialConflictResistance}</p>
+        <div class="resistance-controls">
+          <button class="secondary" on:click={() => adjustConflictResistance(-1)} disabled={gmTracker.conflict.active || (gmTracker.conflict.resistance ?? initialConflictResistance) <= 0}>−1</button>
+          <button on:click={() => adjustConflictResistance(1)} disabled={gmTracker.conflict.active}>+1</button>
+          <button class="secondary" on:click={resetConflictResistance} disabled={gmTracker.conflict.active}>Restablecer</button>
+        </div>
+        <p class="muted">Fallo: Bajo −1 Voluntad · Medio −2 · Alto −3. Cada 6 reduce la Resistencia en 1; un 5 no la reduce.</p>
+        {#if gmTracker.conflict.result}<p class="conflict-result">{gmTracker.conflict.result}</p>{/if}
+        <div class="session-actions">
+          <button on:click={startNewSession}>Iniciar nueva sesión</button>
+          <button class:active={gmTracker.conflict.active} class="secondary" on:click={() => setConflictActive(!gmTracker.conflict.active)}>{gmTracker.conflict.active ? 'Terminar conflicto' : 'Iniciar conflicto'}</button>
+        </div>
+        <p class="muted">{gmTracker.conflict.active ? 'Conflicto activo para los personajes seleccionados.' : 'El conflicto todavía no está activo.'}</p>
+      </section>
       <section class="card"><h2>Personajes de la sala</h2>
         {#if partyMembers.length === 0}
           <p>No hay personajes creados en la sala.</p>
@@ -1835,37 +1859,6 @@
         {/if}
       </section>
       <p class="sync-note">El seguimiento de personajes se guarda localmente en este dispositivo y sala.</p>
-      {:else}
-      <div class="eyebrow">SEGUIMIENTO DEL NARRADOR</div><h1>Conflicto</h1>
-      <section class="card">
-        <h2>Estado del conflicto</h2>
-        <p class="muted">Selecciona qué personajes participan. Solo sus tiradas fallidas aplican la pérdida de Voluntad según el peligro.</p>
-        <div class="participant-list">{#each partyMembers as player}<label class="check-row"><input type="checkbox" checked={conflictParticipantIds.includes(player.id)} disabled={gmTracker.conflict.active} on:change={(event) => setConflictParticipant(player.id, event.currentTarget.checked)}><span>{getPlayerCharacter(player)?.name || player.name}</span></label>{/each}</div>
-        <button class:active={gmTracker.conflict.active} on:click={() => setConflictActive(!gmTracker.conflict.active)}>{gmTracker.conflict.active ? 'Terminar conflicto' : 'Iniciar conflicto'}</button>
-        <p class="muted">{gmTracker.conflict.active ? 'Conflicto activo para los personajes seleccionados.' : conflictParticipants.length + ' participante(s) seleccionado(s).'}</p>
-        {#if gmTracker.conflict.result}<p class="conflict-result">{gmTracker.conflict.result}</p>{/if}
-      </section>
-      <section class="card">
-        <h2>Peligro</h2>
-        <p class="muted">Selecciona el nivel de peligro de la situación.</p>
-        <div class="danger-levels">
-          {#each ['Bajo', 'Medio', 'Alto'] as danger}
-            <button class:active={gmTracker.conflict.danger === danger} class="secondary" on:click={() => setConflictDanger(danger)}>{danger}</button>
-          {/each}
-        </div>
-      </section>
-      <section class="card">
-        <h2>Resistencia</h2>
-        <p class="muted">Resistencia base: 2 por participante. El Narrador puede ajustarla para reflejar la escala o fortaleza de la oposición.</p>
-        <div class="resistance-value">{gmTracker.conflict.resistance ?? initialConflictResistance}</div>
-        <p class="muted">{conflictParticipants.length} participante(s) · Resistencia base: {initialConflictResistance}</p>
-        <div class="resistance-controls">
-          <button class="secondary" on:click={() => adjustConflictResistance(-1)} disabled={(gmTracker.conflict.resistance ?? initialConflictResistance) <= 0}>−1</button>
-          <button on:click={() => adjustConflictResistance(1)}>+1</button>
-          <button class="secondary" on:click={resetConflictResistance}>Restablecer</button>
-        </div>
-      </section>
-      <p class="sync-note">El seguimiento del conflicto se sincroniza con los jugadores de la sala. Fallo: Bajo −1 Voluntad · Medio −2 · Alto −3.</p>
       {/if}
     </main>
   {:else if !$isGM && activeTab === 'magia'}
