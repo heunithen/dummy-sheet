@@ -534,6 +534,7 @@
   let visibleStates: string[] = [];
   let visibleEffortCoins = 3;
   let effortDiceBonus = 0;
+  let rollHelp = false;
   let selectedPlayerId = '';
   let selectedApproach = 'Tenacidad';
   let selectedTrait = '';
@@ -798,7 +799,8 @@
     const items = character.inventory.filter(item => item.trait === trait);
     return items.length === 3 && items.every(item => typeof item.name === 'string' && item.name.trim().length > 0);
   }) && character.inventory.filter(item => item.trait === 'Personal').every(item => typeof item.name === 'string' && item.name.trim().length > 0);
-  $: baseDicePool = selectedApproachScore + selectedTraitBonus - selectedStatePenalty;
+  $: helpDiceBonus = rollHelp && selectedTraitBonus > 0 ? 1 : 0;
+  $: baseDicePool = selectedApproachScore + selectedTraitBonus + helpDiceBonus - selectedStatePenalty;
   $: dicePool = baseDicePool + effortDiceBonus + (rollModifier === 'advantage' ? 1 : rollModifier === 'disadvantage' ? -1 : 0);
   $: forcedLowRoll = Number(character.will) <= 0;
   $: diceNotation = forcedLowRoll || dicePool <= 0 ? '2d6kl1' : `${dicePool}d6kh1`;
@@ -866,7 +868,7 @@
       dicePlusError = `No tienes suficiente Voluntad para lanzar ${selectedMagicSpell.name || 'este conjuro'} (necesitas ${spellCost}).`;
       return;
     }
-    const retryPool = selectedApproachScore + selectedTraitBonus + effortDiceBonus + (rollModifier === 'advantage' ? 1 : 0);
+    const retryPool = selectedApproachScore + selectedTraitBonus + helpDiceBonus + effortDiceBonus + (rollModifier === 'advantage' ? 1 : 0);
     const retryNotation = forcedLowRoll ? '2d6kl1' : retryPool <= 0 ? '2d6kl1' : `${retryPool}d6kh1`;
     await sendDiceRoll(diceNotation, dicePool, selectedApproach, false, retryNotation, retryPool, selectedMagicSpell ? spellCost : 0, selectedMagicSpell?.name || 'el conjuro');
     effortDiceBonus = 0;
@@ -1655,6 +1657,24 @@
         {traitLabel}
         {equipmentDisplayName}
         traitDescription={(trait) => trait.startsWith('Conocedor de ') ? 'Conocimientos y experiencia en ' + trait.slice('Conocedor de '.length) + '.' : character.customTraits?.[trait] || TRAIT_DESCRIPTIONS[trait]?.long || TRAIT_DESCRIPTIONS[trait]?.short || 'Rasgo personalizado acordado con el Narrador.'}
+        {selectedApproach}
+        {selectedTrait}
+        {rollModifier}
+        helpBonus={rollHelp}
+        {dicePool}
+        {diceNotation}
+        {forcedLowRoll}
+        {selectedStatePenalty}
+        {effortDiceBonus}
+        pendingRoll={!!pendingDiceRoll}
+        rollError={dicePlusError}
+        {lastRoll}
+        onSelectApproach={(name) => { selectedApproach = name; }}
+        onSelectTrait={(name) => { selectedTrait = name; if (!name) rollHelp = false; }}
+        onModifierChange={(value) => { rollModifier = value; }}
+        onHelpChange={(value) => { rollHelp = value; }}
+        onRoll={rollDice}
+        onSpendEffort={spendEffort}
         onEdit={() => { activeTab = 'personaje'; editingCharacter = true; }}
       />
       {/if}
