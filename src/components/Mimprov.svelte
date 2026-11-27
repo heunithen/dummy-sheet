@@ -1036,7 +1036,7 @@
           OBR.room.onMetadataChange(syncSession);
           const syncConflict = (metadata: any) => {
             const conflict = metadata?.[CONFLICT_KEY];
-            visibleConflictActive = conflict?.active === true && Array.isArray(conflict.participantIds) && conflict.participantIds.includes(playerId);
+            visibleConflictActive = conflict?.active === true && Array.isArray(conflict.participantIds) && conflict.participantIds.includes(playerId) && !(conflict.exemptIds || []).includes(playerId);
           };
           syncConflict(await OBR.room.getMetadata());
           OBR.room.onMetadataChange(syncConflict);
@@ -1099,7 +1099,7 @@
               const allOverexertion = metadata?.[OVEREXERTION_KEY] || {};
               visibleEffortCoins = Math.max(0, Math.min(3, Number(allOverexertion[$currentPlayerId] ?? 3) || 0));
               const conflict = metadata?.[CONFLICT_KEY] || {};
-              conflictActive = conflict.active === true && (!Array.isArray(conflict.participantIds) || conflict.participantIds.includes($currentPlayerId));
+              conflictActive = conflict.active === true && (!Array.isArray(conflict.participantIds) || conflict.participantIds.includes($currentPlayerId)) && !(conflict.exemptIds || []).includes($currentPlayerId);
               conflictDanger = ['Bajo', 'Medio', 'Alto'].includes(conflict.danger) ? conflict.danger : 'Bajo';
               const modifiers = metadata?.[ROLL_MODIFIER_KEY] || {};
               rollModifier = ['advantage', 'disadvantage'].includes(modifiers[$currentPlayerId]) ? modifiers[$currentPlayerId] : 'normal';
@@ -1639,7 +1639,8 @@
     }
     conflict.exemptIds = exemptIds;
     conflict.rollCounts = rollCounts;
-    if (conflict.active && conflictRoundsComplete) resolveConflict('resistance');
+    const activeIds = conflict.participantIds.filter((playerId: string) => !conflict.exemptIds.includes(playerId));
+    if (conflict.active && activeIds.length > 0 && activeIds.every((playerId: string) => Number(conflict.rollCounts[playerId] || 0) >= 2)) resolveConflict('resistance');
     else saveGmTracker();
   }
 
@@ -2075,7 +2076,7 @@
               </div>
             {/if}
           </div>
-          <p class="muted">Selecciona los personajes que participan. El peligro determina la pérdida de Voluntad al fracasar. Cada 6 reduce la Resistencia en 1; un 5 no la reduce. Fallo: Bajo −1 Voluntad · Medio −2 · Alto −3.</p>
+          <p class="muted">Todos los personajes participan al iniciar. Marca la casilla para eximir a alguien; si la desmarcas durante el conflicto, entra y comienza a contar sus dos tiradas. El peligro determina la pérdida de Voluntad al fracasar. Cada 6 reduce la Resistencia en 1; un 5 no la reduce. Fallo: Bajo −1 Voluntad · Medio −2 · Alto −3.</p>
           {#if gmTracker.conflict.result}<p class="conflict-result">{gmTracker.conflict.result}</p>{/if}
           <div class="gm-conflict-actions"><button class="conflict-toggle-button" class:conflict-running={gmTracker.conflict.active} on:click={() => setConflictActive(!gmTracker.conflict.active)}>{gmTracker.conflict.active ? 'Terminar conflicto' : 'Iniciar conflicto'}</button><p class="muted gm-conflict-status">{gmTracker.conflict.active ? 'Conflicto activo · finaliza cuando cada personaje no exento complete dos tiradas.' : 'No hay un conflicto activo.'}</p></div>
         </section>
