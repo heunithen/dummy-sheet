@@ -564,7 +564,7 @@
   $: myPlayer = $PartyStore.find(p => p.id === $currentPlayerId);
   // El rol llega de forma asíncrona desde Owlbear. Asegura una pestaña válida al cambiar de rol.
   $: if ($isGM && activeTab !== 'gm' && activeTab !== 'reglamento' && activeTab !== 'lineas-velos' && activeTab !== 'pnj') activeTab = 'gm';
-  $: if (!$isGM && (activeTab === 'gm' || activeTab === 'conflicto')) activeTab = 'hoja';
+  $: if (!$isGM && activeTab === 'gm') activeTab = 'hoja';
   $: partyMembers = $PartyStore.filter(p => p.role !== 'GM' && getPlayerCharacter(p)?.created === true);
   $: if ($isGM && partyMembers.length && !partyMembers.some(p => p.id === selectedPlayerId)) selectedPlayerId = partyMembers[0].id;
   $: selectedPlayer = partyMembers.find(p => p.id === selectedPlayerId);
@@ -1805,7 +1805,7 @@
         </section>
       {/if}
     </main>
-  {:else if $isGM && (activeTab === 'gm' || activeTab === 'conflicto')}
+  {:else if $isGM && activeTab === 'gm'}
     <main class="content gm-content">
       {#if activeTab === 'gm'}
       <div class="eyebrow">HERRAMIENTAS DEL NARRADOR</div><h1>Personajes</h1>
