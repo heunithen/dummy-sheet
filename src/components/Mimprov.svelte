@@ -884,7 +884,7 @@
       visibleEffortCoins = Math.max(0, visibleEffortCoins - 1);
       if (mode === 'extra-die') {
         effortDiceBonus = 1;
-        dicePlusError = 'Moneda aplicada: +1d6 a la próxima tirada.';
+        dicePlusError = '';
       } else if (lastRoll) {
         dicePlusError = '';
         await sendDiceRoll(lastRoll.retryNotation!, lastRoll.retryPool!, lastRoll.approach || selectedApproach, true, lastRoll.retryNotation!, lastRoll.retryPool!);
