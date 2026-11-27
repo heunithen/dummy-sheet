@@ -2266,72 +2266,6 @@
       <h1>Reglamento MIMPROV</h1>
       <p class="rules-intro">Resumen de las reglas para jugadores y narrador. Esta sección es de consulta y no modifica las fichas ni el seguimiento de la partida.</p>
 
-      <section class="quick-rules">
-        <div class="quick-rules-heading">
-          <div>
-            <div class="eyebrow">14 · REFERENCIA RÁPIDA</div>
-            <h2>Resumen de reglas</h2>
-            <p>Lo esencial de MIMPROV, organizado para consultarlo durante la partida.</p>
-          </div>
-          <span class="quick-rules-badge">GUÍA RÁPIDA</span>
-        </div>
-        <div class="quick-rules-grid">
-          <article class="quick-rule-card quick-rule-main">
-            <div class="quick-rule-kicker">01 · RESOLUCIÓN</div>
-            <h3>Tiradas</h3>
-            <p>Elige Enfoque y Rasgo. Lanza 1d6 por punto de Enfoque, +1d6 por Rasgo relacionado y +1d6 por Ayuda válida. Conserva el dado más alto:</p>
-            <div class="quick-rule-results">
-              <div class="result-fail"><strong>1–4</strong><span>Fracaso</span></div>
-              <div class="result-cost"><strong>5</strong><span>Éxito con consecuencia</span></div>
-              <div class="result-success"><strong>6</strong><span>Éxito limpio</span></div>
-            </div>
-            <p>Dos o más 6: crítico, recuperas 1 Voluntad. Con 0d6 o menos, lanza 2d6 y conserva el menor. Ventaja suma 1d6; Desventaja resta 1d6. Se cancelan entre sí.</p>
-          </article>
-          <article class="quick-rule-card">
-            <div class="quick-rule-kicker">02 · ENFOQUES</div>
-            <h3>Cuatro maneras de actuar</h3>
-            <div class="quick-approaches">
-              <div><b>Tenacidad</b><span>Resistir</span></div>
-              <div><b>Disciplina</b><span>Controlar</span></div>
-              <div><b>Instinto</b><span>Reaccionar</span></div>
-              <div><b>Ingenio</b><span>Razonar</span></div>
-            </div>
-          </article>
-          <article class="quick-rule-card">
-            <div class="quick-rule-kicker">03 · VOLUNTAD Y ESTADOS</div>
-            <h3>Resiste la presión</h3>
-            <p>Comienzas con 4 Voluntad (máximo 4). Al llegar a 0 quedas <strong>Abrumado</strong>: todas tus tiradas son 2d6 y conservas el menor, hasta recuperar Voluntad.</p>
-            <p>Ante un fracaso, el Narrador puede asignar un Estado si la ficción lo justifica. Cada Estado resta 1d6 a su Enfoque asociado.</p>
-          </article>
-          <article class="quick-rule-card">
-            <div class="quick-rule-kicker">04 · RIESGO</div>
-            <h3>El coste del fracaso</h3>
-            <p>El Narrador establece el Riesgo antes de cada tirada. Solo determina la pérdida de Voluntad al fracasar:</p>
-            <div class="quick-risk-list"><span><b>Bajo</b><strong>−1</strong></span><span><b>Medio</b><strong>−2</strong></span><span><b>Alto</b><strong>−3</strong></span></div>
-            <p>Sin Riesgo, el fracaso no resta Voluntad.</p>
-          </article>
-          <article class="quick-rule-card">
-            <div class="quick-rule-kicker">05 · RECURSO POR SESIÓN</div>
-            <h3>Monedas de sobreesfuerzo</h3>
-            <p>Comienzas cada sesión con 3. Si la acción se relaciona con tu Arquetipo o Concepto, gasta una para:</p>
-            <ul><li>Repetir todos los dados ignorando penalizaciones.</li><li>Añadir +1d6 a la reserva.</li></ul>
-          </article>
-          <article class="quick-rule-card">
-            <div class="quick-rule-kicker">06 · OPOSICIÓN</div>
-            <h3>Conflictos</h3>
-            <p>Oposición grupal con Resistencia común; máximo 2 rondas y una acción por participante en cada ronda.</p>
-            <div class="quick-rule-equation">Resistencia inicial = 2 × participantes</div>
-            <p>Cada 6 reduce 1 punto; un 5 logra la acción con consecuencia; un fracaso pierde Voluntad según el Riesgo de esa tirada. El conflicto no fija el Riesgo.</p>
-          </article>
-          <article class="quick-rule-card quick-rule-magic">
-            <div class="quick-rule-kicker">07 · VOLUNTAD</div>
-            <h3>Magia</h3>
-            <div class="quick-magic-costs"><span><b>1</b>Truco simple</span><span><b>2</b>Moderada</span><span><b>3</b>Extraordinaria</span></div>
-            <p>El coste se paga incluso si la tirada fracasa.</p>
-          </article>
-        </div>
-      </section>
-
       <section class="card">
         <h2>1. Creación de personajes</h2>
         <p>Cada personaje se define mediante su nombre, arquetipo, concepto, edad, apariencia, cuatro Enfoques, cuatro Rasgos y su equipo. Elige primero el arquetipo y después escribe el concepto.</p>
@@ -2469,37 +2403,6 @@
   .magic-content .field-hint { display:block; color:#999; text-align:right; font-size:.75rem; margin-top:.3rem; }
   .magic-content textarea { min-height:7rem; line-height:1.55; }
   .magic-message { color:#f2c879; margin:.8rem 0 0; }
-  .rules-content .quick-rules { margin:1.4rem 0 2.2rem; padding:1.25rem; border:1px solid rgba(213,166,75,.35); border-radius:14px; background:linear-gradient(145deg,rgba(213,166,75,.09),rgba(20,21,22,.45) 48%); }
-  .quick-rules-heading { display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; margin:0 0 1rem; }
-  .quick-rules-heading h2 { margin:.25rem 0 .35rem; font-size:1.55rem; }
-  .quick-rules-heading p { margin:0; color:#b9b9b9; }
-  .quick-rules-badge { flex:0 0 auto; padding:.35rem .6rem; border:1px solid rgba(213,166,75,.4); border-radius:99px; color:#f2c879; font-size:.65rem; font-weight:800; letter-spacing:.12em; }
-  .quick-rules-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.8rem; }
-  .quick-rule-card { min-width:0; padding:1rem 1.05rem; border:1px solid #414449; border-radius:10px; background:rgba(30,32,34,.88); }
-  .quick-rule-card.quick-rule-main { grid-column:1/-1; border-color:rgba(213,166,75,.55); background:linear-gradient(110deg,rgba(80,62,34,.25),rgba(30,32,34,.92)); }
-  .quick-rule-kicker { margin-bottom:.35rem; color:#c19a54; font-size:.66rem; font-weight:800; letter-spacing:.12em; }
-  .quick-rule-card h3 { margin:.1rem 0 .55rem; color:#f2d49a; font-size:1.05rem; }
-  .quick-rule-card p { margin:.45rem 0; font-size:.91rem; line-height:1.6; }
-  .quick-rule-card ul { margin:.45rem 0 0; padding-left:1.15rem; color:#c7c7c7; font-size:.88rem; line-height:1.55; }
-  .quick-rule-results { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.55rem; margin:.8rem 0; }
-  .quick-rule-results div { display:flex; flex-direction:column; align-items:center; gap:.15rem; padding:.65rem .35rem; border:1px solid #55595e; border-radius:8px; background:#202225; text-align:center; }
-  .quick-rule-results strong { font-size:1.35rem; color:#f2c879; }
-  .quick-rule-results span { color:#ccc; font-size:.78rem; }
-  .quick-rule-results .result-fail strong { color:#e58b82; }
-  .quick-rule-results .result-cost strong { color:#e8c47f; }
-  .quick-rule-results .result-success strong { color:#a9d18e; }
-  .quick-approaches { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.5rem; }
-  .quick-approaches div { display:flex; justify-content:space-between; gap:.4rem; padding:.5rem .6rem; border-radius:6px; background:#242629; font-size:.82rem; }
-  .quick-approaches b { color:#f1d49d; }
-  .quick-approaches span { color:#bcbcbc; }
-  .quick-risk-list { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.45rem; margin:.65rem 0; }
-  .quick-risk-list span { display:flex; justify-content:space-between; padding:.55rem .6rem; border:1px solid #45484c; border-radius:6px; background:#222427; font-size:.8rem; }
-  .quick-risk-list strong { color:#f2c879; }
-  .quick-rule-equation { margin:.65rem 0; padding:.65rem; border:1px solid rgba(213,166,75,.4); border-radius:7px; background:#202225; color:#f2c879; text-align:center; font-weight:800; font-size:.9rem; }
-  .quick-magic-costs { display:grid; gap:.4rem; margin:.6rem 0; }
-  .quick-magic-costs span { display:flex; align-items:center; gap:.65rem; color:#ccc; font-size:.85rem; }
-  .quick-magic-costs b { display:grid; place-items:center; width:1.8rem; height:1.8rem; border-radius:50%; background:#3a3020; color:#f2c879; font-size:1rem; }
-  @media(max-width:600px) { .rules-content .quick-rules { padding:.85rem; } .quick-rules-grid { grid-template-columns:1fr; } .quick-rule-card.quick-rule-main { grid-column:auto; } .quick-rules-heading { flex-direction:column; } .quick-rule-results span { font-size:.7rem; } .quick-approaches div { flex-direction:column; gap:0; } }
   .rules-content .rules-intro { margin:.2rem 0 1.2rem; }
   .rules-content .card { padding:1.35rem 1.5rem; }
   .rules-content h2 { margin-bottom:.65rem; }
