@@ -1987,14 +1987,10 @@
         {#if partyMembers.length === 0}
           <p>No hay personajes creados en la sala.</p>
         {:else}
-          <nav class="character-tabs" aria-label="Personajes">
-            {#each partyMembers as player}
-              <button class:active={selectedPlayerId === player.id} on:click={() => selectedPlayerId = player.id}>{getPlayerCharacter(player)?.name || player.name}</button>
-            {/each}
-          </nav>
-          {#each partyMembers.filter(p => p.id === selectedPlayerId) as player}
-            <article class="gm-player">
-              <header class="gm-player-head">
+          <div class="gm-character-list" aria-label="Hojas de personajes">
+          {#each partyMembers as player}
+            <details class="gm-player">
+              <summary class="gm-player-head">
                 <div class="gm-player-identity">
                   {#if getPlayerCharacter(player)?.portrait}<img class="gm-player-portrait" src={getPlayerCharacter(player)?.portrait} alt="Retrato de {getPlayerCharacter(player)?.name || player.name}">{/if}
                   <div><h3>{getPlayerCharacter(player)?.name || player.name}</h3><small>{getPlayerCharacter(player)?.created ? getPlayerCharacter(player)?.concept : 'Ficha MIMPROV aún no creada'}</small></div>
@@ -2065,8 +2061,9 @@
                   <button class="danger-button" on:click={() => deletePlayerCharacter(player)}>Borrar personaje</button>
                 </footer>
               {/if}
-            </article>
+            </details>
           {/each}
+          </div>
         {/if}
       </section>
       <p class="sync-note">El seguimiento de personajes se guarda localmente en este dispositivo y sala.</p>
@@ -2454,6 +2451,16 @@
   .gm-conflict-card > p { margin:.8rem 0 .25rem; }
   .gm-conflict-status { margin-bottom:0 !important; }
   .gm-characters-section { margin-top:1.4rem; }
+  .gm-character-list { display:grid; gap:.55rem; width:min(100%, 440px); margin-left:auto; }
+  .gm-character-list .gm-player { min-width:0; border:1px solid #484b50; border-radius:7px; background:#222427; overflow:hidden; }
+  .gm-character-list .gm-player[open] { border-color:#8d7040; }
+  .gm-character-list .gm-player-head { display:flex; align-items:center; justify-content:space-between; gap:.8rem; min-height:3.4rem; padding:.65rem .85rem; cursor:pointer; list-style:none; }
+  .gm-character-list .gm-player-head::-webkit-details-marker { display:none; }
+  .gm-character-list .gm-player-head::after { content:'＋'; flex:none; color:#d8b66f; font-size:1.1rem; }
+  .gm-character-list .gm-player[open] > .gm-player-head::after { content:'−'; }
+  .gm-character-list .gm-player > :not(summary) { margin-left:.85rem; margin-right:.85rem; }
+  .gm-character-list .gm-player > .gm-character-information { margin-top:0; }
+  .gm-character-list .gm-player > .gm-player-footer { margin-bottom:.85rem; }
   .gm-character-information { padding:.8rem 0; border-top:1px solid #414448; border-bottom:1px solid #414448; }
   .gm-character-information h4 { margin:.1rem 0 .45rem; }
   .gm-character-information .gm-stats { padding:0; }
