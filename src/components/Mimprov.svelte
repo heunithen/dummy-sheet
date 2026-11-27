@@ -997,7 +997,7 @@
     pendingDiceRoll = null;
     if (roll.singleRiskId) {
       visibleConflictActive = false;
-      OBR.broadcast.sendMessage(SINGLE_RISK_ROLL_CHANNEL, { rollId: roll.rollId, riskId: roll.singleRiskId, playerId: $currentPlayerId }, { destination: 'ALL' }).catch((error) => console.error('No se pudo cerrar la tirada con riesgo', error));
+      OBR.broadcast.sendMessage(CONFLICT_ROLL_CHANNEL, { rollId: roll.rollId, riskId: roll.singleRiskId, playerId: $currentPlayerId }, { destination: 'ALL' }).catch((error) => console.error('No se pudo cerrar la tirada con riesgo', error));
     }
     resetSheetRollSelection();
     OBR.broadcast.sendMessage(ROLL_NOTICE_CHANNEL, { rollId: roll.rollId, result: finalResult }, { destination: 'ALL' }).catch((error) => console.error('No se pudo anunciar el resultado de la tirada', error));
