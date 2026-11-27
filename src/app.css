@@ -27,3 +27,13 @@ body{
   border-radius: 0.1rem;
   width: 0.1rem;
 }
+
+/* Feedback sutil y uniforme para todo elemento realmente clickeable. */
+.mimprov-clickable-hover {
+  transition: transform 120ms ease, filter 120ms ease, box-shadow 120ms ease;
+}
+
+.mimprov-clickable-hover:hover {
+  transform: translateY(-1px) scale(1.015);
+  filter: brightness(1.12);
+}
