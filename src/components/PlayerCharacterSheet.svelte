@@ -81,6 +81,8 @@
   $: canCastSelectedSpell = !selectedSpell || Number(character.will || 0) >= Number(selectedSpell.willCost || 0);
 </script>
 
+<svelte:window on:pointerup={cancelHold} />
+
 {#if !character?.created}
   <section class="sheet-empty">
     <span class="eyebrow">MIMPROV · PERSONAJE</span>
@@ -89,7 +91,6 @@
     <button on:click={onEdit}>Crear personaje</button>
   </section>
 {:else}
-  <svelte:window on:pointerup={cancelHold} />
   <section class="mimprov-sheet" class:conflict-active={conflictActive} on:mousemove={trackPointer} on:mouseleave={() => cursorVisible = false} on:pointerdown={startHold} on:pointercancel={cancelHold}>
     <header class="sheet-head">
       <div class="sheet-identity">
