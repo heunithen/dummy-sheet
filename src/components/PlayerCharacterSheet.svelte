@@ -7,6 +7,35 @@
   export let equipmentDisplayName: (item: any) => string = (item) => item?.name || '';
   export let traitDescription: (trait: string) => string = () => '';
   export let onEdit: () => void = () => {};
+  export let selectedApproach = 'Tenacidad';
+  export let selectedTrait = '';
+  export let rollModifier = 'normal';
+  export let helpBonus = false;
+  export let dicePool = 0;
+  export let diceNotation = '2d6kl1';
+  export let forcedLowRoll = false;
+  export let selectedStatePenalty = 0;
+  export let effortDiceBonus = 0;
+  export let pendingRoll = false;
+  export let rollError = '';
+  export let lastRoll: any = null;
+  export let onSelectApproach: (name: string) => void = () => {};
+  export let onSelectTrait: (name: string) => void = () => {};
+  export let onModifierChange: (value: string) => void = () => {};
+  export let onHelpChange: (value: boolean) => void = () => {};
+  export let onRoll: () => void = () => {};
+  export let onSpendEffort: (mode: 'extra-die' | 'reroll') => void = () => {};
+  let cursorX = 0;
+  let cursorY = 0;
+  let cursorVisible = false;
+  $: selectedApproachDice = Number(character?.approaches?.[selectedApproach]) || 0;
+  $: selectedTraitDice = selectedTrait && character?.traits?.includes(selectedTrait) ? 1 : 0;
+  $: cursorDiceCount = forcedLowRoll ? 2 : Math.max(2, dicePool);
+  function trackPointer(event: MouseEvent) {
+    cursorX = event.clientX;
+    cursorY = event.clientY;
+    cursorVisible = true;
+  }
 
   const approaches = [
     { name: 'Tenacidad', meaning: 'Resistir', detail: 'Soportar presión, dolor, cansancio y mantenerse firme.' },
@@ -33,7 +62,7 @@
     <button on:click={onEdit}>Crear personaje</button>
   </section>
 {:else}
-  <section class="mimprov-sheet">
+  <section class="mimprov-sheet" on:mousemove={trackPointer} on:mouseleave={() => cursorVisible = false}>
     <header class="sheet-head">
       <div class="sheet-identity">
         <div class="portrait">
@@ -66,12 +95,12 @@
         <h2>Enfoques</h2>
         <div class="approach-grid">
           {#each approaches as approach}
-            <article class="approach">
+            <button type="button" class="approach" class:selected={selectedApproach === approach.name} aria-pressed={selectedApproach === approach.name} on:click={() => onSelectApproach(approach.name)}>
               <span>{approach.meaning}</span>
               <strong>{approach.name}</strong>
               <b>{Number(character.approaches?.[approach.name]) || 0}</b>
               <small>{approach.detail}</small>
-            </article>
+            </button>
           {/each}
         </div>
       </section>
@@ -81,14 +110,63 @@
         {#if character.traits?.length}
           <div class="trait-list">
             {#each character.traits as trait}
-              <article class="trait">
+              <button type="button" class="trait" class:selected={selectedTrait === trait} aria-pressed={selectedTrait === trait} on:click={() => onSelectTrait(selectedTrait === trait ? '' : trait)}>
                 <strong>{traitLabel(trait)}</strong>
                 <p>{traitDescription(trait)}</p>
-              </article>
+                <small class="trait-die">{selectedTrait === trait ? '+1d6 seleccionado' : 'Seleccionar +1d6'}</small>
+              </button>
             {/each}
           </div>
         {:else}
           <p class="empty-copy">No hay Rasgos registrados.</p>
+        {/if}
+      </section>
+
+      <section class="sheet-panel full roll-panel">
+        <h2>Construir tirada</h2>
+        <p class="hint">Selecciona un Enfoque y, si corresponde, un Rasgo. El Narrador debe validar que sean adecuados para la acción.</p>
+        <div class="roll-selection-summary">
+          <span><small>Enfoque</small><strong>{selectedApproach} · {selectedApproachDice}d6</strong></span>
+          <span><small>Rasgo</small><strong>{selectedTrait ? traitLabel(selectedTrait) + ' · +1d6' : 'Sin Rasgo'}</strong></span>
+          {#if selectedStatePenalty}<span class="penalty-tag"><small>Estado</small><strong>−{selectedStatePenalty}d6</strong></span>{/if}
+        </div>
+        <label class="help-toggle">
+          <input type="checkbox" checked={helpBonus} disabled={!selectedTrait || forcedLowRoll} on:change={(event) => onHelpChange(event.currentTarget.checked)}>
+          <span><strong>Ayuda de otro personaje (+1d6)</strong><small>Solo si otro personaje comparte el Rasgo y puede colaborar. En conflicto, consume su acción de esta ronda.</small></span>
+        </label>
+        <div class="modifier-picker">
+          <span>Modificador</span>
+          <div class="modifier-options">
+            <button type="button" class:active={rollModifier === 'normal'} on:click={() => onModifierChange('normal')}>Normal</button>
+            <button type="button" class:active={rollModifier === 'advantage'} on:click={() => onModifierChange('advantage')}>Ventaja +1d6</button>
+            <button type="button" class:active={rollModifier === 'disadvantage'} on:click={() => onModifierChange('disadvantage')}>Desventaja −1d6</button>
+          </div>
+        </div>
+        {#if forcedLowRoll}
+          <p class="condition-note">Abrumado: se lanzan siempre 2d6 y se conserva el menor. Ayuda, Ventaja y Desventaja no modifican esta tirada.</p>
+        {/if}
+        <div class="pool-readout"><span>Reserva calculada</span><strong>{diceNotation}</strong><small>{forcedLowRoll || dicePool <= 0 ? 'Se conserva el resultado menor.' : 'Se conserva únicamente el resultado más alto.'}</small></div>
+        {#if rollError}<p class="roll-error">{rollError}</p>{/if}
+        <button type="button" class="sheet-roll-button" disabled={pendingRoll} on:click={onRoll}>{pendingRoll ? 'Tirando en Dice+…' : 'Realizar tirada'}</button>
+        {#if effortCoins > 0}
+          <div class="effort-actions">
+            <button type="button" on:click={() => onSpendEffort('extra-die')} disabled={pendingRoll || effortDiceBonus > 0}>Gastar moneda: añadir +1d6</button>
+            {#if lastRoll?.retryNotation}
+              <button type="button" on:click={() => onSpendEffort('reroll')} disabled={pendingRoll}>Gastar moneda: repetir tirada</button>
+            {/if}
+          </div>
+        {/if}
+        {#if lastRoll}
+          <div class="sheet-roll-result">
+            <div class="result-title"><strong>{lastRoll.result}</strong><span>{lastRoll.approach || selectedApproach}</span></div>
+            {#if lastRoll.dice?.length}
+              <div class="sheet-dice-results">{#each lastRoll.dice as die, index}<span class:kept={lastRoll.notation?.includes('kl1') ? die === Math.min(...lastRoll.dice) : die === Math.max(...lastRoll.dice)}>{die}</span>{/each}</div>
+              <p>Resultado conservado: <strong>{lastRoll.kept}</strong></p>
+              {#if lastRoll.critical}<p class="condition-note">Crítico: recuperas 1 punto de Voluntad.</p>{/if}
+            {:else}
+              <p class="hint">Esperando el resultado de Dice+.</p>
+            {/if}
+          </div>
         {/if}
       </section>
 
@@ -177,6 +255,12 @@
       </section>
     </div>
     <p class="sheet-footnote">Hoja de personaje · MIMPROV</p>
+    {#if cursorVisible && cursorDiceCount > 0}
+      <div class="cursor-dice" style:left="{cursorX + 14}px" style:top="{cursorY + 14}px" aria-hidden="true">
+        {#each Array.from({ length: Math.min(cursorDiceCount, 8) }) as _, index}<span>⚄</span>{/each}
+        {#if cursorDiceCount > 8}<span>+{cursorDiceCount - 8}</span>{/if}
+      </div>
+    {/if}
   </section>
 {/if}
 
@@ -221,13 +305,46 @@
   .data-grid strong { display:block; color:var(--sheet-text); overflow-wrap:anywhere; font-size:.9rem; }
   .data-grid .wide { grid-column:1/-1; }
   .approach-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.6rem; }
-  .approach { display:grid; grid-template-columns:1fr auto; gap:.25rem .5rem; align-items:center; padding:.8rem; border:1px solid var(--sheet-line); border-radius:8px; background:var(--sheet-panel-inner); }
+  .approach { width:100%; text-align:left; color:inherit; cursor:pointer; font:inherit; display:grid; grid-template-columns:1fr auto; gap:.25rem .5rem; align-items:center; padding:.8rem; border:1px solid var(--sheet-line); border-radius:8px; background:var(--sheet-panel-inner); }
   .approach>span { grid-column:1/-1; margin:0; color:var(--sheet-gold); }
+  .approach.selected, .trait.selected { border-color:var(--sheet-accent); background:#263629; box-shadow:inset 0 0 0 1px var(--sheet-accent); }
+  .approach:focus-visible, .trait:focus-visible { outline:2px solid var(--sheet-gold); outline-offset:2px; }
   .approach strong { color:var(--sheet-text); font-size:.86rem; }
   .approach b { color:var(--sheet-accent); font:800 1.4rem Manrope,sans-serif; }
   .approach small { grid-column:1/-1; color:var(--sheet-muted); font-size:.72rem; line-height:1.4; }
   .trait-list, .state-list, .spell-grid { display:grid; gap:.6rem; }
   .trait, .state, .spell { padding:.8rem; border:1px solid var(--sheet-line); border-radius:8px; background:var(--sheet-panel-inner); }
+  button.trait { width:100%; text-align:left; color:inherit; cursor:pointer; font:inherit; }
+  .trait-die { display:block; margin-top:.5rem; color:var(--sheet-gold); font-size:.72rem; }
+  .roll-panel { display:grid; gap:.85rem; }
+  .roll-selection-summary { display:flex; flex-wrap:wrap; gap:.6rem; }
+  .roll-selection-summary>span { display:grid; gap:.2rem; padding:.65rem .8rem; border:1px solid var(--sheet-line); border-radius:7px; background:var(--sheet-panel-inner); }
+  .roll-selection-summary small, .pool-readout small { color:var(--sheet-muted); font-size:.68rem; }
+  .roll-selection-summary strong { color:var(--sheet-text); font-size:.84rem; }
+  .penalty-tag strong { color:#e4c27c; }
+  .help-toggle { display:flex; align-items:flex-start; gap:.65rem; padding:.75rem; border:1px solid var(--sheet-line); border-radius:7px; background:var(--sheet-panel-inner); cursor:pointer; }
+  .help-toggle input { margin-top:.2rem; accent-color:var(--sheet-accent); }
+  .help-toggle span { display:grid; gap:.25rem; }
+  .help-toggle strong { color:var(--sheet-text); font-size:.84rem; }
+  .help-toggle small { color:var(--sheet-muted); font-size:.72rem; line-height:1.4; }
+  .modifier-picker { display:grid; gap:.5rem; }
+  .modifier-options, .effort-actions { display:flex; flex-wrap:wrap; gap:.5rem; }
+  .modifier-options button, .effort-actions button { padding:.55rem .75rem; border:1px solid var(--sheet-line); border-radius:7px; background:var(--sheet-panel-inner); color:var(--sheet-text); cursor:pointer; }
+  .modifier-options button.active { border-color:var(--sheet-accent); background:#263629; }
+  .pool-readout { display:flex; flex-wrap:wrap; align-items:center; gap:.7rem; padding:.8rem; border:1px solid var(--sheet-line); border-radius:8px; background:var(--sheet-panel-inner); }
+  .pool-readout span { color:var(--sheet-muted); font-size:.78rem; }
+  .pool-readout strong { color:var(--sheet-accent); font:800 1.25rem Manrope,sans-serif; }
+  .pool-readout small { flex-basis:100%; }
+  .sheet-roll-button { padding:.8rem 1rem; border:1px solid var(--sheet-accent); border-radius:7px; background:var(--sheet-accent); color:#172016; font-weight:800; cursor:pointer; }
+  .sheet-roll-button:disabled, .effort-actions button:disabled { opacity:.45; cursor:not-allowed; }
+  .roll-error { margin:0; color:#ff9c91; font-size:.8rem; }
+  .sheet-roll-result { padding:.85rem; border:1px solid var(--sheet-line); border-radius:8px; background:var(--sheet-panel-inner); }
+  .result-title { display:flex; justify-content:space-between; gap:.5rem; flex-wrap:wrap; color:var(--sheet-accent); }
+  .sheet-dice-results { display:flex; flex-wrap:wrap; gap:.4rem; margin:.7rem 0; }
+  .sheet-dice-results span { display:grid; place-items:center; width:34px; height:34px; border:1px solid var(--sheet-line); border-radius:7px; color:var(--sheet-text); }
+  .sheet-dice-results span.kept { border-color:var(--sheet-accent); background:var(--sheet-accent); color:#172016; font-weight:800; }
+  .cursor-dice { position:fixed; z-index:9999; display:flex; gap:2px; pointer-events:none; filter:drop-shadow(0 2px 3px #000b); }
+  .cursor-dice span { display:grid; place-items:center; width:22px; height:22px; border:1px solid #d9e7bd; border-radius:5px; background:#263629; color:#f3f7e9; font-size:15px; font-weight:800; }
   .trait strong, .state strong, .spell strong { color:var(--sheet-accent); }
   .trait p, .spell p { margin:.35rem 0 0; color:#c4cec3; font-size:.82rem; line-height:1.5; }
   .state small, .spell small, .equipment-item small { display:block; margin-top:.3rem; color:var(--sheet-muted); font-size:.72rem; line-height:1.4; }
