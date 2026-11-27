@@ -1,6 +1,7 @@
 <script lang="ts">
   export let character: any;
   export let states: string[] = [];
+  export let conflictActive = false;
   export let effortCoins = 3;
   export let spells: any[] = [];
   export let traitLabel: (trait: string) => string = (trait) => trait;
@@ -55,7 +56,7 @@
     <button on:click={onEdit}>Crear personaje</button>
   </section>
 {:else}
-  <section class="mimprov-sheet" on:mousemove={trackPointer} on:mouseleave={() => cursorVisible = false}>
+  <section class="mimprov-sheet" class:conflict-active={conflictActive} on:mousemove={trackPointer} on:mouseleave={() => cursorVisible = false}>
     <header class="sheet-head">
       <div class="sheet-identity">
         <div class="portrait">
@@ -239,6 +240,61 @@
     background: linear-gradient(145deg, #292b2e, #202124);
     box-shadow: 0 18px 55px #0004;
   }
+  .mimprov-sheet.conflict-active {
+    --sheet-bg:#050505;
+    --sheet-panel:#111214;
+    --sheet-panel-inner:#1b1c1f;
+    --sheet-line:#71343a;
+    --sheet-text:#f5f5f5;
+    --sheet-muted:#b8b8b8;
+    --sheet-accent:#f0eeee;
+    --sheet-gold:#c7c7c7;
+    border-color:#a52b36;
+    background:linear-gradient(145deg,#101012,#030303);
+    color:#f5f5f5;
+  }
+  .mimprov-sheet.conflict-active .sheet-panel,
+  .mimprov-sheet.conflict-active .effort-controls,
+  .mimprov-sheet.conflict-active .trait,
+  .mimprov-sheet.conflict-active .state,
+  .mimprov-sheet.conflict-active .spell,
+  .mimprov-sheet.conflict-active .data-grid div {
+    background:#111214;
+    border-color:#71343a;
+    color:#f5f5f5;
+  }
+  .mimprov-sheet.conflict-active h1,
+  .mimprov-sheet.conflict-active h2,
+  .mimprov-sheet.conflict-active h3,
+  .mimprov-sheet.conflict-active .trait strong,
+  .mimprov-sheet.conflict-active .state strong,
+  .mimprov-sheet.conflict-active .spell strong,
+  .mimprov-sheet.conflict-active .approach b,
+  .mimprov-sheet.conflict-active .resource-value {
+    color:#f2f2f2;
+  }
+  .mimprov-sheet.conflict-active .approach,
+  .mimprov-sheet.conflict-active .effort-coin,
+  .mimprov-sheet.conflict-active .sheet-roll-button,
+  .mimprov-sheet.conflict-active .edit-button {
+    background:#252629;
+    color:#fff;
+    border-color:#a52b36;
+  }
+  .mimprov-sheet.conflict-active .approach.selected,
+  .mimprov-sheet.conflict-active .trait.selected {
+    background:#3a2024;
+    border-color:#d34b56;
+    box-shadow:inset 0 0 0 1px #d34b56;
+  }
+  .mimprov-sheet.conflict-active .portrait { background:#151515; border-color:#a52b36; color:#ddd; }
+  .mimprov-sheet.conflict-active .sheet-head { border-bottom-color:#71343a; }
+  .mimprov-sheet.conflict-active .state { box-shadow:inset 3px 0 0 #a52b36; }
+  .mimprov-sheet.conflict-active .identity-copy p,
+  .mimprov-sheet.conflict-active .trait p,
+  .mimprov-sheet.conflict-active .spell p,
+  .mimprov-sheet.conflict-active .hint,
+  .mimprov-sheet.conflict-active .empty-copy { color:#c5c5c5; }
   .sheet-head { display:flex; justify-content:space-between; align-items:center; gap:1.2rem; flex-wrap:wrap; margin-bottom:1.5rem; padding-bottom:1.3rem; border-bottom:1px solid var(--sheet-line); }
   .sheet-identity { display:flex; align-items:center; gap:1rem; min-width:0; }
   .portrait { width:76px; height:76px; flex:0 0 76px; display:grid; place-items:center; overflow:hidden; border:1px solid #806638; border-radius:10px; background:var(--sheet-panel-inner); color:var(--sheet-gold); font-size:2rem; }
