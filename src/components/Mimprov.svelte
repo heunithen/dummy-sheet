@@ -517,7 +517,7 @@
   let customTraitDescription = '';
   let equipmentDraft: string[] = [];
   let editingCharacter = false;
-  let activeTab = 'personaje';
+  let activeTab = 'hoja';
   let playerMagicRecord: any = { spells: [] };
   let selectedMagicSpellId = '';
   let gmTracker: any = { players: {}, conflict: { active: false, danger: 'Bajo', resistance: null } };
@@ -554,7 +554,7 @@
   $: myPlayer = $PartyStore.find(p => p.id === $currentPlayerId);
   // El rol llega de forma asíncrona desde Owlbear. Asegura una pestaña válida al cambiar de rol.
   $: if ($isGM && activeTab !== 'gm' && activeTab !== 'conflicto' && activeTab !== 'reglamento' && activeTab !== 'lineas-velos' && activeTab !== 'pnj') activeTab = 'gm';
-  $: if (!$isGM && (activeTab === 'gm' || activeTab === 'conflicto')) activeTab = 'personaje';
+  $: if (!$isGM && (activeTab === 'gm' || activeTab === 'conflicto')) activeTab = 'hoja';
   $: partyMembers = $PartyStore.filter(p => p.role !== 'GM' && getPlayerCharacter(p)?.created === true);
   $: if ($isGM && partyMembers.length && !partyMembers.some(p => p.id === selectedPlayerId)) selectedPlayerId = partyMembers[0].id;
   $: selectedPlayer = partyMembers.find(p => p.id === selectedPlayerId);
@@ -1278,7 +1278,7 @@
     if (step === 7 && !inventoryValid) return;
     if (step === 5) character.approaches = { ...approachDraft };
     if (step < 8) step += 1;
-    else { character.created = true; character.will = 4; character.maxWill = 4; updateCharacter(); editingCharacter = false; }
+    else { character.created = true; character.will = 4; character.maxWill = 4; updateCharacter(); editingCharacter = false; activeTab = 'hoja'; }
   }
   function previousStep() { if (step > 0) step -= 1; }
   function setApproach(name: string, value: number) {
@@ -1480,7 +1480,6 @@
 <div class="app-shell">
   {#if !$isGM && sessionStarted}
     <nav class="main-tabs">
-      <button class:active={activeTab === 'personaje'} on:click={() => { activeTab = 'personaje'; }}>Personaje</button>
       <button class:active={activeTab === 'hoja'} on:click={() => { activeTab = 'hoja'; }}>Hoja de personaje</button>
       <button class:active={activeTab === 'tiradas'} on:click={() => { activeTab = 'tiradas'; }}>Tiradas</button>
       <button class:active={activeTab === 'reglamento'} on:click={() => { activeTab = 'reglamento'; }}>Reglamento</button>
@@ -1640,6 +1639,14 @@
     </main>
   {:else if !$isGM && activeTab === 'hoja'}
     <main class="content character-sheet-content">
+      {#if !character.created}
+        <section class="card wizard">
+          <div class="eyebrow">CREACIÓN DE PERSONAJE</div>
+          <h1>Creación de personaje</h1>
+          <p>Responde las preguntas paso a paso. Al terminar, tu hoja de personaje aparecerá en esta misma pestaña.</p>
+          <button on:click={() => { activeTab = 'personaje'; step = 0; editingCharacter = false; }}>Comenzar creación</button>
+        </section>
+      {:else}
       <PlayerCharacterSheet
         character={character}
         states={displayedStates}
@@ -1650,6 +1657,7 @@
         traitDescription={(trait) => trait.startsWith('Conocedor de ') ? 'Conocimientos y experiencia en ' + trait.slice('Conocedor de '.length) + '.' : character.customTraits?.[trait] || TRAIT_DESCRIPTIONS[trait]?.long || TRAIT_DESCRIPTIONS[trait]?.short || 'Rasgo personalizado acordado con el Narrador.'}
         onEdit={() => { activeTab = 'personaje'; editingCharacter = true; }}
       />
+      {/if}
     </main>
   {:else if !$isGM && activeTab === 'tiradas'}
     <main class="content">
