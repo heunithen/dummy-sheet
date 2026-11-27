@@ -23,7 +23,7 @@
   let cursorX = 0;
   let cursorY = 0;
   let cursorVisible = false;
-  $: cursorDiceCount = forcedLowRoll || dicePool <= 0 ? 2 : dicePool;
+  $: cursorDiceCount = forcedLowRoll ? 2 : Math.max(0, dicePool);
   function trackPointer(event: MouseEvent) {
     cursorX = event.clientX;
     cursorY = event.clientY;
@@ -98,18 +98,7 @@
         </div>
         <button type="button" class="sheet-roll-button approach-roll-button" disabled={!approachSelected || pendingRoll} on:click={onRoll}>{pendingRoll ? 'Tirando en Dice+…' : 'Lanzar dados'}</button>
         {#if rollError}<p class="roll-error">{rollError}</p>{/if}
-        {#if lastRoll}
-          <div class="sheet-roll-result">
-            <div class="result-title"><strong>{lastRoll.result}</strong><span>{lastRoll.approach || selectedApproach}</span></div>
-            {#if lastRoll.dice?.length}
-              <div class="sheet-dice-results">{#each lastRoll.dice as die}<span class:kept={lastRoll.notation?.includes('kl1') ? die === Math.min(...lastRoll.dice) : die === Math.max(...lastRoll.dice)}>{die}</span>{/each}</div>
-              <p>Resultado conservado: <strong>{lastRoll.kept}</strong></p>
-              {#if lastRoll.critical}<p class="condition-note">Crítico: recuperas 1 punto de Voluntad.</p>{/if}
-            {:else}
-              <p class="hint">Esperando el resultado de Dice+.</p>
-            {/if}
-          </div>
-        {/if}
+
       </section>
 
       <section class="sheet-panel">
@@ -117,7 +106,7 @@
         {#if character.traits?.length}
           <div class="trait-list">
             {#each character.traits as trait}
-              <button type="button" class="trait" class:selected={selectedTrait === trait} aria-pressed={selectedTrait === trait} on:click={() => onSelectTrait(selectedTrait === trait ? '' : trait)}>
+              <button type="button" class="trait" class:selected={selectedTrait === trait} class:muted-trait={!!selectedTrait && selectedTrait !== trait} aria-pressed={selectedTrait === trait} on:click={() => onSelectTrait(selectedTrait === trait ? '' : trait)}>
                 <strong>{traitLabel(trait)}</strong>
                 <p>{traitDescription(trait)}</p>
                 <small class="trait-die">{selectedTrait === trait ? '+1d6 seleccionado' : 'Seleccionar +1d6'}</small>
@@ -148,27 +137,18 @@
 
       <section class="sheet-panel">
         <h2>Monedas de esfuerzo</h2>
-        <div class="resource-row">
-          <div class="resource-dots effort-dots" aria-label="Monedas de esfuerzo disponibles">
-            {#each Array.from({ length: 3 }) as _, index}
-              <span class:filled={index < effortCoins} class="resource-dot">✦</span>
-            {/each}
-          </div>
+        <div class="effort-coins" aria-label="Monedas de esfuerzo disponibles">
+          {#each Array.from({ length: 3 }) as _, index}
+            <button type="button" class="effort-coin" class:spent={index >= effortCoins} aria-label="Gastar moneda para añadir un dado" disabled={index >= effortCoins || pendingRoll || effortDiceBonus > 0} on:click={() => onSpendEffort('extra-die')}>✦</button>
+          {/each}
           <strong class="resource-value">{effortCoins} / 3</strong>
         </div>
-        <div class="effort-actions">
-          <button type="button" on:click={() => onSpendEffort('extra-die')} disabled={pendingRoll || effortDiceBonus > 0 || effortCoins <= 0}>Añadir +1d6 a la próxima tirada</button>
-          {#if lastRoll?.retryNotation}
-            <button type="button" on:click={() => onSpendEffort('reroll')} disabled={pendingRoll || effortCoins <= 0}>Repetir última tirada</button>
-          {/if}
-        </div>
-        {#if effortDiceBonus > 0}
-          <p class="effort-bonus">Moneda aplicada: <strong>+1d6</strong> a la próxima tirada. Este dado adicional se contabiliza aquí, separado de los dados del Enfoque.</p>
-        {:else}
-          <p class="hint">Una moneda permite añadir +1d6 a la próxima tirada o repetir todos los dados de la última tirada ignorando las penalizaciones de Estados.</p>
+        {#if effortDiceBonus > 0}<p class="effort-bonus">Moneda gastada: +1d6 preparado para la próxima tirada.</p>{/if}
+        {#if lastRoll?.retryNotation}
+          <button type="button" class="effort-reroll" on:click={() => onSpendEffort('reroll')} disabled={pendingRoll || effortCoins <= 0}>↻</button>
         {/if}
         {#if forcedLowRoll && effortDiceBonus > 0}
-          <p class="condition-note">Abrumado: el +1d6 no modifica la tirada; se mantienen los 2d6 y se conserva el menor.</p>
+          <p class="condition-note">Abrumado: se mantienen los 2d6 y se conserva el menor.</p>
         {/if}
       </section>
 
@@ -281,6 +261,11 @@
   .approach>span { grid-column:1/-1; margin:0; color:var(--sheet-gold); }
   .approach.selected, .trait.selected { border-color:var(--sheet-accent); background:#263629; box-shadow:inset 0 0 0 1px var(--sheet-accent); }
   .approach.muted-approach { opacity:.42; filter:grayscale(1); }
+  .trait.muted-trait { opacity:.42; filter:grayscale(1); }
+  .effort-coins { display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; }
+  .effort-coin { width:38px; height:38px; border:1px solid var(--sheet-gold); border-radius:50%; background:var(--sheet-gold); color:#172016; font-size:1.25rem; cursor:pointer; }
+  .effort-coin.spent { opacity:.25; filter:grayscale(1); cursor:not-allowed; }
+  .effort-reroll { margin-top:.65rem; width:38px; height:38px; border:1px solid var(--sheet-line); border-radius:50%; background:var(--sheet-panel-inner); color:var(--sheet-text); font-size:1.3rem; }
   .approach-roll-button { width:100%; margin-top:.85rem; }
   .effort-bonus { margin:.7rem 0 0; color:var(--sheet-gold); font-size:.8rem; line-height:1.45; }
   .approach:focus-visible, .trait:focus-visible { outline:2px solid var(--sheet-gold); outline-offset:2px; }
