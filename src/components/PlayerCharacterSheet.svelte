@@ -113,6 +113,37 @@
             <p class="condition-note">Abrumado: se mantienen los 2d6 y se conserva el menor.</p>
           {/if}
         </div>
+      <section class="sheet-panel">
+        <h2>Voluntad</h2>
+        <div class="resource-row">
+          <div class="resource-dots" aria-label="Voluntad actual">
+            {#each Array.from({ length: character.maxWill || 4 }) as _, index}
+              <span class:filled={index < (Number(character.will) || 0)} class="resource-dot">♥</span>
+            {/each}
+          </div>
+          <strong class="resource-value">{character.will} / {character.maxWill}</strong>
+        </div>
+        {#if Number(character.will) <= 0}
+          <p class="condition-note">Abrumado: todas las tiradas se realizan con 2d6 y se conserva el resultado menor.</p>
+        {:else}
+          <p class="hint">La Voluntad representa la capacidad del personaje para sostenerse frente a la presión.</p>
+        {/if}
+      </section>
+      <section class="sheet-panel">
+        <h2>Estados</h2>
+        {#if states.length}
+          <div class="state-list">
+            {#each states as state}
+              <article class="state">
+                <strong>{state}</strong>
+                <small>{stateDetails[state] || 'Condición activa del personaje.'}</small>
+              </article>
+            {/each}
+          </div>
+        {:else}
+          <p class="empty-copy">No tienes Estados activos.</p>
+        {/if}
+      </section>
       </section>
 
       <section class="sheet-panel">
@@ -132,38 +163,9 @@
         {/if}
       </section>
 
-      <section class="sheet-panel">
-        <h2>Voluntad</h2>
-        <div class="resource-row">
-          <div class="resource-dots" aria-label="Voluntad actual">
-            {#each Array.from({ length: character.maxWill || 4 }) as _, index}
-              <span class:filled={index < (Number(character.will) || 0)} class="resource-dot">♥</span>
-            {/each}
-          </div>
-          <strong class="resource-value">{character.will} / {character.maxWill}</strong>
-        </div>
-        {#if Number(character.will) <= 0}
-          <p class="condition-note">Abrumado: todas las tiradas se realizan con 2d6 y se conserva el resultado menor.</p>
-        {:else}
-          <p class="hint">La Voluntad representa la capacidad del personaje para sostenerse frente a la presión.</p>
-        {/if}
-      </section>
 
-      <section class="sheet-panel">
-        <h2>Estados</h2>
-        {#if states.length}
-          <div class="state-list">
-            {#each states as state}
-              <article class="state">
-                <strong>{state}</strong>
-                <small>{stateDetails[state] || 'Condición activa del personaje.'}</small>
-              </article>
-            {/each}
-          </div>
-        {:else}
-          <p class="empty-copy">No tienes Estados activos.</p>
-        {/if}
-      </section>
+
+
 
       <section class="sheet-panel full">
         <h2>Equipo</h2>
