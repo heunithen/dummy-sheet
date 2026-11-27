@@ -27,6 +27,7 @@
   export let onSelectTrait: (name: string) => void = () => {};
   export let onRoll: () => void = () => {};
   export let onSpendEffort: (mode: 'extra-die' | 'reroll') => void = () => {};
+  export let onAdjustWill: (delta: number) => void = () => {};
   let cursorX = 0;
   let cursorY = 0;
   let cursorVisible = false;
@@ -152,6 +153,11 @@
               {/each}
             </div>
             <strong class="resource-value">{character.will} / {character.maxWill}</strong>
+          </div>
+          <div class="will-adjust-controls" aria-label="Ajustar Voluntad">
+            <button type="button" on:click={() => onAdjustWill(-1)} disabled={Number(character.will) <= 0} aria-label="Perder 1 punto de Voluntad">−</button>
+            <span>Ajustar Voluntad</span>
+            <button type="button" on:click={() => onAdjustWill(1)} disabled={Number(character.will) >= Number(character.maxWill || 4)} aria-label="Recuperar 1 punto de Voluntad">+</button>
           </div>
           {#if Number(character.will) <= 0}
             <p class="condition-note">Abrumado: todas las tiradas se realizan con 2d6 y se conserva el resultado menor.</p>
@@ -448,6 +454,10 @@
   .resource-dot.filled { border-color:var(--sheet-accent); background:var(--sheet-accent); color:#171717; }
   .effort-dots .resource-dot.filled { border-color:var(--sheet-gold); background:var(--sheet-gold); }
   .resource-value { color:var(--sheet-gold); font:700 1.2rem Manrope,sans-serif; white-space:nowrap; }
+  .will-adjust-controls { display:flex; align-items:center; justify-content:center; gap:.75rem; margin-top:.85rem; }
+  .will-adjust-controls button { width:2rem; height:2rem; padding:0; border:1px solid var(--sheet-gold); border-radius:6px; background:#373a3e; color:var(--sheet-accent); font-size:1.2rem; font-weight:800; cursor:pointer; }
+  .will-adjust-controls button:disabled { opacity:.3; cursor:not-allowed; }
+  .will-adjust-controls span { color:var(--sheet-muted); font-size:.75rem; }
   .hint, .empty-copy, .condition-note { margin:.8rem 0 0; color:var(--sheet-muted); font-size:.8rem; line-height:1.5; }
   .condition-note { color:#f2c879; }
   .equipment-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.55rem; }
