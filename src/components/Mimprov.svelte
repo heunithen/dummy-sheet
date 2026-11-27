@@ -24,6 +24,7 @@
   const DICE_PLUS_SOURCE = 'com.heunithen.dummysheet-mimprov';
   const ROLL_NOTICE_CHANNEL = 'com.heunithen.dummysheet-mimprov/roll-notification';
   const CONFLICT_RESULT_CHANNEL = 'com.heunithen.dummysheet-mimprov/conflict-result';
+  const CONFLICT_ROLL_CHANNEL = 'com.heunithen.dummysheet-mimprov/conflict-roll';
   const DELETE_CHARACTER_CHANNEL = 'com.heunithen.dummysheet-mimprov/delete-character';
   const PLAYER_MAGIC_KEY = 'com.heunithen.dummysheet-mimprov/player-magic';
   const LINES_VEILS_KEY = 'com.heunithen.dummysheet-mimprov/lines-veils';
@@ -597,8 +598,10 @@
   $: selectedCharacter = selectedPlayer?.metadata?.[DATA_KEY] as Character;
   $: createdCharacterCount = partyMembers.filter(p => getPlayerCharacter(p)?.created).length;
   $: conflictParticipantIds = Array.isArray(gmTracker.conflict?.participantIds) ? gmTracker.conflict.participantIds : partyMembers.map(player => player.id);
-  $: conflictParticipants = partyMembers.filter(player => conflictParticipantIds.includes(player.id));
+  $: conflictExemptIds = Array.isArray(gmTracker.conflict?.exemptIds) ? gmTracker.conflict.exemptIds : [];
+  $: conflictParticipants = partyMembers.filter(player => conflictParticipantIds.includes(player.id) && !conflictExemptIds.includes(player.id));
   $: initialConflictResistance = conflictParticipants.length * 2;
+  $: conflictRoundsComplete = conflictParticipants.length > 0 && conflictParticipants.every(player => Number(gmTracker.conflict?.rollCounts?.[player.id] || 0) >= 2);
   $: if ($isGM && gmTracker.conflict?.active && conflictParticipants.length > 0 && conflictParticipants.every((player) => (Number(getPlayerCharacter(player)?.will) || 0) <= 0)) resolveConflict('defeat');
 
 
@@ -990,6 +993,7 @@
     pendingDiceRoll = null;
     resetSheetRollSelection();
     OBR.broadcast.sendMessage(ROLL_NOTICE_CHANNEL, { rollId: roll.rollId, result: finalResult }, { destination: 'ALL' }).catch((error) => console.error('No se pudo anunciar el resultado de la tirada', error));
+    OBR.broadcast.sendMessage(CONFLICT_ROLL_CHANNEL, { rollId: roll.rollId, playerId: $currentPlayerId }, { destination: 'ALL' }).catch((error) => console.error('No se pudo registrar la tirada del conflicto', error));
     if (critical) {
       adjustWill(1);
       return;
@@ -1137,6 +1141,28 @@
               saveGmTracker();
             } catch (error) {
               console.error('No se pudo registrar la moneda de esfuerzo', error);
+            }
+          });
+          OBR.broadcast.onMessage(CONFLICT_ROLL_CHANNEL, async (event) => {
+            if (role !== 'GM') return;
+            const data = event.data as any;
+            if (!data?.rollId || !data?.playerId) return;
+            try {
+              const party = await OBR.party.getPlayers();
+              const sender = party.find((player: any) => player.connectionId === event.connectionId);
+              if (!sender || sender.role !== 'PLAYER' || sender.id !== data.playerId) return;
+              const conflict = gmTracker.conflict;
+              if (!conflict?.active || !Array.isArray(conflict.participantIds) || !conflict.participantIds.includes(sender.id)) return;
+              if ((conflict.exemptIds || []).includes(sender.id)) return;
+              if (!conflict.countedRollIds || typeof conflict.countedRollIds !== 'object') conflict.countedRollIds = {};
+              if (conflict.countedRollIds[data.rollId]) return;
+              conflict.countedRollIds[data.rollId] = true;
+              if (!conflict.rollCounts || typeof conflict.rollCounts !== 'object') conflict.rollCounts = {};
+              conflict.rollCounts[sender.id] = Math.min(2, Number(conflict.rollCounts[sender.id] || 0) + 1);
+              if (conflictParticipants.length > 0 && conflictParticipants.every((player) => Number(conflict.rollCounts[player.id] || 0) >= 2)) resolveConflict('resistance');
+              else saveGmTracker();
+            } catch (error) {
+              console.error('No se pudo contabilizar la ronda del conflicto', error);
             }
           });
           OBR.broadcast.onMessage(WILL_ADJUST_CHANNEL, async (event) => {
@@ -1597,35 +1623,24 @@
     }
   }
 
-  function setConflictParticipant(id: string, included: boolean) {
-    if (!gmTracker.conflict) gmTracker.conflict = { active: false, danger: 'Bajo', resistance: null };
-    if (gmTracker.conflict.active) return;
-    const ids = Array.isArray(gmTracker.conflict.participantIds) ? [...gmTracker.conflict.participantIds] : partyMembers.map(player => player.id);
-    gmTracker.conflict.participantIds = included ? [...new Set([...ids, id])] : ids.filter(playerId => playerId !== id);
-    gmTracker.conflict.resistance = null;
-    saveGmTracker();
-  }
-
-  function toggleCharacterConflict(id: string, included: boolean) {
-    if (!gmTracker.conflict) gmTracker.conflict = { active: false, danger: 'Bajo', resistance: null, participantIds: [] };
-    const currentIds = Array.isArray(gmTracker.conflict.participantIds) ? [...gmTracker.conflict.participantIds] : [];
-    if (included) {
-      gmTracker.conflict.participantIds = [...new Set([...currentIds, id])];
-      if (!gmTracker.conflict.active) {
-        gmTracker.conflict.resistance = Math.max(1, gmTracker.conflict.participantIds.length * 2);
-        gmTracker.conflict.active = true;
-        gmTracker.conflict.result = '';
-      } else {
-        gmTracker.conflict.resistance = Math.max(0, Number(gmTracker.conflict.resistance ?? 0)) + 2;
-      }
+  function toggleCharacterConflict(id: string, exempt: boolean) {
+    if (!gmTracker.conflict) gmTracker.conflict = { active: false, danger: 'Bajo', resistance: null, participantIds: [], exemptIds: [], rollCounts: {} };
+    const conflict = gmTracker.conflict;
+    const participantIds = Array.isArray(conflict.participantIds) ? [...conflict.participantIds] : partyMembers.map(player => player.id);
+    const exemptIds = Array.isArray(conflict.exemptIds) ? [...conflict.exemptIds] : [];
+    const rollCounts = { ...(conflict.rollCounts || {}) };
+    if (exempt) {
+      if (!exemptIds.includes(id)) exemptIds.push(id);
     } else {
-      gmTracker.conflict.participantIds = currentIds.filter(playerId => playerId !== id);
-      if (!gmTracker.conflict.participantIds.length) {
-        gmTracker.conflict.active = false;
-        gmTracker.conflict.resistance = null;
-      }
+      conflict.participantIds = [...new Set([...participantIds, id])];
+      const index = exemptIds.indexOf(id);
+      if (index >= 0) exemptIds.splice(index, 1);
+      if (conflict.active) rollCounts[id] = 0;
     }
-    saveGmTracker();
+    conflict.exemptIds = exemptIds;
+    conflict.rollCounts = rollCounts;
+    if (conflict.active && conflictRoundsComplete) resolveConflict('resistance');
+    else saveGmTracker();
   }
 
   function setPlayerRollModifier(id: string, modifier: 'normal' | 'advantage' | 'disadvantage') {
@@ -1658,20 +1673,22 @@
 
   function setConflictActive(active: boolean) {
     if (!gmTracker.conflict) gmTracker.conflict = { active: false, danger: 'Bajo', resistance: null };
+    const conflict = gmTracker.conflict;
     if (active) {
-      if (!Array.isArray(gmTracker.conflict.participantIds)) gmTracker.conflict.participantIds = partyMembers.map(player => player.id);
-      if (!gmTracker.conflict.participantIds.length) { alert('Selecciona al menos un personaje participante.'); return; }
-      gmTracker.conflict.resistance = gmTracker.conflict.resistance ?? initialConflictResistance;
-      gmTracker.conflict.active = true;
-      gmTracker.conflict.result = '';
+      const participants = partyMembers.map(player => player.id);
+      if (!participants.length) { alert('No hay personajes creados para iniciar el conflicto.'); return; }
+      conflict.participantIds = participants;
+      conflict.exemptIds = [];
+      conflict.rollCounts = Object.fromEntries(participants.map(id => [id, 0]));
+      conflict.countedRollIds = {};
+      conflict.resistance = participants.length * 2;
+      conflict.active = true;
+      conflict.result = '';
       saveGmTracker();
       return;
     }
-    if (gmTracker.conflict.active) resolveConflict('resistance');
-    else {
-      gmTracker.conflict.active = false;
-      saveGmTracker();
-    }
+    if (conflict.active) resolveConflict('resistance');
+    else saveGmTracker();
   }
   function adjustConflictResistance(delta: number) {
     if (!gmTracker.conflict) gmTracker.conflict = { danger: 'Bajo', resistance: null };
@@ -2044,14 +2061,15 @@
           </div>
           <div class="gm-conflict-participants">
             <h3>Personajes</h3>
+            {#if gmTracker.conflict.active}<small class="muted">Marca para eximir del conflicto. Tiradas: dos por personaje para completar sus dos rondas.</small>{:else}<small class="muted">Al iniciar, todos entrarán en conflicto automáticamente.</small>{/if}
             {#if partyMembers.length === 0}
               <p class="muted">No hay personajes creados.</p>
             {:else}
               <div class="gm-conflict-participant-list">
                 {#each partyMembers as player}
                   <label class="gm-conflict-participant">
-                    <span>{getPlayerCharacter(player)?.name || player.name}</span>
-                    <input type="checkbox" checked={gmTracker.conflict.active === true && conflictParticipantIds.includes(player.id)} on:change={(event) => toggleCharacterConflict(player.id, event.currentTarget.checked)}>
+                    <span>{getPlayerCharacter(player)?.name || player.name}{#if gmTracker.conflict.active && !conflictExemptIds.includes(player.id)} <small class="conflict-roll-progress">{Math.min(2, Number(gmTracker.conflict.rollCounts?.[player.id] || 0))}/2</small>{/if}</span>
+                    <input type="checkbox" checked={gmTracker.conflict.active === true && conflictExemptIds.includes(player.id)} on:change={(event) => toggleCharacterConflict(player.id, event.currentTarget.checked)} disabled={!gmTracker.conflict.active}>
                   </label>
                 {/each}
               </div>
@@ -2059,7 +2077,7 @@
           </div>
           <p class="muted">Selecciona los personajes que participan. El peligro determina la pérdida de Voluntad al fracasar. Cada 6 reduce la Resistencia en 1; un 5 no la reduce. Fallo: Bajo −1 Voluntad · Medio −2 · Alto −3.</p>
           {#if gmTracker.conflict.result}<p class="conflict-result">{gmTracker.conflict.result}</p>{/if}
-          <p class="muted gm-conflict-status">{gmTracker.conflict.active ? 'Conflicto activo.' : 'No hay un conflicto activo.'}</p>
+          <div class="gm-conflict-actions"><button class="conflict-toggle-button" class:conflict-running={gmTracker.conflict.active} on:click={() => setConflictActive(!gmTracker.conflict.active)}>{gmTracker.conflict.active ? 'Terminar conflicto' : 'Iniciar conflicto'}</button><p class="muted gm-conflict-status">{gmTracker.conflict.active ? 'Conflicto activo · finaliza cuando cada personaje no exento complete dos tiradas.' : 'No hay un conflicto activo.'}</p></div>
         </section>
       </section>
 
@@ -2547,6 +2565,10 @@
   .gm-conflict-resistance .resistance-controls { grid-column:1 / -1; margin-top:.35rem; }
   .gm-conflict-card > p { margin:.8rem 0 .25rem; }
   .gm-conflict-status { margin-bottom:0 !important; }
+  .gm-conflict-actions { display:flex; align-items:center; gap:.85rem; flex-wrap:wrap; margin-top:1rem; }
+  .conflict-toggle-button { border:1px solid #b58d4c; border-radius:6px; background:#b58d4c; color:#171717; padding:.65rem 1rem; font-weight:750; cursor:pointer; transition:background .2s ease,border-color .2s ease; }
+  .conflict-toggle-button.conflict-running { background:#a52b32; border-color:#e0525b; color:#fff; }
+  .conflict-roll-progress { color:#f2c879; font-weight:700; margin-left:.3rem; }
   .gm-characters-section { margin-top:1.4rem; }
   .gm-character-list { display:grid; gap:.55rem; width:min(100%, 440px); margin-left:auto; }
   .gm-character-list .gm-player { min-width:0; border:1px solid #484b50; border-radius:7px; background:#222427; overflow:hidden; }
