@@ -10,6 +10,7 @@
 
   const DATA_KEY = 'com.heunithen.dummysheet-mimprov/sheet';
   const STATE_KEY = 'com.heunithen.dummysheet-mimprov/player-states';
+  const STATE_SYNC_CHANNEL = 'com.heunithen.dummysheet-mimprov/state-sync';
   const OVEREXERTION_KEY = 'com.heunithen.dummysheet-mimprov/player-overexertion';
   const CONFLICT_KEY = 'com.heunithen.dummysheet-mimprov/conflict';
   const EFFORT_REQUEST_CHANNEL = 'com.heunithen.dummysheet-mimprov/spend-effort';
@@ -1046,6 +1047,13 @@
             };
             syncStates(await OBR.room.getMetadata());
             OBR.room.onMetadataChange(syncStates);
+            OBR.broadcast.onMessage(STATE_SYNC_CHANNEL, (event) => {
+              const update = event.data as any;
+              if (!update?.states || !($currentPlayerId in update.states)) return;
+              const nextStates = update.states[$currentPlayerId];
+              visibleStates = Array.isArray(nextStates) ? nextStates.filter((stateName: string) => stateName !== 'Incapacitado' && stateName !== 'Abrumado').map((stateName: string) => stateName === 'Deprimido' ? 'Debilitado' : stateName) : [];
+              if (update.effortCoins && $currentPlayerId in update.effortCoins) visibleEffortCoins = Math.max(0, Math.min(3, Number(update.effortCoins[$currentPlayerId]) || 0));
+            });
           }
           OBR.broadcast.onMessage(EFFORT_REQUEST_CHANNEL, async (event) => {
             if (role !== 'GM') return;
@@ -1253,7 +1261,7 @@
         allStates[id] = Array.isArray(tracker.states) ? [...tracker.states] : [];
         allOverexertion[id] = Math.max(0, Math.min(3, Number(tracker.effortCoins ?? (3 - (Number(tracker.overexertionUsed) || 0))) || 0));
       });
-      OBR.room.setMetadata({ [STATE_KEY]: allStates, [OVEREXERTION_KEY]: allOverexertion, [CONFLICT_KEY]: clone(gmTracker.conflict) }).catch((error) => {
+      OBR.room.setMetadata({ [STATE_KEY]: allStates, [OVEREXERTION_KEY]: allOverexertion, [CONFLICT_KEY]: clone(gmTracker.conflict) }).then(() => OBR.broadcast.sendMessage(STATE_SYNC_CHANNEL, { states: allStates, effortCoins: allOverexertion }, { destination: 'ALL' })).catch((error) => {
         console.error('No se pudieron publicar los datos de seguimiento de los personajes', error);
       });
     }
