@@ -8,27 +8,21 @@
   export let traitDescription: (trait: string) => string = () => '';
   export let onEdit: () => void = () => {};
   export let selectedApproach = 'Tenacidad';
+  export let approachSelected = false;
   export let selectedTrait = '';
-  export let rollModifier = 'normal';
-  export let helpBonus = false;
   export let dicePool = 0;
-  export let diceNotation = '2d6kl1';
   export let forcedLowRoll = false;
-  export let selectedStatePenalty = 0;
   export let effortDiceBonus = 0;
   export let pendingRoll = false;
   export let rollError = '';
   export let lastRoll: any = null;
   export let onSelectApproach: (name: string) => void = () => {};
   export let onSelectTrait: (name: string) => void = () => {};
-  export let onModifierChange: (value: string) => void = () => {};
-  export let onHelpChange: (value: boolean) => void = () => {};
   export let onRoll: () => void = () => {};
   export let onSpendEffort: (mode: 'extra-die' | 'reroll') => void = () => {};
   let cursorX = 0;
   let cursorY = 0;
   let cursorVisible = false;
-  $: selectedTraitDice = selectedTrait && character?.traits?.includes(selectedTrait) ? 1 : 0;
   $: cursorDiceCount = forcedLowRoll || dicePool <= 0 ? 2 : dicePool;
   function trackPointer(event: MouseEvent) {
     cursorX = event.clientX;
@@ -94,7 +88,7 @@
         <h2>Enfoques</h2>
         <div class="approach-grid">
           {#each approaches as approach}
-            <button type="button" class="approach" class:selected={selectedApproach === approach.name} aria-pressed={selectedApproach === approach.name} on:click={() => onSelectApproach(approach.name)}>
+            <button type="button" class="approach" class:selected={approachSelected && selectedApproach === approach.name} class:muted-approach={!approachSelected || selectedApproach !== approach.name} aria-pressed={approachSelected && selectedApproach === approach.name} on:click={() => onSelectApproach(approach.name)}>
               <span>{approach.meaning}</span>
               <strong>{approach.name}</strong>
               <b>{Number(character.approaches?.[approach.name]) || 0}</b>
@@ -102,6 +96,20 @@
             </button>
           {/each}
         </div>
+        <button type="button" class="sheet-roll-button approach-roll-button" disabled={!approachSelected || pendingRoll} on:click={onRoll}>{pendingRoll ? 'Tirando en Dice+…' : 'Lanzar dados'}</button>
+        {#if rollError}<p class="roll-error">{rollError}</p>{/if}
+        {#if lastRoll}
+          <div class="sheet-roll-result">
+            <div class="result-title"><strong>{lastRoll.result}</strong><span>{lastRoll.approach || selectedApproach}</span></div>
+            {#if lastRoll.dice?.length}
+              <div class="sheet-dice-results">{#each lastRoll.dice as die}<span class:kept={lastRoll.notation?.includes('kl1') ? die === Math.min(...lastRoll.dice) : die === Math.max(...lastRoll.dice)}>{die}</span>{/each}</div>
+              <p>Resultado conservado: <strong>{lastRoll.kept}</strong></p>
+              {#if lastRoll.critical}<p class="condition-note">Crítico: recuperas 1 punto de Voluntad.</p>{/if}
+            {:else}
+              <p class="hint">Esperando el resultado de Dice+.</p>
+            {/if}
+          </div>
+        {/if}
       </section>
 
       <section class="sheet-panel">
@@ -118,54 +126,6 @@
           </div>
         {:else}
           <p class="empty-copy">No hay Rasgos registrados.</p>
-        {/if}
-      </section>
-
-      <section class="sheet-panel full roll-panel">
-        <h2>Construir tirada</h2>
-        <p class="hint">Selecciona un Enfoque y, si corresponde, un Rasgo. El Narrador debe validar que sean adecuados para la acción.</p>
-        <div class="roll-selection-summary">
-          <span><small>Enfoque</small><strong>{selectedApproach} · {selectedApproachDice}d6</strong></span>
-          <span><small>Rasgo</small><strong>{selectedTrait ? traitLabel(selectedTrait) + ' · +1d6' : 'Sin Rasgo'}</strong></span>
-          {#if selectedStatePenalty}<span class="penalty-tag"><small>Estado</small><strong>−{selectedStatePenalty}d6</strong></span>{/if}
-        </div>
-        <label class="help-toggle">
-          <input type="checkbox" checked={helpBonus} disabled={!selectedTrait || forcedLowRoll} on:change={(event) => onHelpChange(event.currentTarget.checked)}>
-          <span><strong>Ayuda de otro personaje (+1d6)</strong><small>Solo si otro personaje comparte el Rasgo y puede colaborar. En conflicto, consume su acción de esta ronda.</small></span>
-        </label>
-        <div class="modifier-picker">
-          <span>Modificador</span>
-          <div class="modifier-options">
-            <button type="button" class:active={rollModifier === 'normal'} on:click={() => onModifierChange('normal')}>Normal</button>
-            <button type="button" class:active={rollModifier === 'advantage'} on:click={() => onModifierChange('advantage')}>Ventaja +1d6</button>
-            <button type="button" class:active={rollModifier === 'disadvantage'} on:click={() => onModifierChange('disadvantage')}>Desventaja −1d6</button>
-          </div>
-        </div>
-        {#if forcedLowRoll}
-          <p class="condition-note">Abrumado: se lanzan siempre 2d6 y se conserva el menor. Ayuda, Ventaja y Desventaja no modifican esta tirada.</p>
-        {/if}
-        <div class="pool-readout"><span>Reserva calculada</span><strong>{diceNotation}</strong><small>{forcedLowRoll || dicePool <= 0 ? 'Se conserva el resultado menor.' : 'Se conserva únicamente el resultado más alto.'}</small></div>
-        {#if rollError}<p class="roll-error">{rollError}</p>{/if}
-        <button type="button" class="sheet-roll-button" disabled={pendingRoll} on:click={onRoll}>{pendingRoll ? 'Tirando en Dice+…' : 'Realizar tirada'}</button>
-        {#if effortCoins > 0}
-          <div class="effort-actions">
-            <button type="button" on:click={() => onSpendEffort('extra-die')} disabled={pendingRoll || effortDiceBonus > 0}>Gastar moneda: añadir +1d6</button>
-            {#if lastRoll?.retryNotation}
-              <button type="button" on:click={() => onSpendEffort('reroll')} disabled={pendingRoll}>Gastar moneda: repetir tirada</button>
-            {/if}
-          </div>
-        {/if}
-        {#if lastRoll}
-          <div class="sheet-roll-result">
-            <div class="result-title"><strong>{lastRoll.result}</strong><span>{lastRoll.approach || selectedApproach}</span></div>
-            {#if lastRoll.dice?.length}
-              <div class="sheet-dice-results">{#each lastRoll.dice as die, index}<span class:kept={lastRoll.notation?.includes('kl1') ? die === Math.min(...lastRoll.dice) : die === Math.max(...lastRoll.dice)}>{die}</span>{/each}</div>
-              <p>Resultado conservado: <strong>{lastRoll.kept}</strong></p>
-              {#if lastRoll.critical}<p class="condition-note">Crítico: recuperas 1 punto de Voluntad.</p>{/if}
-            {:else}
-              <p class="hint">Esperando el resultado de Dice+.</p>
-            {/if}
-          </div>
         {/if}
       </section>
 
@@ -196,7 +156,20 @@
           </div>
           <strong class="resource-value">{effortCoins} / 3</strong>
         </div>
-        <p class="hint">Permiten añadir 1d6 a una tirada o repetir todos los dados ignorando las penalizaciones que reducen la reserva.</p>
+        <div class="effort-actions">
+          <button type="button" on:click={() => onSpendEffort('extra-die')} disabled={pendingRoll || effortDiceBonus > 0 || effortCoins <= 0}>Añadir +1d6 a la próxima tirada</button>
+          {#if lastRoll?.retryNotation}
+            <button type="button" on:click={() => onSpendEffort('reroll')} disabled={pendingRoll || effortCoins <= 0}>Repetir última tirada</button>
+          {/if}
+        </div>
+        {#if effortDiceBonus > 0}
+          <p class="effort-bonus">Moneda aplicada: <strong>+1d6</strong> a la próxima tirada. Este dado adicional se contabiliza aquí, separado de los dados del Enfoque.</p>
+        {:else}
+          <p class="hint">Una moneda permite añadir +1d6 a la próxima tirada o repetir todos los dados de la última tirada ignorando las penalizaciones de Estados.</p>
+        {/if}
+        {#if forcedLowRoll && effortDiceBonus > 0}
+          <p class="condition-note">Abrumado: el +1d6 no modifica la tirada; se mantienen los 2d6 y se conserva el menor.</p>
+        {/if}
       </section>
 
       <section class="sheet-panel">
@@ -307,6 +280,9 @@
   .approach { width:100%; text-align:left; color:inherit; cursor:pointer; font:inherit; display:grid; grid-template-columns:1fr auto; gap:.25rem .5rem; align-items:center; padding:.8rem; border:1px solid var(--sheet-line); border-radius:8px; background:var(--sheet-panel-inner); }
   .approach>span { grid-column:1/-1; margin:0; color:var(--sheet-gold); }
   .approach.selected, .trait.selected { border-color:var(--sheet-accent); background:#263629; box-shadow:inset 0 0 0 1px var(--sheet-accent); }
+  .approach.muted-approach { opacity:.42; filter:grayscale(1); }
+  .approach-roll-button { width:100%; margin-top:.85rem; }
+  .effort-bonus { margin:.7rem 0 0; color:var(--sheet-gold); font-size:.8rem; line-height:1.45; }
   .approach:focus-visible, .trait:focus-visible { outline:2px solid var(--sheet-gold); outline-offset:2px; }
   .approach strong { color:var(--sheet-text); font-size:.86rem; }
   .approach b { color:var(--sheet-accent); font:800 1.4rem Manrope,sans-serif; }
