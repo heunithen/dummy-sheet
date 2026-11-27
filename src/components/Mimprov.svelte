@@ -27,6 +27,7 @@
   const PLAYER_MAGIC_KEY = 'com.heunithen.dummysheet-mimprov/player-magic';
   const LINES_VEILS_KEY = 'com.heunithen.dummysheet-mimprov/lines-veils';
   const LINES_VEILS_REQUEST_CHANNEL = 'com.heunithen.dummysheet-mimprov/lines-veils-update';
+  const PLAYER_NOTES_KEY = 'com.heunithen.dummysheet-mimprov/player-notes';
   const STATES = [
     { name: 'Mermado', enfoque: 'Instinto', detail: 'Lesión o limitación física.' },
     { name: 'Debilitado', enfoque: 'Tenacidad', detail: 'Enfermedad, intoxicación o debilidad física.' },
@@ -538,6 +539,8 @@
   let selectedGenre = 'fantasy';
   let sessionStarted = false;
   let linesVeils: { lines: string; veils: string } = { lines: '', veils: '' };
+  let playerNotes = '';
+  let playerNotesStorageKey = '';
   let visibleStates: string[] = [];
   let visibleEffortCoins = 3;
   let visibleConflictActive = false;
@@ -557,6 +560,16 @@
   let rollHistoryKey = '';
   let dicePlusError = '';
   let pendingDiceRoll: { rollId: string; pool: number; notation: string; approach: string; effortReroll: boolean; conflictActive: boolean; danger: string; spellCost?: number; spellName?: string } | null = null;
+
+  function savePlayerNotes(event: Event) {
+    playerNotes = (event.currentTarget as HTMLTextAreaElement).value;
+    if (playerNotesStorageKey) localStorage.setItem(playerNotesStorageKey, playerNotes);
+    if (OBR.isAvailable) {
+      OBR.player.setMetadata({ [PLAYER_NOTES_KEY]: playerNotes }).catch((error) => {
+        console.error('No se pudieron guardar las notas del jugador en Owlbear:', error);
+      });
+    }
+  }
 
   function resetSheetRollSelection() {
     selectedApproach = '';
@@ -998,7 +1011,10 @@
           const roomId = OBR.room.id || 'default';
           const playerId = await OBR.player.getId();
           rollHistoryKey = `mimprov-roll-history-v1-${roomId}-${playerId}`;
+          playerNotesStorageKey = `mimprov-player-notes-v1-${roomId}-${playerId}`;
           loadRollHistory();
+          const savedNotes = localStorage.getItem(playerNotesStorageKey);
+          if (savedNotes !== null) playerNotes = savedNotes;
           const syncLinesVeils = (metadata: any) => {
             const shared = metadata?.[LINES_VEILS_KEY] || { lines: '', veils: '' };
             linesVeils = { lines: String(shared.lines || ''), veils: String(shared.veils || '') };
@@ -1046,6 +1062,10 @@
           });
           if (role === 'PLAYER') {
             const metadata = await OBR.player.getMetadata();
+            if (typeof metadata[PLAYER_NOTES_KEY] === 'string') {
+              playerNotes = metadata[PLAYER_NOTES_KEY] as string;
+              if (playerNotesStorageKey) localStorage.setItem(playerNotesStorageKey, playerNotes);
+            }
             if (metadata[DATA_KEY]) {
               const incoming = metadata[DATA_KEY] as Character;
               character = { ...blankCharacter(), ...incoming, approaches: normalizeApproaches(incoming.approaches) };
@@ -1644,6 +1664,7 @@
       <button class:active={activeTab === 'hoja' || activeTab === 'personaje'} on:click={() => { resetSheetRollSelection(); activeTab = character.created ? 'hoja' : 'personaje'; }}>Hoja de personaje</button>
       <button class:active={activeTab === 'reglamento'} on:click={() => { activeTab = 'reglamento'; }}>Reglamento</button>
       <button class:active={activeTab === 'lineas-velos'} on:click={() => { activeTab = 'lineas-velos'; }}>Líneas y velos</button>
+      <button class:active={activeTab === 'notas'} on:click={() => { activeTab = 'notas'; }}>Notas</button>
     </nav>
   {:else if $isGM}
     <nav class="main-tabs">
@@ -2131,6 +2152,17 @@
         <textarea rows="4" bind:value={gmNpcNotes} on:input={saveGmNpcNotes} placeholder="Anota aquí ideas, detalles o información relacionada con estos personajes..."></textarea>
       </section>
     </main>
+  {:else if !$isGM && activeTab === 'notas'}
+    <main class="content player-notes-content">
+      <div class="eyebrow">NOTAS PERSONALES</div>
+      <h1>Notas</h1>
+      <p class="notes-intro">Estas notas son privadas y solo tú puedes verlas. Se guardan automáticamente mientras escribes.</p>
+      <section class="card">
+        <label for="player-personal-notes">Tus notas</label>
+        <textarea id="player-personal-notes" class="player-personal-notes" rows="18" bind:value={playerNotes} on:input={savePlayerNotes} placeholder="Escribe aquí tus notas de la partida..."></textarea>
+        <small class="sync-note">Guardado automático activado.</small>
+      </section>
+    </main>
   {:else if activeTab === 'lineas-velos'}
     <main class="content lines-veils-content">
       <div class="eyebrow">ACUERDOS DE SEGURIDAD DE LA PARTIDA</div>
@@ -2280,6 +2312,12 @@
   .main-tabs button { border:0; border-bottom:3px solid transparent; background:transparent; color:#aaa; padding:1rem 1.2rem; cursor:pointer; }
   .main-tabs button.active { color:#f2c879; border-bottom-color:#d5a64b; }
   .content { width:min(900px,92%); margin:0 auto; padding:2rem 0 4rem; }
+  .player-personal-notes {
+    display:block; width:100%; min-height:22rem; box-sizing:border-box; resize:vertical;
+    padding:.85rem; border:1px solid rgba(213,166,75,.45); border-radius:.4rem;
+    background:rgba(0,0,0,.22); color:#eee; font:inherit; line-height:1.5;
+  }
+  .player-personal-notes:focus { outline:1px solid #d5a64b; }
   .magic-content .magic-intro { margin:.3rem 0 1.2rem; line-height:1.7; }
   .notes-intro { margin:.3rem 0 1.2rem; line-height:1.7; }
   .player-notes { min-height:24rem; line-height:1.65; resize:vertical; }
