@@ -890,6 +890,10 @@
 
   async function rollDice() {
     if (!sheetApproachSelected || !selectedApproach) return;
+    if (selectedMagicSpell && !selectedTrait) {
+      dicePlusError = 'Selecciona un Rasgo para lanzar este conjuro.';
+      return;
+    }
     if (!OBR.isAvailable || !loaded) {
       dicePlusError = 'Esta tirada necesita Owlbear Rodeo y la extensión Dice+.';
       return;
