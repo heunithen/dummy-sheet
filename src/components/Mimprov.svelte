@@ -2465,6 +2465,7 @@
   .gm-character-information h4 { margin:.1rem 0 .45rem; }
   .gm-character-information .gm-stats { padding:0; }
   .gm-character-columns { display:grid; grid-template-columns:1fr 1.35fr 1fr; gap:.8rem; margin-top:.9rem; }
+  .gm-character-list .gm-character-columns { grid-template-columns:1fr; }
   .gm-character-column { min-width:0; padding:.8rem; border:1px solid #414448; border-radius:7px; background:#222427; }
   .gm-character-column h4 { margin:.05rem 0 .7rem; }
   .gm-resource-control { display:flex; align-items:center; justify-content:space-between; gap:.5rem; margin:.65rem 0; color:#ccc; font-size:.85rem; }
