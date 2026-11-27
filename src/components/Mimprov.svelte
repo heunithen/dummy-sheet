@@ -6,6 +6,7 @@
   import { getConceptOptions } from '../data/concept-library';
   import { APPEARANCE_AGES, getRandomAppearance, type AppearanceAge, type AppearanceGender } from '../data/appearance-library';
   import { GM_NPC_GENRES, getRandomGmNpcPersonality, type GmNpcGenre } from '../data/gm-npc-library';
+  import PlayerCharacterSheet from './PlayerCharacterSheet.svelte';
 
   const DATA_KEY = 'com.heunithen.dummysheet-mimprov/sheet';
   const STATE_KEY = 'com.heunithen.dummysheet-mimprov/player-states';
@@ -1480,6 +1481,7 @@
   {#if !$isGM && sessionStarted}
     <nav class="main-tabs">
       <button class:active={activeTab === 'personaje'} on:click={() => { activeTab = 'personaje'; }}>Personaje</button>
+      <button class:active={activeTab === 'hoja'} on:click={() => { activeTab = 'hoja'; }}>Hoja de personaje</button>
       <button class:active={activeTab === 'tiradas'} on:click={() => { activeTab = 'tiradas'; }}>Tiradas</button>
       <button class:active={activeTab === 'reglamento'} on:click={() => { activeTab = 'reglamento'; }}>Reglamento</button>
       <button class:active={activeTab === 'magia'} on:click={() => { activeTab = 'magia'; }}>Magia</button>
@@ -1635,6 +1637,19 @@
           <p class="sync-note">{OBR.isAvailable ? 'La ficha se sincroniza con Owlbear Rodeo.' : 'Modo de vista previa: la ficha se guarda en este navegador.'}</p>
         </section>
       {/if}
+    </main>
+  {:else if !$isGM && activeTab === 'hoja'}
+    <main class="content character-sheet-content">
+      <PlayerCharacterSheet
+        character={character}
+        states={displayedStates}
+        effortCoins={visibleEffortCoins}
+        spells={playerMagicRecord?.spells || []}
+        {traitLabel}
+        {equipmentDisplayName}
+        traitDescription={(trait) => trait.startsWith('Conocedor de ') ? 'Conocimientos y experiencia en ' + trait.slice('Conocedor de '.length) + '.' : character.customTraits?.[trait] || TRAIT_DESCRIPTIONS[trait]?.long || TRAIT_DESCRIPTIONS[trait]?.short || 'Rasgo personalizado acordado con el Narrador.'}
+        onEdit={() => { activeTab = 'personaje'; editingCharacter = true; }}
+      />
     </main>
   {:else if !$isGM && activeTab === 'tiradas'}
     <main class="content">
