@@ -23,7 +23,7 @@
   let cursorX = 0;
   let cursorY = 0;
   let cursorVisible = false;
-  $: cursorDiceCount = !approachSelected ? 0 : forcedLowRoll ? 2 : Math.max(0, dicePool);
+  $: cursorDiceCount = !approachSelected ? 0 : Math.max(0, dicePool);
   function trackPointer(event: MouseEvent) {
     cursorX = event.clientX;
     cursorY = event.clientY;
@@ -96,8 +96,7 @@
             </button>
           {/each}
         </div>
-        <button type="button" class="sheet-roll-button approach-roll-button" disabled={!approachSelected || pendingRoll} on:click={onRoll}>{pendingRoll ? 'Tirando en Dice+…' : 'Lanzar dados'}</button>
-        {#if rollError}<p class="roll-error">{rollError}</p>{/if}
+        <button type="button" class="sheet-roll-button approach-roll-button" disabled={!approachSelected} on:click={onRoll}>Lanzar dados</button>
 
       </section>
 
@@ -261,9 +260,9 @@
   .approach-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.6rem; }
   .approach { width:100%; text-align:left; color:inherit; cursor:pointer; font:inherit; display:grid; grid-template-columns:1fr auto; gap:.25rem .5rem; align-items:center; padding:.8rem; border:1px solid var(--sheet-line); border-radius:8px; background:var(--sheet-panel-inner); }
   .approach>span { grid-column:1/-1; margin:0; color:var(--sheet-gold); }
-  .approach.selected, .trait.selected { border-color:var(--sheet-accent); background:#263629; box-shadow:inset 0 0 0 1px var(--sheet-accent); }
+  .approach.selected, .trait.selected { opacity:1 !important; filter:none !important; border-color:var(--sheet-accent); background:#263629; box-shadow:inset 0 0 0 1px var(--sheet-accent); }
   .approach.muted-approach { opacity:.42; filter:grayscale(1); }
-  .trait.muted-trait { opacity:.42; filter:grayscale(1); }
+  .trait.muted-trait { opacity:.35 !important; filter:grayscale(1) !important; }
   .effort-coins { display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; }
   .effort-coin { width:38px; height:38px; border:1px solid var(--sheet-gold); border-radius:50%; background:var(--sheet-gold); color:#172016; font-size:1.25rem; cursor:pointer; }
   .effort-coin.spent { opacity:.25; filter:grayscale(1); cursor:not-allowed; }
