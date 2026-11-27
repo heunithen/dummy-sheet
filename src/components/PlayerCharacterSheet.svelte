@@ -256,7 +256,7 @@
     </div>
     <p class="sheet-footnote">Hoja de personaje · MIMPROV</p>
     {#if cursorVisible && cursorDiceCount > 0}
-      <div class="cursor-dice" style:left="{cursorX + 14}px" style:top="{cursorY + 14}px" aria-hidden="true">
+      <div class="cursor-dice" style={`left:${cursorX + 14}px;top:${cursorY + 14}px`} aria-hidden="true">
         {#each Array.from({ length: Math.min(cursorDiceCount, 8) }) as _, index}<span>⚄</span>{/each}
         {#if cursorDiceCount > 8}<span>+{cursorDiceCount - 8}</span>{/if}
       </div>
