@@ -238,7 +238,8 @@
     border: 1px solid #806638;
     border-radius: 16px;
     background: linear-gradient(145deg, #292b2e, #202124);
-    box-shadow: 0 18px 55px #0004;
+    box-shadow: 0 18px 55px #0004, inset 0 0 0 999px rgba(120, 12, 24, .10);
+    transition: background-color .7s ease, border-color .7s ease, box-shadow .8s ease, color .7s ease;
   }
   .mimprov-sheet.conflict-active {
     --sheet-bg:#050505;
@@ -252,6 +253,18 @@
     border-color:#a52b36;
     background:linear-gradient(145deg,#101012,#030303);
     color:#f5f5f5;
+  }
+  .mimprov-sheet .sheet-panel,
+  .mimprov-sheet .effort-controls,
+  .mimprov-sheet .trait,
+  .mimprov-sheet .state,
+  .mimprov-sheet .spell,
+  .mimprov-sheet .data-grid div,
+  .mimprov-sheet .approach,
+  .mimprov-sheet .effort-coin,
+  .mimprov-sheet .sheet-roll-button,
+  .mimprov-sheet .edit-button {
+    transition: background-color .65s ease, border-color .65s ease, color .65s ease, box-shadow .65s ease;
   }
   .mimprov-sheet.conflict-active .sheet-panel,
   .mimprov-sheet.conflict-active .effort-controls,
