@@ -23,7 +23,7 @@
   let cursorX = 0;
   let cursorY = 0;
   let cursorVisible = false;
-  $: cursorDiceCount = forcedLowRoll ? 2 : Math.max(0, dicePool);
+  $: cursorDiceCount = !approachSelected ? 0 : forcedLowRoll ? 2 : Math.max(0, dicePool);
   function trackPointer(event: MouseEvent) {
     cursorX = event.clientX;
     cursorY = event.clientY;
