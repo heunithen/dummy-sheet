@@ -17,6 +17,8 @@
   const EFFORT_REQUEST_CHANNEL = 'com.heunithen.dummysheet-mimprov/spend-effort';
   const REST_REQUEST_CHANNEL = 'com.heunithen.dummysheet-mimprov/rest';
   const WILL_ADJUST_CHANNEL = 'com.heunithen.dummysheet-mimprov/will-adjust';
+  const WILL_SYNC_KEY = 'com.heunithen.dummysheet-mimprov/will-sync';
+  const ROLL_MODIFIER_SYNC_CHANNEL = 'com.heunithen.dummysheet-mimprov/roll-modifier-sync';
   const ROLL_MODIFIER_KEY = 'com.heunithen.dummysheet-mimprov/roll-modifiers';
   const SESSION_RESET_CHANNEL = 'com.heunithen.dummysheet-mimprov/session-reset';
   const DICE_PLUS_SOURCE = 'com.heunithen.dummysheet-mimprov';
@@ -547,6 +549,7 @@
   let selectedTrait = '';
   let selectedState = '';
   let rollModifier = 'normal';
+  let lastWillSyncRequestId = '';
   let lastRoll: { dice: number[]; kept: number; pool: number; result: string; critical: boolean; notation?: string; summary?: string; approach?: string; retryNotation?: string; retryPool?: number } | null = null;
   let rollToast: { text: string; type: 'success' | 'consequence' | 'failure' } | null = null;
   let rollToastTimer: ReturnType<typeof setTimeout> | null = null;
@@ -1069,16 +1072,28 @@
               conflictDanger = ['Bajo', 'Medio', 'Alto'].includes(conflict.danger) ? conflict.danger : 'Bajo';
               const modifiers = metadata?.[ROLL_MODIFIER_KEY] || {};
               rollModifier = ['advantage', 'disadvantage'].includes(modifiers[$currentPlayerId]) ? modifiers[$currentPlayerId] : 'normal';
+              const willUpdates = metadata?.[WILL_SYNC_KEY] || {};
+              const willUpdate = willUpdates[$currentPlayerId];
+              if (willUpdate && Number.isFinite(Number(willUpdate.value)) && willUpdate.requestId !== lastWillSyncRequestId) {
+                lastWillSyncRequestId = willUpdate.requestId;
+                character = { ...character, will: Math.max(0, Math.min(Number(character.maxWill) || 4, Number(willUpdate.value))) };
+                updateCharacter();
+              }
             };
             syncStates(await OBR.room.getMetadata());
             OBR.room.onMetadataChange(syncStates);
             OBR.broadcast.onMessage(STATE_SYNC_CHANNEL, (event) => {
               const update = event.data as any;
-              if (!update?.states || !($currentPlayerId in update.states)) return;
-              const nextStates = update.states[$currentPlayerId];
-              visibleStates = Array.isArray(nextStates) ? nextStates.filter((stateName: string) => stateName !== 'Incapacitado' && stateName !== 'Abrumado').map((stateName: string) => stateName === 'Deprimido' ? 'Debilitado' : stateName) : [];
-              if (update.effortCoins && $currentPlayerId in update.effortCoins) visibleEffortCoins = Math.max(0, Math.min(3, Number(update.effortCoins[$currentPlayerId]) || 0));
-               if (update.rollModifiers && $currentPlayerId in update.rollModifiers) rollModifier = ['advantage', 'disadvantage'].includes(update.rollModifiers[$currentPlayerId]) ? update.rollModifiers[$currentPlayerId] : 'normal';
+              if (update?.states && $currentPlayerId in update.states) {
+                const nextStates = update.states[$currentPlayerId];
+                visibleStates = Array.isArray(nextStates) ? nextStates.filter((stateName: string) => stateName !== 'Incapacitado' && stateName !== 'Abrumado').map((stateName: string) => stateName === 'Deprimido' ? 'Debilitado' : stateName) : [];
+              }
+              if (update?.effortCoins && $currentPlayerId in update.effortCoins) visibleEffortCoins = Math.max(0, Math.min(3, Number(update.effortCoins[$currentPlayerId]) || 0));
+              if (update?.rollModifiers && $currentPlayerId in update.rollModifiers) rollModifier = ['advantage', 'disadvantage'].includes(update.rollModifiers[$currentPlayerId]) ? update.rollModifiers[$currentPlayerId] : 'normal';
+            });
+            OBR.broadcast.onMessage(ROLL_MODIFIER_SYNC_CHANNEL, (event) => {
+              const update = event.data as any;
+              if (update?.playerId === $currentPlayerId && ['normal', 'advantage', 'disadvantage'].includes(update.modifier)) rollModifier = update.modifier;
             });
           }
           OBR.broadcast.onMessage(EFFORT_REQUEST_CHANNEL, async (event) => {
@@ -1106,7 +1121,7 @@
               const sender = party.find((player: any) => player.connectionId === event.connectionId);
               if (!sender || sender.role !== 'GM') return;
               const maximum = Math.max(1, Number(character.maxWill) || 4);
-              character = { ...character, will: Math.max(0, Math.min(maximum, (Number(character.will) || 0) + data.delta)) };
+              character = { ...character, will: Math.max(0, Math.min(maximum, Number.isFinite(Number(data.targetWill)) ? Number(data.targetWill) : (Number(character.will) || 0) + data.delta)) };
               updateCharacter();
             } catch (error) {
               console.error('No se pudo ajustar la Voluntad', error);
@@ -1555,15 +1570,28 @@
     const tracker = playerTracker(id);
     tracker.rollModifier = modifier;
     saveGmTracker();
+    OBR.broadcast.sendMessage(ROLL_MODIFIER_SYNC_CHANNEL, { playerId: id, modifier, updatedAt: Date.now() }, { destination: 'ALL' }).catch((error) => console.error('No se pudo sincronizar la ventaja o desventaja', error));
   }
   function adjustEffortCoins(id: string, delta: number) {
     const tracker = playerTracker(id);
     tracker.effortCoins = Math.max(0, Math.min(3, Number(tracker.effortCoins || 0) + delta));
     saveGmTracker();
   }
-  function adjustPlayerWill(id: string, delta: number) {
-    if (!OBR.isAvailable) return;
-    OBR.broadcast.sendMessage(WILL_ADJUST_CHANNEL, { playerId: id, delta }, { destination: 'ALL' }).catch((error) => console.error('No se pudo enviar el ajuste de Voluntad', error));
+  async function adjustPlayerWill(id: string, delta: number) {
+    if (!OBR.isAvailable || ![-1, 1].includes(delta)) return;
+    const player = partyMembers.find((member) => member.id === id);
+    const current = Number(getPlayerCharacter(player)?.will ?? 0);
+    const maximum = Number(getPlayerCharacter(player)?.maxWill) || 4;
+    const value = Math.max(0, Math.min(maximum, current + delta));
+    const requestId = `will_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    try {
+      const metadata = await OBR.room.getMetadata();
+      const updates = { ...(metadata?.[WILL_SYNC_KEY] || {}), [id]: { value, requestId } };
+      await OBR.room.setMetadata({ [WILL_SYNC_KEY]: updates });
+      await OBR.broadcast.sendMessage(WILL_ADJUST_CHANNEL, { playerId: id, delta, targetWill: value, requestId }, { destination: 'ALL' });
+    } catch (error) {
+      console.error('No se pudo enviar el ajuste de Voluntad', error);
+    }
   }
 
   function setConflictActive(active: boolean) {
