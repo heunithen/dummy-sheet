@@ -89,7 +89,8 @@
     <button on:click={onEdit}>Crear personaje</button>
   </section>
 {:else}
-  <section class="mimprov-sheet" class:conflict-active={conflictActive} on:mousemove={trackPointer} on:mouseleave={() => cursorVisible = false} on:pointerdown={startHold} on:pointercancel={cancelHold} on:window:pointerup={cancelHold}>
+  <svelte:window on:pointerup={cancelHold} />
+  <section class="mimprov-sheet" class:conflict-active={conflictActive} on:mousemove={trackPointer} on:mouseleave={() => cursorVisible = false} on:pointerdown={startHold} on:pointercancel={cancelHold}>
     <header class="sheet-head">
       <div class="sheet-identity">
         <div class="portrait">
