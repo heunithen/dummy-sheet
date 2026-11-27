@@ -4,6 +4,12 @@
   export let conflictActive = false;
   export let effortCoins = 3;
   export let spells: any[] = [];
+  export let catalogSpells: any[] = [];
+  export let selectedSpellId = '';
+  export let canAddSpells = false;
+  export let onSelectSpell: (id: string) => void = () => {};
+  export let onAddSpell: (spell: any) => void = () => {};
+  let showSpellCatalog = false;
   export let traitLabel: (trait: string) => string = (trait) => trait;
   export let equipmentDisplayName: (item: any) => string = (item) => item?.name || '';
   export let traitDescription: (trait: string) => string = () => '';
@@ -185,19 +191,39 @@
       </section>
 
       <section class="sheet-panel full">
-        <h2>Conjuros</h2>
+        <div class="spell-heading"><h2>Magia</h2><button type="button" class="spell-add-button" disabled={!canAddSpells} on:click={() => showSpellCatalog = !showSpellCatalog}>{showSpellCatalog ? 'Cerrar catálogo' : '＋ Agregar conjuros'}</button></div>
+        {#if !canAddSpells}<p class="empty-copy">Necesitas el Rasgo «Iniciado en lo arcano» para agregar conjuros.</p>{/if}
+        {#if showSpellCatalog}
+          <div class="spell-catalog"><h3>Base de datos de conjuros</h3>
+            {#each [...new Set(catalogSpells.map((spell) => spell.category))] as category}
+              <div class="spell-category"><h4>{category}</h4>
+                {#each catalogSpells.filter((spell) => spell.category === category) as spell}
+                  <article class="spell-catalog-item"><div><strong>{spell.name}</strong><p>{spell.effect}</p><small>{spell.magnitude === 'extraordinary' ? 'Magia extraordinaria' : spell.magnitude === 'moderate' ? 'Magia moderada' : 'Truco simple'} · Coste: {spell.willCost} Voluntad</small></div>
+                    {#if characterSpells.some((known) => known.id === spell.id)}<span class="spell-added">Agregado</span>{:else}<button type="button" class="spell-add-button" on:click={() => onAddSpell(spell)}>Agregar</button>{/if}
+                  </article>
+                {/each}
+              </div>
+            {/each}
+          </div>
+        {/if}
         {#if characterSpells.length}
+          <p class="spell-instruction">Selecciona un conjuro y luego elige un Enfoque y un Rasgo para realizar la tirada normal.</p>
           <div class="spell-grid">
             {#each characterSpells as spell}
-              <article class="spell">
+              <button type="button" class="spell" class:selected-spell={selectedSpellId === spell.id} class:muted-spell={!!selectedSpellId && selectedSpellId !== spell.id} aria-pressed={selectedSpellId === spell.id} on:click={() => onSelectSpell(spell.id)}>
                 <strong>{spell.name || 'Conjuro'}</strong>
                 <p>{spell.effect}</p>
                 <small>{spell.magnitude === 'extraordinary' ? 'Magia extraordinaria' : spell.magnitude === 'moderate' ? 'Magia moderada' : 'Truco simple'} · Coste: {spell.willCost || 0} Voluntad</small>
-              </article>
+                <span class="spell-select-label">{selectedSpellId === spell.id ? 'Conjuro seleccionado · volver a pulsar para quitar' : 'Seleccionar conjuro'}</span>
+              </button>
             {/each}
           </div>
         {:else}
           <p class="empty-copy">No has añadido conjuros.</p>
+        {/if}
+        {#if selectedSpellId && characterSpells.find((spell) => spell.id === selectedSpellId)}
+          {@const activeSpell = characterSpells.find((spell) => spell.id === selectedSpellId)}
+          <p class="spell-cost-note">Coste de lanzamiento: <strong>{activeSpell.willCost} Voluntad</strong>. La Voluntad se descuenta al resolver la tirada, incluso si falla.</p>
         {/if}
       </section>
 
@@ -346,6 +372,24 @@
   .approach small { grid-column:1/-1; color:var(--sheet-muted); font-size:.72rem; line-height:1.4; }
   .trait-list, .state-list, .spell-grid { display:grid; gap:.6rem; }
   .trait, .state, .spell { padding:.8rem; border:1px solid var(--sheet-line); border-radius:8px; background:var(--sheet-panel-inner); }
+  .spell-heading { display:flex; align-items:center; justify-content:space-between; gap:.8rem; flex-wrap:wrap; }
+  .spell-heading h2 { margin-bottom:.4rem; }
+  .spell-add-button { border:1px solid var(--sheet-gold); border-radius:7px; padding:.55rem .8rem; background:#373a3e; color:var(--sheet-accent); font-weight:700; cursor:pointer; }
+  .spell-add-button:disabled { opacity:.45; cursor:not-allowed; }
+  .spell-instruction,.spell-cost-note { margin:.6rem 0; color:var(--sheet-muted); font-size:.8rem; line-height:1.5; }
+  .spell-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  button.spell { width:100%; text-align:left; color:inherit; cursor:pointer; font:inherit; }
+  .spell.selected-spell { border-color:var(--sheet-accent); background:#373a3e; box-shadow:inset 0 0 0 1px var(--sheet-accent); opacity:1; filter:none; }
+  .spell.muted-spell { opacity:.32; filter:grayscale(1); }
+  .spell-select-label { display:block; margin-top:.55rem; color:var(--sheet-gold); font-size:.7rem; }
+  .spell-catalog { margin:.8rem 0 1rem; padding:.85rem; border:1px solid var(--sheet-line); border-radius:8px; background:var(--sheet-panel-inner); }
+  .spell-catalog h3 { margin:0 0 .7rem; color:var(--sheet-accent); font-size:.9rem; }
+  .spell-category { margin-top:.8rem; }
+  .spell-category h4 { margin:.4rem 0; color:var(--sheet-gold); font-size:.78rem; }
+  .spell-catalog-item { display:flex; align-items:center; justify-content:space-between; gap:.7rem; padding:.65rem 0; border-top:1px solid var(--sheet-line); }
+  .spell-catalog-item p { margin:.25rem 0; color:var(--sheet-muted); font-size:.78rem; line-height:1.4; }
+  .spell-catalog-item small { color:var(--sheet-muted); font-size:.7rem; }
+  .spell-added { color:var(--sheet-gold); font-size:.72rem; white-space:nowrap; }
   button.trait { width:100%; text-align:left; color:inherit; cursor:pointer; font:inherit; }
   button.trait:not(.muted-trait) { opacity:1; filter:none; border-color:#806638; background:#303236; box-shadow:inset 0 0 0 1px rgba(213,166,75,.12); }
   .trait-die { display:block; margin-top:.5rem; color:var(--sheet-gold); font-size:.72rem; }
@@ -398,6 +442,6 @@
   .sheet-empty { margin:2rem auto; max-width:650px; padding:2rem; border:1px solid #806638; border-radius:12px; background:linear-gradient(145deg,#292b2e,#202124); text-align:center; }
   .sheet-empty h1 { font-size:1.8rem; }
   .sheet-empty p { color:var(--sheet-muted); }
-  @media(max-width:700px) { .sheet-grid { grid-template-columns:1fr; } .sheet-panel.full { grid-column:auto; } .equipment-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .sheet-head { align-items:flex-start; } }
+  @media(max-width:700px) { .sheet-grid { grid-template-columns:1fr; } .sheet-panel.full { grid-column:auto; } .equipment-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .spell-grid { grid-template-columns:1fr; } .sheet-head { align-items:flex-start; } }
   @media(max-width:430px) { .data-grid { grid-template-columns:1fr; } .data-grid .wide { grid-column:auto; } .equipment-grid { grid-template-columns:1fr; } .portrait { width:62px; height:62px; flex-basis:62px; } }
 </style>
