@@ -893,7 +893,6 @@
     const retryPool = selectedApproachScore + selectedTraitBonus + helpDiceBonus + effortDiceBonus + (rollModifier === 'advantage' ? 1 : 0);
     const retryNotation = forcedLowRoll ? '2d6kl1' : retryPool <= 0 ? '2d6kl1' : `${retryPool}d6kh1`;
     await sendDiceRoll(diceNotation, dicePool, selectedApproach, false, retryNotation, retryPool, selectedMagicSpell ? spellCost : 0, selectedMagicSpell?.name || 'el conjuro');
-    resetSheetRollSelection();
     effortDiceBonus = 0;
   }
 
@@ -960,6 +959,7 @@
     // El resultado se procesa internamente para aplicar reglas, sin guardar historial ni mostrar notificaciones.
     if (roll.spellCost > 0) { character.will = Math.max(0, Number(character.will || 0) - roll.spellCost); updateCharacter(); dicePlusError = `Has gastado ${roll.spellCost} Voluntad para lanzar ${roll.spellName || 'el conjuro'}.`; }
     pendingDiceRoll = null;
+    resetSheetRollSelection();
     if (critical) {
       adjustWill(1);
       return;
@@ -1072,6 +1072,9 @@
               character = { ...character, will: Math.max(1, Number(character.maxWill) || 4), maxWill: 4 };
               visibleStates = [];
               visibleEffortCoins = 3;
+              resetSheetRollSelection();
+              effortDiceBonus = 0;
+              pendingDiceRoll = null;
               updateCharacter();
             } catch (error) {
               console.error('No se pudo restablecer la ficha al iniciar la sesión', error);
