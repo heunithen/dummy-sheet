@@ -1995,7 +1995,7 @@
                   {#if getPlayerCharacter(player)?.portrait}<img class="gm-player-portrait" src={getPlayerCharacter(player)?.portrait} alt="Retrato de {getPlayerCharacter(player)?.name || player.name}">{/if}
                   <div><h3>{getPlayerCharacter(player)?.name || player.name}</h3><small>{getPlayerCharacter(player)?.created ? getPlayerCharacter(player)?.concept : 'Ficha MIMPROV aún no creada'}</small></div>
                 </div>
-              </header>
+              </summary>
 
               {#if getPlayerCharacter(player)?.created}
                 <section class="gm-character-information">
