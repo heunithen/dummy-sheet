@@ -105,82 +105,28 @@
           <span class="eyebrow">PERSONAJE MIMPROV</span>
           <h1>{character.name || 'Sin nombre'}</h1>
           <p>{character.archetype || 'Sin arquetipo'} · {character.concept || 'Sin concepto'}</p>
+          <div class="identity-details">
+            <span>Edad: <strong>{character.age || '—'}</strong></span>
+            <span>Apariencia: <strong>{character.appearance || '—'}</strong></span>
+            <span>Experiencia: <strong>{character.experience || '—'}</strong></span>
+          </div>
         </div>
       </div>
       <button class="edit-button" on:click={onEdit}>Editar ficha</button>
     </header>
 
     <div class="sheet-grid">
-      <section class="sheet-panel full">
-        <h2>Datos del personaje</h2>
-        <div class="data-grid">
-          <div><span>Edad</span><strong>{character.age || '—'}</strong></div>
-          <div><span>Apariencia</span><strong>{character.appearance || '—'}</strong></div>
-          <div class="wide"><span>Experiencia</span><strong>{character.experience || '—'}</strong></div>
-        </div>
-      </section>
-
       <section class="sheet-panel">
         <h2>Enfoques</h2>
         <div class="approach-grid">
           {#each approaches as approach}
             <button type="button" class="approach" class:selected={approachSelected && selectedApproach === approach.name} class:muted-approach={approachSelected && selectedApproach !== approach.name} aria-pressed={approachSelected && selectedApproach === approach.name} on:click={() => onSelectApproach(approach.name)}>
-              <span>{approach.meaning}</span>
-              <strong>{approach.name}</strong>
-              <b>{Number(character.approaches?.[approach.name]) || 0}</b>
-              <small>{approach.detail}</small>
+              <span>{approach.meaning}</span><strong>{approach.name}</strong><b>{Number(character.approaches?.[approach.name]) || 0}</b><small>{approach.detail}</small>
             </button>
           {/each}
         </div>
         <p class="hold-roll-hint" class:hold-roll-disabled={!canStartRoll}>{canStartRoll ? 'Mantén presionada cualquier zona libre de la hoja para lanzar los dados.' : selectedSpell && !selectedTrait ? 'Selecciona también un Rasgo para lanzar este conjuro.' : selectedSpell && !canCastSelectedSpell ? `No tienes suficiente Voluntad. Necesitas ${selectedSpell.willCost} y tienes ${character.will}.` : 'Selecciona un Enfoque para habilitar la tirada.'}</p>
         {#if selectedSpell && selectedTrait && canCastSelectedSpell}<p class="hint">Tirada de {selectedSpell.name}: Enfoque + Rasgo. Coste: {selectedSpell.willCost} Voluntad.</p>{/if}
-        <div class="effort-controls">
-          <h3>Monedas de esfuerzo</h3>
-          <div class="effort-coins" aria-label="Monedas de esfuerzo disponibles">
-            {#each Array.from({ length: 3 }) as _, index}
-              <button type="button" class="effort-coin" class:spent={index >= effortCoins} aria-label="Gastar moneda para añadir un dado" disabled={index >= effortCoins || pendingRoll || effortDiceBonus > 0} on:click={() => onSpendEffort('extra-die')}>✦</button>
-            {/each}
-            <strong class="resource-value">{effortCoins} / 3</strong>
-          </div>
-          {#if effortDiceBonus > 0}<p class="effort-bonus">Moneda gastada: +1d6 preparado para la próxima tirada.</p>{/if}
-          {#if lastRoll?.retryNotation}
-            <button type="button" class="effort-reroll" on:click={() => onSpendEffort('reroll')} disabled={pendingRoll || effortCoins <= 0}>↻ Repetir tirada</button>
-          {/if}
-          {#if forcedLowRoll && effortDiceBonus > 0}
-            <p class="condition-note">Abrumado: se mantienen los 2d6 y se conserva el menor.</p>
-          {/if}
-        </div>
-      <section class="sheet-panel">
-        <h2>Voluntad</h2>
-        <div class="resource-row">
-          <div class="resource-dots" aria-label="Voluntad actual">
-            {#each Array.from({ length: character.maxWill || 4 }) as _, index}
-              <span class:filled={index < (Number(character.will) || 0)} class="resource-dot">♥</span>
-            {/each}
-          </div>
-          <strong class="resource-value">{character.will} / {character.maxWill}</strong>
-        </div>
-        {#if Number(character.will) <= 0}
-          <p class="condition-note">Abrumado: todas las tiradas se realizan con 2d6 y se conserva el resultado menor.</p>
-        {:else}
-          <p class="hint">La Voluntad representa la capacidad del personaje para sostenerse frente a la presión.</p>
-        {/if}
-      </section>
-      <section class="sheet-panel">
-        <h2>Estados</h2>
-        {#if states.length}
-          <div class="state-list">
-            {#each states as state}
-              <article class="state">
-                <strong>{state}</strong>
-                <small>{stateDetails[state] || 'Condición activa del personaje.'}</small>
-              </article>
-            {/each}
-          </div>
-        {:else}
-          <p class="empty-copy">No tienes Estados activos.</p>
-        {/if}
-      </section>
       </section>
 
       <section class="sheet-panel">
@@ -189,35 +135,52 @@
           <div class="trait-list">
             {#each character.traits as trait}
               <button type="button" class="trait" class:selected={selectedTrait === trait} class:muted-trait={!!selectedTrait && selectedTrait !== trait} aria-pressed={selectedTrait === trait} on:click={() => onSelectTrait(trait)}>
-                <strong>{traitLabel(trait)}</strong>
-                <p>{traitDescription(trait)}</p>
-                <small class="trait-die">{selectedTrait === trait ? '+1d6 seleccionado' : 'Seleccionar +1d6'}</small>
+                <strong>{traitLabel(trait)}</strong><p>{traitDescription(trait)}</p><small class="trait-die">{selectedTrait === trait ? '+1d6 seleccionado' : 'Seleccionar +1d6'}</small>
               </button>
             {/each}
           </div>
-        {:else}
-          <p class="empty-copy">No hay Rasgos registrados.</p>
-        {/if}
+        {:else}<p class="empty-copy">No hay Rasgos registrados.</p>{/if}
       </section>
 
+      <div class="resource-pair">
+        <section class="sheet-panel resource-panel">
+          <h2>Voluntad</h2>
+          <div class="resource-row">
+            <div class="resource-dots" aria-label="Voluntad actual">
+              {#each Array.from({ length: character.maxWill || 4 }) as _, index}
+                <span class:filled={index < (Number(character.will) || 0)} class="resource-dot">♥</span>
+              {/each}
+            </div>
+            <strong class="resource-value">{character.will} / {character.maxWill}</strong>
+          </div>
+          {#if Number(character.will) <= 0}
+            <p class="condition-note">Abrumado: todas las tiradas se realizan con 2d6 y se conserva el resultado menor.</p>
+          {:else}<p class="hint">La Voluntad representa la capacidad del personaje para sostenerse frente a la presión.</p>{/if}
+        </section>
 
+        <section class="sheet-panel resource-panel">
+          <h2>Monedas de sobreesfuerzo</h2>
+          <div class="effort-coins" aria-label="Monedas de esfuerzo disponibles">
+            {#each Array.from({ length: 3 }) as _, index}
+              <button type="button" class="effort-coin" class:spent={index >= effortCoins} aria-label="Gastar moneda para añadir un dado" disabled={index >= effortCoins || pendingRoll || effortDiceBonus > 0} on:click={() => onSpendEffort('extra-die')}>✦</button>
+            {/each}
+            <strong class="resource-value">{effortCoins} / 3</strong>
+          </div>
+          {#if effortDiceBonus > 0}<p class="effort-bonus">Moneda gastada: +1d6 preparado para la próxima tirada.</p>{/if}
+          {#if lastRoll?.retryNotation}<button type="button" class="effort-reroll" on:click={() => onSpendEffort('reroll')} disabled={pendingRoll || effortCoins <= 0}>↻ Repetir tirada</button>{/if}
+          {#if forcedLowRoll && effortDiceBonus > 0}<p class="condition-note">Abrumado: se mantienen los 2d6 y se conserva el menor.</p>{/if}
+        </section>
+      </div>
 
-
-
-      <section class="sheet-panel full">
-        <h2>Equipo</h2>
-        {#if groupedEquipment.length}
-          <div class="equipment-grid">
-            {#each groupedEquipment as item}
-              <article class="equipment-item">
-                <strong>{equipmentDisplayName(item) || 'Objeto sin nombre'}</strong>
-                <small>{traitLabel(item.trait || 'Personal')}</small>
-              </article>
+      <section class="sheet-panel">
+        <h2>Estados</h2>
+        {#if states.length}
+          <div class="state-list">
+            {#each states as state}
+              <article class="state"><strong>{state}</strong><small>{stateDetails[state] || 'Condición activa del personaje.'}</small></article>
             {/each}
           </div>
-        {:else}
-          <p class="empty-copy">No hay equipo registrado.</p>
-        {/if}
+        {:else}<p class="empty-copy">No tienes Estados activos.</p>{/if}
       </section>
 
       <section class="sheet-panel full">
@@ -241,16 +204,12 @@
           <div class="spell-grid">
             {#each characterSpells as spell}
               <button type="button" class="spell" class:selected-spell={selectedSpellId === spell.id} class:muted-spell={!!selectedSpellId && selectedSpellId !== spell.id} aria-pressed={selectedSpellId === spell.id} on:click={() => onSelectSpell(spell.id)}>
-                <strong>{spell.name || 'Conjuro'}</strong>
-                <p>{spell.effect}</p>
-                <small>{spell.magnitude === 'extraordinary' ? 'Magia extraordinaria' : spell.magnitude === 'moderate' ? 'Magia moderada' : 'Truco simple'} · Coste: {spell.willCost || 0} Voluntad</small>
+                <strong>{spell.name || 'Conjuro'}</strong><p>{spell.effect}</p><small>{spell.magnitude === 'extraordinary' ? 'Magia extraordinaria' : spell.magnitude === 'moderate' ? 'Magia moderada' : 'Truco simple'} · Coste: {spell.willCost || 0} Voluntad</small>
                 <span class="spell-select-label">{selectedSpellId === spell.id ? 'Conjuro seleccionado · volver a pulsar para quitar' : 'Seleccionar conjuro'}</span>
               </button>
             {/each}
           </div>
-        {:else}
-          <p class="empty-copy">No has añadido conjuros.</p>
-        {/if}
+        {:else}<p class="empty-copy">No has añadido conjuros.</p>{/if}
         {#if selectedSpellId && characterSpells.find((spell) => spell.id === selectedSpellId)}
           {@const activeSpell = characterSpells.find((spell) => spell.id === selectedSpellId)}
           <p class="spell-cost-note">Coste de lanzamiento: <strong>{activeSpell.willCost} Voluntad</strong>. La Voluntad se descuenta al resolver la tirada, incluso si falla.</p>
@@ -258,8 +217,14 @@
       </section>
 
       <section class="sheet-panel full">
-        <h2>Notas</h2>
-        <p class="notes">{character.notes || 'No hay notas para este personaje.'}</p>
+        <h2>Equipo</h2>
+        {#if groupedEquipment.length}
+          <div class="equipment-grid">
+            {#each groupedEquipment as item}
+              <article class="equipment-item"><strong>{equipmentDisplayName(item) || 'Objeto sin nombre'}</strong><small>{traitLabel(item.trait || 'Personal')}</small></article>
+            {/each}
+          </div>
+        {:else}<p class="empty-copy">No hay equipo registrado.</p>{/if}
       </section>
     </div>
     <p class="sheet-footnote">Hoja de personaje · MIMPROV</p>
@@ -379,7 +344,12 @@
   h1 { margin:.25rem 0; color:var(--sheet-accent); font:800 clamp(1.5rem, 4vw, 2.2rem) Manrope, sans-serif; line-height:1.1; overflow-wrap:anywhere; }
   .identity-copy p { margin:.25rem 0 0; color:#c7c7c7; }
   .edit-button, .sheet-empty button { border:1px solid var(--sheet-accent); border-radius:7px; padding:.65rem 1rem; background:var(--sheet-accent); color:#171717; font-weight:700; cursor:pointer; }
-  .sheet-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem; }
+  .sheet-grid { display:grid; grid-template-columns:1fr; gap:1rem; }
+  .identity-details { display:flex; flex-wrap:wrap; gap:.35rem .9rem; margin-top:.55rem; color:var(--sheet-muted); font-size:.72rem; }
+  .identity-details strong { color:var(--sheet-text); font-weight:650; }
+  .resource-pair { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem; }
+  .resource-panel { min-width:0; }
+  .resource-panel h2 { min-height:2.2em; }
   .sheet-panel { min-width:0; padding:1.15rem; border:1px solid var(--sheet-line); border-radius:10px; background:#202225; }
   .sheet-panel.full { grid-column:1/-1; }
   h2 { margin:0 0 1rem; color:var(--sheet-accent); font:700 1rem Manrope,sans-serif; }
@@ -416,6 +386,7 @@
   .approach b { color:var(--sheet-accent); font:800 1.4rem Manrope,sans-serif; }
   .approach small { grid-column:1/-1; color:var(--sheet-muted); font-size:.72rem; line-height:1.4; }
   .trait-list, .state-list, .spell-grid { display:grid; gap:.6rem; }
+  .trait-list { grid-template-columns:repeat(2,minmax(0,1fr)); }
   .trait, .state, .spell { padding:.8rem; border:1px solid var(--sheet-line); border-radius:8px; background:var(--sheet-panel-inner); }
   .spell-heading { display:flex; align-items:center; justify-content:space-between; gap:.8rem; flex-wrap:wrap; }
   .spell-heading h2 { margin-bottom:.4rem; }
@@ -487,6 +458,6 @@
   .sheet-empty { margin:2rem auto; max-width:650px; padding:2rem; border:1px solid #806638; border-radius:12px; background:linear-gradient(145deg,#292b2e,#202124); text-align:center; }
   .sheet-empty h1 { font-size:1.8rem; }
   .sheet-empty p { color:var(--sheet-muted); }
-  @media(max-width:700px) { .sheet-grid { grid-template-columns:1fr; } .sheet-panel.full { grid-column:auto; } .equipment-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .spell-grid { grid-template-columns:1fr; } .sheet-head { align-items:flex-start; } }
-  @media(max-width:430px) { .data-grid { grid-template-columns:1fr; } .data-grid .wide { grid-column:auto; } .equipment-grid { grid-template-columns:1fr; } .portrait { width:62px; height:62px; flex-basis:62px; } }
+  @media(max-width:700px) { .sheet-panel.full { grid-column:auto; } .resource-pair { grid-template-columns:repeat(2,minmax(0,1fr)); } .trait-list { grid-template-columns:1fr; } .equipment-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .spell-grid { grid-template-columns:1fr; } .sheet-head { align-items:flex-start; } }
+  @media(max-width:430px) { .resource-pair { grid-template-columns:1fr; } .resource-panel h2 { min-height:0; } .equipment-grid { grid-template-columns:1fr; } .portrait { width:62px; height:62px; flex-basis:62px; } }
 </style>
