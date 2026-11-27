@@ -30,7 +30,7 @@
   let cursorVisible = false;
   $: selectedApproachDice = Number(character?.approaches?.[selectedApproach]) || 0;
   $: selectedTraitDice = selectedTrait && character?.traits?.includes(selectedTrait) ? 1 : 0;
-  $: cursorDiceCount = forcedLowRoll ? 2 : Math.max(2, dicePool);
+  $: cursorDiceCount = forcedLowRoll || dicePool <= 0 ? 2 : dicePool;
   function trackPointer(event: MouseEvent) {
     cursorX = event.clientX;
     cursorY = event.clientY;
