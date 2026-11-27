@@ -537,6 +537,7 @@
   let rollHelp = false;
   let selectedPlayerId = '';
   let selectedApproach = 'Tenacidad';
+  let sheetApproachSelected = false;
   let selectedTrait = '';
   let selectedState = '';
   let rollModifier = 'normal';
@@ -858,6 +859,7 @@
   }
 
   async function rollDice() {
+    if (!sheetApproachSelected) return;
     if (!OBR.isAvailable || !loaded) {
       dicePlusError = 'Esta tirada necesita Owlbear Rodeo y la extensión Dice+.';
       return;
@@ -1658,21 +1660,16 @@
         {equipmentDisplayName}
         traitDescription={(trait) => trait.startsWith('Conocedor de ') ? 'Conocimientos y experiencia en ' + trait.slice('Conocedor de '.length) + '.' : character.customTraits?.[trait] || TRAIT_DESCRIPTIONS[trait]?.long || TRAIT_DESCRIPTIONS[trait]?.short || 'Rasgo personalizado acordado con el Narrador.'}
         {selectedApproach}
+        approachSelected={sheetApproachSelected}
         {selectedTrait}
-        {rollModifier}
-        helpBonus={rollHelp}
         {dicePool}
-        {diceNotation}
         {forcedLowRoll}
-        {selectedStatePenalty}
         {effortDiceBonus}
         pendingRoll={!!pendingDiceRoll}
         rollError={dicePlusError}
         {lastRoll}
-        onSelectApproach={(name) => { selectedApproach = name; }}
+        onSelectApproach={(name) => { selectedApproach = name; sheetApproachSelected = true; }}
         onSelectTrait={(name) => { selectedTrait = name; if (!name) rollHelp = false; }}
-        onModifierChange={(value) => { rollModifier = value; }}
-        onHelpChange={(value) => { rollHelp = value; }}
         onRoll={rollDice}
         onSpendEffort={spendEffort}
         onEdit={() => { activeTab = 'personaje'; editingCharacter = true; }}
