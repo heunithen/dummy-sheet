@@ -1852,6 +1852,7 @@
         onSelectTrait={(name) => { selectedTrait = selectedTrait === name ? '' : name; if (!selectedTrait) rollHelp = false; }}
         onRoll={rollDice}
         onSpendEffort={spendEffort}
+        onAdjustWill={(delta) => adjustWill(delta)}
         onEdit={() => { activeTab = 'personaje'; editingCharacter = true; }}
       />
       {/if}
