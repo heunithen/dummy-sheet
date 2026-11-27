@@ -25,6 +25,7 @@
   const ROLL_NOTICE_CHANNEL = 'com.heunithen.dummysheet-mimprov/roll-notification';
   const CONFLICT_RESULT_CHANNEL = 'com.heunithen.dummysheet-mimprov/conflict-result';
   const CONFLICT_ROLL_CHANNEL = 'com.heunithen.dummysheet-mimprov/conflict-roll';
+  const SINGLE_RISK_ROLL_CHANNEL = 'com.heunithen.dummysheet-mimprov/single-risk-roll';
   const DELETE_CHARACTER_CHANNEL = 'com.heunithen.dummysheet-mimprov/delete-character';
   const PLAYER_MAGIC_KEY = 'com.heunithen.dummysheet-mimprov/player-magic';
   const LINES_VEILS_KEY = 'com.heunithen.dummysheet-mimprov/lines-veils';
@@ -533,6 +534,7 @@
   let gmTracker: any = { players: {}, conflict: { active: false, danger: 'Bajo', resistance: null } };
   let conflictActive = false;
   let conflictDanger = 'Bajo';
+  let singleRollRisk: { id: string; danger: string } | null = null;
   let gmLoaded = false;
   type GmNpc = { genre: GmNpcGenre; name: string; appearance: string; personality: string };
   let gmNpcCharacters: GmNpc[] = [];
@@ -563,7 +565,7 @@
   let rollHistory: Array<{ id: string; timestamp: number; approach: string; dice: number[]; kept: number; result: string; critical: boolean; notation: string }> = [];
   let rollHistoryKey = '';
   let dicePlusError = '';
-  let pendingDiceRoll: { rollId: string; pool: number; notation: string; approach: string; effortReroll: boolean; conflictActive: boolean; danger: string; spellCost?: number; spellName?: string } | null = null;
+  let pendingDiceRoll: { rollId: string; pool: number; notation: string; approach: string; effortReroll: boolean; conflictActive: boolean; danger: string; singleRiskId?: string; spellCost?: number; spellName?: string } | null = null;
 
   function savePlayerNotes(event: Event) {
     playerNotes = (event.currentTarget as HTMLTextAreaElement).value;
@@ -878,8 +880,10 @@
       const rollId = `mimprov_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
       pendingDiceRoll = {
         rollId, pool, notation, approach, effortReroll, retryNotation, retryPool, spellCost, spellName,
-        conflictActive, danger: conflictDanger
+        conflictActive: conflictActive || !!singleRollRisk, danger: singleRollRisk?.danger || conflictDanger,
+        singleRiskId: singleRollRisk?.id
       };
+      if (singleRollRisk) visibleConflictActive = true;
       lastRoll = { dice: [], kept: 0, pool, result: effortReroll ? 'Repitiendo todos los dados…' : 'Tirando en Dice+…', critical: false, notation };
       await OBR.broadcast.sendMessage('dice-plus/roll-request', {
         rollId,
@@ -991,6 +995,10 @@
     // El resultado se anuncia a toda la sala mediante un mensaje visual de sistema.
     if (roll.spellCost > 0) { character.will = Math.max(0, Number(character.will || 0) - roll.spellCost); updateCharacter(); dicePlusError = `Has gastado ${roll.spellCost} Voluntad para lanzar ${roll.spellName || 'el conjuro'}.`; }
     pendingDiceRoll = null;
+    if (roll.singleRiskId) {
+      visibleConflictActive = false;
+      OBR.broadcast.sendMessage(SINGLE_RISK_ROLL_CHANNEL, { rollId: roll.rollId, riskId: roll.singleRiskId, playerId: $currentPlayerId }, { destination: 'ALL' }).catch((error) => console.error('No se pudo cerrar la tirada con riesgo', error));
+    }
     resetSheetRollSelection();
     OBR.broadcast.sendMessage(ROLL_NOTICE_CHANNEL, { rollId: roll.rollId, result: finalResult }, { destination: 'ALL' }).catch((error) => console.error('No se pudo anunciar el resultado de la tirada', error));
     OBR.broadcast.sendMessage(CONFLICT_ROLL_CHANNEL, { rollId: roll.rollId, playerId: $currentPlayerId }, { destination: 'ALL' }).catch((error) => console.error('No se pudo registrar la tirada del conflicto', error));
@@ -1007,6 +1015,7 @@
     if (!pendingDiceRoll || data?.rollId !== pendingDiceRoll.rollId) return;
     dicePlusError = `Dice+ no pudo realizar la tirada: ${data.error || 'error desconocido'}`;
     pendingDiceRoll = null;
+    visibleConflictActive = false;
   }
 
   onMount(() => {
@@ -1101,6 +1110,9 @@
               const conflict = metadata?.[CONFLICT_KEY] || {};
               conflictActive = conflict.active === true && (!Array.isArray(conflict.participantIds) || conflict.participantIds.includes($currentPlayerId)) && !(conflict.exemptIds || []).includes($currentPlayerId);
               conflictDanger = ['Bajo', 'Medio', 'Alto'].includes(conflict.danger) ? conflict.danger : 'Bajo';
+              singleRollRisk = conflict.singleRollRisk?.active === true && typeof conflict.singleRollRisk.id === 'string'
+                ? { id: conflict.singleRollRisk.id, danger: ['Bajo', 'Medio', 'Alto'].includes(conflict.singleRollRisk.danger) ? conflict.singleRollRisk.danger : 'Bajo' }
+                : null;
               const modifiers = metadata?.[ROLL_MODIFIER_KEY] || {};
               rollModifier = ['advantage', 'disadvantage'].includes(modifiers[$currentPlayerId]) ? modifiers[$currentPlayerId] : 'normal';
               const willUpdates = metadata?.[WILL_SYNC_KEY] || {};
@@ -1152,6 +1164,10 @@
               const sender = party.find((player: any) => player.connectionId === event.connectionId);
               if (!sender || sender.role !== 'PLAYER' || sender.id !== data.playerId) return;
               const conflict = gmTracker.conflict;
+              if (data.riskId && conflict?.singleRollRisk?.active === true && conflict.singleRollRisk.id === data.riskId) {
+                conflict.singleRollRisk = { ...conflict.singleRollRisk, active: false };
+                saveGmTracker();
+              }
               if (!conflict?.active || !Array.isArray(conflict.participantIds) || !conflict.participantIds.includes(sender.id)) return;
               if ((conflict.exemptIds || []).includes(sender.id)) return;
               if (!conflict.countedRollIds || typeof conflict.countedRollIds !== 'object') conflict.countedRollIds = {};
@@ -1672,6 +1688,20 @@
     }
   }
 
+  function setSingleRollRisk(active: boolean) {
+    if (!gmTracker.conflict) gmTracker.conflict = { active: false, danger: 'Bajo', resistance: null };
+    if (active) {
+      gmTracker.conflict.singleRollRisk = {
+        active: true,
+        id: `risk_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        danger: gmTracker.conflict.danger || 'Bajo'
+      };
+    } else {
+      gmTracker.conflict.singleRollRisk = { ...(gmTracker.conflict.singleRollRisk || {}), active: false };
+    }
+    saveGmTracker();
+  }
+
   function setConflictActive(active: boolean) {
     if (!gmTracker.conflict) gmTracker.conflict = { active: false, danger: 'Bajo', resistance: null };
     const conflict = gmTracker.conflict;
@@ -2079,7 +2109,7 @@
           </div>
           <p class="muted">Todos los personajes participan al iniciar. Marca la casilla para eximir a alguien; si la desmarcas durante el conflicto, entra y comienza a contar sus dos tiradas. El peligro determina la pérdida de Voluntad al fracasar. Cada 6 reduce la Resistencia en 1; un 5 no la reduce. Fallo: Bajo −1 Voluntad · Medio −2 · Alto −3.</p>
           {#if gmTracker.conflict.result}<p class="conflict-result">{gmTracker.conflict.result}</p>{/if}
-          <div class="gm-conflict-actions"><button class="conflict-toggle-button" class:conflict-running={gmTracker.conflict.active} on:click={() => setConflictActive(!gmTracker.conflict.active)}>{gmTracker.conflict.active ? 'Terminar conflicto' : 'Iniciar conflicto'}</button><p class="muted gm-conflict-status">{gmTracker.conflict.active ? 'Conflicto activo · finaliza cuando cada personaje no exento complete dos tiradas.' : 'No hay un conflicto activo.'}</p></div>
+          <div class="gm-conflict-actions"><button class="conflict-toggle-button" class:conflict-running={gmTracker.conflict.active} on:click={() => setConflictActive(!gmTracker.conflict.active)}>{gmTracker.conflict.active ? 'Terminar conflicto' : 'Iniciar conflicto'}</button><button class="conflict-toggle-button" class:conflict-running={gmTracker.conflict.singleRollRisk?.active === true} on:click={() => setSingleRollRisk(!gmTracker.conflict.singleRollRisk?.active)}>{gmTracker.conflict.singleRollRisk?.active === true ? 'Cancelar tirada con riesgo' : 'Tirada con riesgo'}</button><p class="muted gm-conflict-status">{gmTracker.conflict.singleRollRisk?.active === true ? `Riesgo ${gmTracker.conflict.singleRollRisk.danger} pendiente: lo asumirá quien realice la primera tirada.` : (gmTracker.conflict.active ? 'Conflicto activo · finaliza cuando cada personaje no exento complete dos tiradas.' : 'No hay un conflicto activo.')}</p></div>
         </section>
       </section>
 
