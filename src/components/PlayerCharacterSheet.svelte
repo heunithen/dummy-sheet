@@ -88,7 +88,7 @@
         <h2>Enfoques</h2>
         <div class="approach-grid">
           {#each approaches as approach}
-            <button type="button" class="approach" class:selected={approachSelected && selectedApproach === approach.name} class:muted-approach={!approachSelected || selectedApproach !== approach.name} aria-pressed={approachSelected && selectedApproach === approach.name} on:click={() => onSelectApproach(approach.name)}>
+            <button type="button" class="approach" class:selected={approachSelected && selectedApproach === approach.name} class:muted-approach={approachSelected && selectedApproach !== approach.name} aria-pressed={approachSelected && selectedApproach === approach.name} on:click={() => onSelectApproach(approach.name)}>
               <span>{approach.meaning}</span>
               <strong>{approach.name}</strong>
               <b>{Number(character.approaches?.[approach.name]) || 0}</b>
