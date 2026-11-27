@@ -16,6 +16,7 @@
   const CONFLICT_KEY = 'com.heunithen.dummysheet-mimprov/conflict';
   const EFFORT_REQUEST_CHANNEL = 'com.heunithen.dummysheet-mimprov/spend-effort';
   const REST_REQUEST_CHANNEL = 'com.heunithen.dummysheet-mimprov/rest';
+  const WILL_ADJUST_CHANNEL = 'com.heunithen.dummysheet-mimprov/will-adjust';
   const SESSION_RESET_CHANNEL = 'com.heunithen.dummysheet-mimprov/session-reset';
   const DICE_PLUS_SOURCE = 'com.heunithen.dummysheet-mimprov';
   const ROLL_NOTICE_CHANNEL = 'com.heunithen.dummysheet-mimprov/roll-notification';
@@ -1090,6 +1091,21 @@
               console.error('No se pudo registrar la moneda de esfuerzo', error);
             }
           });
+          OBR.broadcast.onMessage(WILL_ADJUST_CHANNEL, async (event) => {
+            if (role !== 'PLAYER') return;
+            const data = event.data as any;
+            if (data?.playerId !== $currentPlayerId || ![-1, 1].includes(data.delta)) return;
+            try {
+              const party = await OBR.party.getPlayers();
+              const sender = party.find((player: any) => player.connectionId === event.connectionId);
+              if (!sender || sender.role !== 'GM') return;
+              const maximum = Math.max(1, Number(character.maxWill) || 4);
+              character = { ...character, will: Math.max(0, Math.min(maximum, (Number(character.will) || 0) + data.delta)) };
+              updateCharacter();
+            } catch (error) {
+              console.error('No se pudo ajustar la Voluntad', error);
+            }
+          });
           OBR.broadcast.onMessage(SESSION_RESET_CHANNEL, async (event) => {
             if (role !== 'PLAYER' || (event.data as any)?.action !== 'RESET_SESSION') return;
             try {
@@ -1527,6 +1543,16 @@
     saveGmTracker();
   }
 
+  function adjustEffortCoins(id: string, delta: number) {
+    const tracker = playerTracker(id);
+    tracker.effortCoins = Math.max(0, Math.min(3, Number(tracker.effortCoins || 0) + delta));
+    saveGmTracker();
+  }
+  function adjustPlayerWill(id: string, delta: number) {
+    if (!OBR.isAvailable) return;
+    OBR.broadcast.sendMessage(WILL_ADJUST_CHANNEL, { playerId: id, delta }, { destination: 'ALL' }).catch((error) => console.error('No se pudo enviar el ajuste de Voluntad', error));
+  }
+
   function setConflictActive(active: boolean) {
     if (!gmTracker.conflict) gmTracker.conflict = { active: false, danger: 'Bajo', resistance: null };
     if (active) {
@@ -1576,7 +1602,7 @@
     </nav>
   {:else if $isGM}
     <nav class="main-tabs">
-      <button class:active={activeTab === 'gm'} on:click={() => { activeTab = 'gm'; }}>Personajes</button>
+      <button class:active={activeTab === 'gm'} on:click={() => { activeTab = 'gm'; }}>Controles</button>
       <button class:active={activeTab === 'reglamento'} on:click={() => { activeTab = 'reglamento'; }}>Reglamento</button>
       <button class:active={activeTab === 'lineas-velos'} on:click={() => { activeTab = 'lineas-velos'; }}>Líneas y velos</button>
       <button class:active={activeTab === 'pnj'} on:click={() => { activeTab = 'pnj'; }}>PNJ</button>
@@ -1861,34 +1887,34 @@
   {:else if $isGM && activeTab === 'gm'}
     <main class="content gm-content">
       {#if activeTab === 'gm'}
-      <div class="eyebrow">HERRAMIENTAS DEL NARRADOR</div><h1>Personajes</h1>
-      <section class="card"><h2>Ambientación de la partida</h2><p class="muted">Esta selección aplica una skin global a todos los personajes de la sala: adapta los nombres de Rasgos, conocimientos y objetos de equipo, incluidos los personajes ya creados. No cambia sus Enfoques, capacidades, reglas ni objetos personalizados.</p><label for="mimprov-genre">Género o ambientación</label><select id="mimprov-genre" value={selectedGenre} on:change={(event) => changeGenre(event.currentTarget.value)}>{#each GENRES as genre}<option value={genre.id}>{genre.label}</option>{/each}</select><p class="muted">La ambientación se comparte con todos los jugadores de esta sala.</p></section>
-      <p class="muted">Seguimiento independiente. Estos controles no modifican las fichas de los jugadores.</p>
+      <div class="eyebrow">HERRAMIENTAS DEL NARRADOR</div><h1>Controles</h1>
+      <p class="muted">Administra la sesión, la ambientación y los valores de los personajes de la sala.</p>
       <section class="card session-conflict-card">
-        <h2>Sesión</h2>
-        <p class="muted">{sessionStarted ? 'Sesión iniciada. Los jugadores pueden crear sus personajes y utilizar la ficha.' : 'Configura el conflicto y la sesión antes de permitir que los jugadores comiencen.'}</p>
-        <h3>Participantes del conflicto</h3>
-        <p class="muted">Selecciona qué personajes participan. Solo sus tiradas fallidas aplican la pérdida de Voluntad según el peligro.</p>
-        <div class="participant-list">{#each partyMembers as player}<label class="check-row"><input type="checkbox" checked={conflictParticipantIds.includes(player.id)} disabled={gmTracker.conflict.active} on:change={(event) => setConflictParticipant(player.id, event.currentTarget.checked)}><span>{getPlayerCharacter(player)?.name || player.name}</span></label>{/each}</div>
-        <h3>Peligro</h3>
-        <p class="muted">El peligro determina la pérdida de Voluntad al fracasar una tirada.</p>
-        <div class="danger-levels">{#each ['Bajo', 'Medio', 'Alto'] as danger}<button class:active={gmTracker.conflict.danger === danger} class="secondary" on:click={() => setConflictDanger(danger)}>{danger}</button>{/each}</div>
-        <h3>Resistencia</h3>
-        <p class="muted">Resistencia base: 2 por participante. Puedes ajustarla para reflejar la escala o fortaleza de la oposición.</p>
-        <div class="resistance-value">{gmTracker.conflict.resistance ?? initialConflictResistance}</div>
-        <p class="muted">{conflictParticipants.length} participante(s) · Resistencia base: {initialConflictResistance}</p>
-        <div class="resistance-controls">
-          <button class="secondary" on:click={() => adjustConflictResistance(-1)} disabled={gmTracker.conflict.active || (gmTracker.conflict.resistance ?? initialConflictResistance) <= 0}>−1</button>
-          <button on:click={() => adjustConflictResistance(1)} disabled={gmTracker.conflict.active}>+1</button>
-          <button class="secondary" on:click={resetConflictResistance} disabled={gmTracker.conflict.active}>Restablecer</button>
-        </div>
-        <p class="muted">Fallo: Bajo −1 Voluntad · Medio −2 · Alto −3. Cada 6 reduce la Resistencia en 1; un 5 no la reduce.</p>
-        {#if gmTracker.conflict.result}<p class="conflict-result">{gmTracker.conflict.result}</p>{/if}
-        <div class="session-actions">
-          <button on:click={startNewSession}>Iniciar nueva sesión</button>
-          <button class:active={gmTracker.conflict.active} class="secondary" on:click={() => setConflictActive(!gmTracker.conflict.active)}>{gmTracker.conflict.active ? 'Terminar conflicto' : 'Iniciar conflicto'}</button>
-        </div>
-        <p class="muted">{gmTracker.conflict.active ? 'Conflicto activo para los personajes seleccionados.' : 'El conflicto todavía no está activo.'}</p>
+        <h2>Controles de sesión</h2>
+        <p class="muted">{sessionStarted ? 'Sesión iniciada. Los jugadores pueden crear sus personajes y utilizar la ficha.' : 'Inicia una sesión para permitir que los jugadores creen sus personajes y utilicen la ficha.'}</p>
+        <div class="session-actions"><button on:click={startNewSession}>Iniciar nueva sesión</button></div>
+        <section class="card control-subcard">
+          <h3>Ambientación de partida</h3>
+          <p class="muted">Adapta los nombres de Rasgos, conocimientos y objetos de equipo de todos los personajes de la sala. No modifica sus Enfoques, capacidades, reglas ni objetos personalizados.</p>
+          <label for="mimprov-genre">Género o ambientación</label>
+          <select id="mimprov-genre" value={selectedGenre} on:change={(event) => changeGenre(event.currentTarget.value)}>{#each GENRES as genre}<option value={genre.id}>{genre.label}</option>{/each}</select>
+          <p class="muted">La ambientación se comparte con todos los jugadores de esta sala.</p>
+        </section>
+        <section class="card control-subcard resistance-card">
+          <h3>Controles de conflicto</h3>
+          <p class="muted">El conflicto comienza al marcar la casilla «Conflicto» de uno o más personajes en Personajes de la sala. El peligro determina la pérdida de Voluntad al fracasar.</p>
+          <h4>Peligro</h4>
+          <div class="danger-levels">{#each ['Bajo', 'Medio', 'Alto'] as danger}<button class:active={gmTracker.conflict.danger === danger} class="secondary" on:click={() => setConflictDanger(danger)}>{danger}</button>{/each}</div>
+          <div class="resistance-summary"><div><span class="muted">Resistencia</span><strong>{gmTracker.conflict.resistance ?? initialConflictResistance}</strong></div><small>{conflictParticipants.length} participante(s) · Base: {initialConflictResistance}</small></div>
+          <div class="resistance-controls compact-resistance-controls">
+            <button class="secondary" on:click={() => adjustConflictResistance(-1)} disabled={gmTracker.conflict.active || (gmTracker.conflict.resistance ?? initialConflictResistance) <= 0}>−1</button>
+            <button on:click={() => adjustConflictResistance(1)} disabled={gmTracker.conflict.active}>+1</button>
+            <button class="secondary" on:click={resetConflictResistance} disabled={gmTracker.conflict.active}>Restablecer</button>
+          </div>
+          <p class="muted">Fallo: Bajo −1 Voluntad · Medio −2 · Alto −3. Cada 6 reduce la Resistencia en 1; un 5 no la reduce.</p>
+          {#if gmTracker.conflict.result}<p class="conflict-result">{gmTracker.conflict.result}</p>{/if}
+          <p class="muted">{gmTracker.conflict.active ? 'Conflicto activo.' : 'No hay un conflicto activo.'}</p>
+        </section>
       </section>
       <section class="card"><h2>Personajes de la sala</h2>
         {#if partyMembers.length === 0}
@@ -1903,10 +1929,10 @@
             <article class="gm-player">
               <div class="gm-player-head"><div class="gm-player-identity">{#if getPlayerCharacter(player)?.portrait}<img class="gm-player-portrait" src={getPlayerCharacter(player)?.portrait} alt="Retrato de {getPlayerCharacter(player)?.name || player.name}">{/if}<div><h3>{getPlayerCharacter(player)?.name || player.name}</h3><small>{getPlayerCharacter(player)?.created ? getPlayerCharacter(player)?.concept : 'Ficha MIMPROV aún no creada'}</small></div></div><div class="gm-player-actions">{#if getPlayerCharacter(player)?.created}<label class="conflict-character-toggle"><input type="checkbox" checked={gmTracker.conflict.active === true && conflictParticipantIds.includes(player.id)} on:change={(event) => toggleCharacterConflict(player.id, event.currentTarget.checked)}><span>Conflicto</span></label><button class="danger-button" on:click={() => deletePlayerCharacter(player)}>Borrar personaje</button>{/if}</div></div>
               {#if getPlayerCharacter(player)?.created}
-                <div class="gm-stats"><span>Voluntad: <b>{getPlayerCharacter(player)?.will} / {getPlayerCharacter(player)?.maxWill}</b></span><span>Enfoques: <b>{APPROACHES.map(a => a + ' ' + (getPlayerCharacter(player)?.approaches?.[a] ?? 0)).join(' · ')}</b></span><span>Rasgos: <b>{(getPlayerCharacter(player)?.traits || []).map((trait) => traitLabel(trait, selectedGenre)).join(', ')}</b></span></div><p class="muted"><b>Equipo:</b> {(getPlayerCharacter(player)?.inventory || []).map((item) => equipmentDisplayName(item, selectedGenre)).join(' · ')}</p>
+                <div class="gm-stats"><div class="gm-adjust-row"><span>Voluntad: <b>{getPlayerCharacter(player)?.will} / {getPlayerCharacter(player)?.maxWill}</b></span><div class="stepper"><button aria-label="Quitar Voluntad" on:click={() => adjustPlayerWill(player.id, -1)} disabled={(Number(getPlayerCharacter(player)?.will) || 0) <= 0}>−</button><b>{getPlayerCharacter(player)?.will}</b><button aria-label="Añadir Voluntad" on:click={() => adjustPlayerWill(player.id, 1)} disabled={(Number(getPlayerCharacter(player)?.will) || 0) >= (Number(getPlayerCharacter(player)?.maxWill) || 4)}>+</button></div></div><span>Enfoques: <b>{APPROACHES.map(a => a + ' ' + (getPlayerCharacter(player)?.approaches?.[a] ?? 0)).join(' · ')}</b></span><span>Rasgos: <b>{(getPlayerCharacter(player)?.traits || []).map((trait) => traitLabel(trait, selectedGenre)).join(', ')}</b></span></div><p class="muted"><b>Equipo:</b> {(getPlayerCharacter(player)?.inventory || []).map((item) => equipmentDisplayName(item, selectedGenre)).join(' · ')}</p>
               {:else}<p class="muted">El jugador todavía no ha creado su ficha.</p>{/if}
               <h4>Estados actuales</h4><div class="state-grid">{#each STATES as state}<label class="check-row"><input type="checkbox" checked={playerTracker(player.id).states.includes(state.name)} on:change={() => toggleState(player.id, state.name)}><span><b>{state.name}</b><small>{state.enfoque}: {state.detail}</small></span></label>{/each}</div>
-              <h4>Monedas de esfuerzo</h4><p class="muted">Disponibles: {playerTracker(player.id).effortCoins} / 3</p><small class="muted">Las monedas permiten añadir 1d6 a una tirada o repetir todos los dados ignorando los Estados o Desventajas que resten dados. Gastarlas no genera Estados. El descanso no las recupera.</small>
+              <h4>Monedas de esfuerzo</h4><div class="gm-adjust-row effort-adjust-row"><span>Disponibles: <b>{playerTracker(player.id).effortCoins} / 3</b></span><div class="stepper"><button aria-label="Quitar moneda de esfuerzo" on:click={() => adjustEffortCoins(player.id, -1)} disabled={playerTracker(player.id).effortCoins <= 0}>−</button><b>{playerTracker(player.id).effortCoins}</b><button aria-label="Añadir moneda de esfuerzo" on:click={() => adjustEffortCoins(player.id, 1)} disabled={playerTracker(player.id).effortCoins >= 3}>+</button></div></div><small class="muted">Las monedas permiten añadir 1d6 a una tirada o repetir todos los dados ignorando los Estados o Desventajas que resten dados. Gastarlas no genera Estados. El descanso no las recupera.</small>
             </article>
           {/each}
         {/if}
@@ -2312,6 +2338,19 @@
   .participant-list .check-row { margin:0; }
   .danger-levels button.active { background:#6d542b; border-color:#d8b66f; color:#fff; }
   .resistance-value { color:#f2c879; font-size:3rem; font-weight:750; margin:.4rem 0; }
+  .control-subcard { margin:1rem 0 0; padding:1rem; background:#222427; }
+  .control-subcard h3 { margin:0 0 .5rem; }
+  .control-subcard h4 { margin:.8rem 0 .4rem; color:#d8b66f; }
+  .resistance-card { max-width:520px; }
+  .resistance-summary { display:flex; align-items:center; justify-content:space-between; gap:1rem; margin:.7rem 0 .3rem; }
+  .resistance-summary div { display:flex; align-items:baseline; gap:.65rem; }
+  .resistance-summary strong { color:#f2c879; font-size:1.8rem; }
+  .resistance-summary small { color:#999; }
+  .compact-resistance-controls button { padding:.4rem .7rem; font-size:.82rem; }
+  .gm-adjust-row { display:flex; align-items:center; justify-content:space-between; gap:1rem; }
+  .gm-adjust-row .stepper { gap:.45rem; }
+  .gm-adjust-row .stepper button { width:1.75rem; height:1.75rem; font-size:1rem; }
+  .effort-adjust-row { justify-content:flex-start; }
   @media(max-width:600px) {
     .sheet-grid, .state-grid { grid-template-columns:1fr; }
     .sheet-header { display:block; } .sheet-title-group { align-items:flex-start; } .character-portrait-wrap { flex-basis:76px; } .character-portrait { width:76px; height:76px; }
