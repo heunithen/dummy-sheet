@@ -893,6 +893,7 @@
     const retryPool = selectedApproachScore + selectedTraitBonus + helpDiceBonus + effortDiceBonus + (rollModifier === 'advantage' ? 1 : 0);
     const retryNotation = forcedLowRoll ? '2d6kl1' : retryPool <= 0 ? '2d6kl1' : `${retryPool}d6kh1`;
     await sendDiceRoll(diceNotation, dicePool, selectedApproach, false, retryNotation, retryPool, selectedMagicSpell ? spellCost : 0, selectedMagicSpell?.name || 'el conjuro');
+    resetSheetRollSelection();
     effortDiceBonus = 0;
   }
 
