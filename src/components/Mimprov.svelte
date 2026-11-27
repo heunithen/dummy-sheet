@@ -1806,6 +1806,11 @@
         conflictActive={visibleConflictActive}
         effortCoins={visibleEffortCoins}
         spells={playerMagicRecord?.spells || []}
+        catalogSpells={MAGIC_CATALOG}
+        selectedSpellId={selectedMagicSpellId}
+        canAddSpells={character.traits.includes('Iniciado en lo arcano')}
+        onSelectSpell={(id) => { selectedMagicSpellId = selectedMagicSpellId === id ? '' : id; dicePlusError = ''; }}
+        onAddSpell={addCatalogSpell}
         {traitLabel}
         {equipmentDisplayName}
         traitDescription={(trait) => trait.startsWith('Conocedor de ') ? 'Conocimientos y experiencia en ' + trait.slice('Conocedor de '.length) + '.' : character.customTraits?.[trait] || TRAIT_DESCRIPTIONS[trait]?.long || TRAIT_DESCRIPTIONS[trait]?.short || 'Rasgo personalizado acordado con el Narrador.'}
