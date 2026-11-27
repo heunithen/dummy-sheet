@@ -1714,7 +1714,8 @@
   <title>DummySheet MIMPROV</title>
 </svelte:head>
 
-<div class="app-shell">\n  {#if conflictToast}
+<div class="app-shell">
+  {#if conflictToast}
     <div class="system-conflict-toast {conflictToast.type}" role="status" aria-live="assertive">
       <strong>{conflictToast.title}</strong>
       <span>{conflictToast.detail}</span>
