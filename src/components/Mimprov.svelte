@@ -2042,7 +2042,22 @@
               </div>
             </div>
           </div>
-          <p class="muted">El conflicto comienza al marcar «Participa en el conflicto» en uno o más personajes. El peligro determina la pérdida de Voluntad al fracasar. Cada 6 reduce la Resistencia en 1; un 5 no la reduce. Fallo: Bajo −1 Voluntad · Medio −2 · Alto −3.</p>
+          <div class="gm-conflict-participants">
+            <h3>Personajes</h3>
+            {#if partyMembers.length === 0}
+              <p class="muted">No hay personajes creados.</p>
+            {:else}
+              <div class="gm-conflict-participant-list">
+                {#each partyMembers as player}
+                  <label class="gm-conflict-participant">
+                    <span>{getPlayerCharacter(player)?.name || player.name}</span>
+                    <input type="checkbox" checked={conflictParticipantIds.includes(player.id)} on:change={(event) => toggleCharacterConflict(player.id, event.currentTarget.checked)} disabled={gmTracker.conflict.active && !conflictParticipantIds.includes(player.id)}>
+                  </label>
+                {/each}
+              </div>
+            {/if}
+          </div>
+          <p class="muted">Selecciona los personajes que participan. El peligro determina la pérdida de Voluntad al fracasar. Cada 6 reduce la Resistencia en 1; un 5 no la reduce. Fallo: Bajo −1 Voluntad · Medio −2 · Alto −3.</p>
           {#if gmTracker.conflict.result}<p class="conflict-result">{gmTracker.conflict.result}</p>{/if}
           <p class="muted gm-conflict-status">{gmTracker.conflict.active ? 'Conflicto activo.' : 'No hay un conflicto activo.'}</p>
         </section>
@@ -2123,7 +2138,6 @@
 
               {#if getPlayerCharacter(player)?.created}
                 <footer class="gm-player-footer">
-                  <label class="conflict-character-toggle"><input type="checkbox" checked={gmTracker.conflict.active === true && conflictParticipantIds.includes(player.id)} on:change={(event) => toggleCharacterConflict(player.id, event.currentTarget.checked)}><span>Participa en el conflicto</span></label>
                   <button class="danger-button" on:click={() => deletePlayerCharacter(player)}>Borrar personaje</button>
                 </footer>
               {/if}
@@ -2560,6 +2574,11 @@
   .gm-modifiers-column > small { display:block; line-height:1.4; margin-top:.6rem; }
   .gm-player-footer { display:flex; justify-content:space-between; align-items:center; gap:1rem; margin-top:1rem; padding-top:.8rem; border-top:1px solid #414448; }
   .gm-player-footer .conflict-character-toggle { margin:0; }
+  .gm-conflict-participants { margin:.9rem 0; padding:.8rem; border:1px solid #414448; border-radius:7px; }
+  .gm-conflict-participants h3 { margin:0 0 .55rem; font-size:.95rem; }
+  .gm-conflict-participant-list { display:grid; gap:.25rem; }
+  .gm-conflict-participant { display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:.45rem .15rem; cursor:pointer; }
+  .gm-conflict-participant input { width:1.1rem; height:1.1rem; margin:0; accent-color:#c19a54; }
   .gm-player-footer .danger-button { margin-left:auto; }
 
   .gm-npc-list { display:grid; gap:.7rem; }
