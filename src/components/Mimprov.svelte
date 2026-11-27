@@ -1006,6 +1006,16 @@
           };
           syncConflict(await OBR.room.getMetadata());
           OBR.room.onMetadataChange(syncConflict);
+          OBR.broadcast.onMessage(CONFLICT_SYNC_CHANNEL, async (event) => {
+            try {
+              const party = await OBR.party.getPlayers();
+              const sender = party.find((p: any) => p.connectionId === event.connectionId);
+              if (!sender || sender.role !== 'GM') return;
+              syncConflict({ [CONFLICT_KEY]: event.data });
+            } catch (error) {
+              console.error('No se pudo sincronizar el estado del conflicto', error);
+            }
+          });
 
           syncLinesVeils(await OBR.room.getMetadata());
           OBR.room.onMetadataChange(syncLinesVeils);
@@ -1270,7 +1280,10 @@
         allStates[id] = Array.isArray(tracker.states) ? [...tracker.states] : [];
         allOverexertion[id] = Math.max(0, Math.min(3, Number(tracker.effortCoins ?? (3 - (Number(tracker.overexertionUsed) || 0))) || 0));
       });
-      OBR.room.setMetadata({ [STATE_KEY]: allStates, [OVEREXERTION_KEY]: allOverexertion, [CONFLICT_KEY]: clone(gmTracker.conflict) }).then(() => OBR.broadcast.sendMessage(STATE_SYNC_CHANNEL, { states: allStates, effortCoins: allOverexertion }, { destination: 'ALL' })).catch((error) => {
+      OBR.room.setMetadata({ [STATE_KEY]: allStates, [OVEREXERTION_KEY]: allOverexertion, [CONFLICT_KEY]: clone(gmTracker.conflict) }).then(async () => {
+        await OBR.broadcast.sendMessage(STATE_SYNC_CHANNEL, { states: allStates, effortCoins: allOverexertion }, { destination: 'ALL' });
+        await OBR.broadcast.sendMessage(CONFLICT_SYNC_CHANNEL, clone(gmTracker.conflict), { destination: 'ALL' });
+      }).catch((error) => {
         console.error('No se pudieron publicar los datos de seguimiento de los personajes', error);
       });
     }
