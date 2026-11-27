@@ -1519,10 +1519,7 @@
   {#if !$isGM && sessionStarted}
     <nav class="main-tabs">
       <button class:active={activeTab === 'hoja' || activeTab === 'personaje'} on:click={() => { resetSheetRollSelection(); activeTab = character.created ? 'hoja' : 'personaje'; }}>Hoja de personaje</button>
-      <button class:active={activeTab === 'tiradas'} on:click={() => { activeTab = 'tiradas'; }}>Tiradas</button>
       <button class:active={activeTab === 'reglamento'} on:click={() => { activeTab = 'reglamento'; }}>Reglamento</button>
-      <button class:active={activeTab === 'magia'} on:click={() => { activeTab = 'magia'; }}>Magia</button>
-      <button class:active={activeTab === 'notas'} on:click={() => { activeTab = 'notas'; }}>Notas</button>
       <button class:active={activeTab === 'lineas-velos'} on:click={() => { activeTab = 'lineas-velos'; }}>Líneas y velos</button>
     </nav>
   {:else if $isGM}
