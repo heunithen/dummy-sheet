@@ -6,7 +6,33 @@
   import * as OBRHelper from './services/OBRHelper';
 
   onMount(() => {
-    if (!OBR.isAvailable) return;
+    // Detecta cualquier elemento cuyo cursor efectivo sea una mano,
+    // incluidos controles personalizados del jugador y del narrador.
+    const handlePointerOver = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+
+      if (window.getComputedStyle(target).cursor === 'pointer') {
+        target.classList.add('mimprov-clickable-hover');
+      }
+    };
+
+    const handlePointerOut = (event: PointerEvent) => {
+      const target = event.target;
+      if (target instanceof HTMLElement) {
+        target.classList.remove('mimprov-clickable-hover');
+      }
+    };
+
+    document.addEventListener('pointerover', handlePointerOver);
+    document.addEventListener('pointerout', handlePointerOut);
+
+    if (!OBR.isAvailable) {
+      return () => {
+        document.removeEventListener('pointerover', handlePointerOver);
+        document.removeEventListener('pointerout', handlePointerOut);
+      };
+    }
 
     OBRHelper.init();
 
@@ -31,7 +57,11 @@
       }
     });
 
-    return unsubscribe;
+    return () => {
+      unsubscribe();
+      document.removeEventListener('pointerover', handlePointerOver);
+      document.removeEventListener('pointerout', handlePointerOut);
+    };
   });
 </script>
 
