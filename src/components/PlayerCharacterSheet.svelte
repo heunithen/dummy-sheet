@@ -96,8 +96,23 @@
             </button>
           {/each}
         </div>
-        <button type="button" class="sheet-roll-button approach-roll-button" disabled={!approachSelected} on:click={onRoll}>Lanzar dados</button>
-
+        <button type="button" class="sheet-roll-button approach-roll-button" disabled={!approachSelected || pendingRoll} on:click={onRoll}>Lanzar dados</button>
+        <div class="effort-controls">
+          <h3>Monedas de esfuerzo</h3>
+          <div class="effort-coins" aria-label="Monedas de esfuerzo disponibles">
+            {#each Array.from({ length: 3 }) as _, index}
+              <button type="button" class="effort-coin" class:spent={index >= effortCoins} aria-label="Gastar moneda para añadir un dado" disabled={index >= effortCoins || pendingRoll || effortDiceBonus > 0} on:click={() => onSpendEffort('extra-die')}>✦</button>
+            {/each}
+            <strong class="resource-value">{effortCoins} / 3</strong>
+          </div>
+          {#if effortDiceBonus > 0}<p class="effort-bonus">Moneda gastada: +1d6 preparado para la próxima tirada.</p>{/if}
+          {#if lastRoll?.retryNotation}
+            <button type="button" class="effort-reroll" on:click={() => onSpendEffort('reroll')} disabled={pendingRoll || effortCoins <= 0}>↻ Repetir tirada</button>
+          {/if}
+          {#if forcedLowRoll && effortDiceBonus > 0}
+            <p class="condition-note">Abrumado: se mantienen los 2d6 y se conserva el menor.</p>
+          {/if}
+        </div>
       </section>
 
       <section class="sheet-panel">
@@ -131,23 +146,6 @@
           <p class="condition-note">Abrumado: todas las tiradas se realizan con 2d6 y se conserva el resultado menor.</p>
         {:else}
           <p class="hint">La Voluntad representa la capacidad del personaje para sostenerse frente a la presión.</p>
-        {/if}
-      </section>
-
-      <section class="sheet-panel">
-        <h2>Monedas de esfuerzo</h2>
-        <div class="effort-coins" aria-label="Monedas de esfuerzo disponibles">
-          {#each Array.from({ length: 3 }) as _, index}
-            <button type="button" class="effort-coin" class:spent={index >= effortCoins} aria-label="Gastar moneda para añadir un dado" disabled={index >= effortCoins || pendingRoll || effortDiceBonus > 0} on:click={() => onSpendEffort('extra-die')}>✦</button>
-          {/each}
-          <strong class="resource-value">{effortCoins} / 3</strong>
-        </div>
-        {#if effortDiceBonus > 0}<p class="effort-bonus">Moneda gastada: +1d6 preparado para la próxima tirada.</p>{/if}
-        {#if lastRoll?.retryNotation}
-          <button type="button" class="effort-reroll" on:click={() => onSpendEffort('reroll')} disabled={pendingRoll || effortCoins <= 0}>↻</button>
-        {/if}
-        {#if forcedLowRoll && effortDiceBonus > 0}
-          <p class="condition-note">Abrumado: se mantienen los 2d6 y se conserva el menor.</p>
         {/if}
       </section>
 
@@ -263,10 +261,12 @@
   .approach.selected, .trait.selected { opacity:1 !important; filter:none !important; border-color:var(--sheet-accent); background:#263629; box-shadow:inset 0 0 0 1px var(--sheet-accent); }
   .approach.muted-approach { opacity:.42; filter:grayscale(1); }
   .trait.muted-trait { opacity:.35 !important; filter:grayscale(1) !important; }
+  .effort-controls { margin-top:.8rem; padding:.8rem; border:1px solid var(--sheet-line); border-radius:8px; background:var(--sheet-panel-inner); }
+  .effort-controls h3 { margin:0 0 .6rem; color:var(--sheet-gold); font:700 .78rem Manrope,sans-serif; }
   .effort-coins { display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; }
   .effort-coin { width:38px; height:38px; border:1px solid var(--sheet-gold); border-radius:50%; background:var(--sheet-gold); color:#172016; font-size:1.25rem; cursor:pointer; }
   .effort-coin.spent { opacity:.25; filter:grayscale(1); cursor:not-allowed; }
-  .effort-reroll { margin-top:.65rem; width:38px; height:38px; border:1px solid var(--sheet-line); border-radius:50%; background:var(--sheet-panel-inner); color:var(--sheet-text); font-size:1.3rem; }
+  .effort-reroll { margin-top:.65rem; padding:.5rem .7rem; border:1px solid var(--sheet-line); border-radius:7px; background:#263629; color:var(--sheet-text); font-size:.78rem; cursor:pointer; }
   .approach-roll-button { width:100%; margin-top:.85rem; }
   .effort-bonus { margin:.7rem 0 0; color:var(--sheet-gold); font-size:.8rem; line-height:1.45; }
   .approach:focus-visible, .trait:focus-visible { outline:2px solid var(--sheet-gold); outline-offset:2px; }
