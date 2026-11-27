@@ -17,6 +17,7 @@
   const EFFORT_REQUEST_CHANNEL = 'com.heunithen.dummysheet-mimprov/spend-effort';
   const REST_REQUEST_CHANNEL = 'com.heunithen.dummysheet-mimprov/rest';
   const WILL_ADJUST_CHANNEL = 'com.heunithen.dummysheet-mimprov/will-adjust';
+  const ROLL_MODIFIER_KEY = 'com.heunithen.dummysheet-mimprov/roll-modifiers';
   const SESSION_RESET_CHANNEL = 'com.heunithen.dummysheet-mimprov/session-reset';
   const DICE_PLUS_SOURCE = 'com.heunithen.dummysheet-mimprov';
   const ROLL_NOTICE_CHANNEL = 'com.heunithen.dummysheet-mimprov/roll-notification';
@@ -894,7 +895,7 @@
       dicePlusError = `No tienes suficiente Voluntad para lanzar ${selectedMagicSpell.name || 'este conjuro'} (necesitas ${spellCost}).`;
       return;
     }
-    const retryPool = selectedApproachScore + selectedTraitBonus + helpDiceBonus + effortDiceBonus + (rollModifier === 'advantage' ? 1 : 0);
+    const retryPool = selectedApproachScore + selectedTraitBonus + helpDiceBonus + effortDiceBonus + (rollModifier === 'advantage' ? 1 : rollModifier === 'disadvantage' ? -1 : 0);
     const retryNotation = forcedLowRoll ? '2d6kl1' : retryPool <= 0 ? '2d6kl1' : `${retryPool}d6kh1`;
     await sendDiceRoll(diceNotation, dicePool, selectedApproach, false, retryNotation, retryPool, selectedMagicSpell ? spellCost : 0, selectedMagicSpell?.name || 'el conjuro');
     effortDiceBonus = 0;
@@ -1064,6 +1065,8 @@
               const conflict = metadata?.[CONFLICT_KEY] || {};
               conflictActive = conflict.active === true && (!Array.isArray(conflict.participantIds) || conflict.participantIds.includes($currentPlayerId));
               conflictDanger = ['Bajo', 'Medio', 'Alto'].includes(conflict.danger) ? conflict.danger : 'Bajo';
+              const modifiers = metadata?.[ROLL_MODIFIER_KEY] || {};
+              rollModifier = ['advantage', 'disadvantage'].includes(modifiers[$currentPlayerId]) ? modifiers[$currentPlayerId] : 'normal';
             };
             syncStates(await OBR.room.getMetadata());
             OBR.room.onMetadataChange(syncStates);
@@ -1073,6 +1076,7 @@
               const nextStates = update.states[$currentPlayerId];
               visibleStates = Array.isArray(nextStates) ? nextStates.filter((stateName: string) => stateName !== 'Incapacitado' && stateName !== 'Abrumado').map((stateName: string) => stateName === 'Deprimido' ? 'Debilitado' : stateName) : [];
               if (update.effortCoins && $currentPlayerId in update.effortCoins) visibleEffortCoins = Math.max(0, Math.min(3, Number(update.effortCoins[$currentPlayerId]) || 0));
+               if (update.rollModifiers && $currentPlayerId in update.rollModifiers) rollModifier = ['advantage', 'disadvantage'].includes(update.rollModifiers[$currentPlayerId]) ? update.rollModifiers[$currentPlayerId] : 'normal';
             });
           }
           OBR.broadcast.onMessage(EFFORT_REQUEST_CHANNEL, async (event) => {
@@ -1292,12 +1296,14 @@
     if (OBR.isAvailable && $isGM) {
       const allStates: Record<string, string[]> = {};
       const allOverexertion: Record<string, number> = {};
+      const allRollModifiers: Record<string, string> = {};
       Object.entries(gmTracker.players || {}).forEach(([id, tracker]: [string, any]) => {
         allStates[id] = Array.isArray(tracker.states) ? [...tracker.states] : [];
         allOverexertion[id] = Math.max(0, Math.min(3, Number(tracker.effortCoins ?? (3 - (Number(tracker.overexertionUsed) || 0))) || 0));
+        allRollModifiers[id] = ['advantage', 'disadvantage'].includes(tracker.rollModifier) ? tracker.rollModifier : 'normal';
       });
-      OBR.room.setMetadata({ [STATE_KEY]: allStates, [OVEREXERTION_KEY]: allOverexertion, [CONFLICT_KEY]: clone(gmTracker.conflict) }).then(async () => {
-        await OBR.broadcast.sendMessage(STATE_SYNC_CHANNEL, { states: allStates, effortCoins: allOverexertion }, { destination: 'ALL' });
+      OBR.room.setMetadata({ [STATE_KEY]: allStates, [OVEREXERTION_KEY]: allOverexertion, [ROLL_MODIFIER_KEY]: allRollModifiers, [CONFLICT_KEY]: clone(gmTracker.conflict) }).then(async () => {
+        await OBR.broadcast.sendMessage(STATE_SYNC_CHANNEL, { states: allStates, effortCoins: allOverexertion, rollModifiers: allRollModifiers }, { destination: 'ALL' });
         await OBR.broadcast.sendMessage(CONFLICT_SYNC_CHANNEL, clone(gmTracker.conflict), { destination: 'ALL' });
       }).catch((error) => {
         console.error('No se pudieron publicar los datos de seguimiento de los personajes', error);
@@ -1543,6 +1549,11 @@
     saveGmTracker();
   }
 
+  function setPlayerRollModifier(id: string, modifier: 'normal' | 'advantage' | 'disadvantage') {
+    const tracker = playerTracker(id);
+    tracker.rollModifier = modifier;
+    saveGmTracker();
+  }
   function adjustEffortCoins(id: string, delta: number) {
     const tracker = playerTracker(id);
     tracker.effortCoins = Math.max(0, Math.min(3, Number(tracker.effortCoins || 0) + delta));
@@ -1927,7 +1938,7 @@
           </nav>
           {#each partyMembers.filter(p => p.id === selectedPlayerId) as player}
             <article class="gm-player">
-              <div class="gm-player-head"><div class="gm-player-identity">{#if getPlayerCharacter(player)?.portrait}<img class="gm-player-portrait" src={getPlayerCharacter(player)?.portrait} alt="Retrato de {getPlayerCharacter(player)?.name || player.name}">{/if}<div><h3>{getPlayerCharacter(player)?.name || player.name}</h3><small>{getPlayerCharacter(player)?.created ? getPlayerCharacter(player)?.concept : 'Ficha MIMPROV aún no creada'}</small></div></div><div class="gm-player-actions">{#if getPlayerCharacter(player)?.created}<label class="conflict-character-toggle"><input type="checkbox" checked={gmTracker.conflict.active === true && conflictParticipantIds.includes(player.id)} on:change={(event) => toggleCharacterConflict(player.id, event.currentTarget.checked)}><span>Conflicto</span></label><button class="danger-button" on:click={() => deletePlayerCharacter(player)}>Borrar personaje</button>{/if}</div></div>
+              <div class="gm-player-head"><div class="gm-player-identity">{#if getPlayerCharacter(player)?.portrait}<img class="gm-player-portrait" src={getPlayerCharacter(player)?.portrait} alt="Retrato de {getPlayerCharacter(player)?.name || player.name}">{/if}<div><h3>{getPlayerCharacter(player)?.name || player.name}</h3><small>{getPlayerCharacter(player)?.created ? getPlayerCharacter(player)?.concept : 'Ficha MIMPROV aún no creada'}</small></div></div><div class="gm-player-actions">{#if getPlayerCharacter(player)?.created}<label class="conflict-character-toggle"><input type="checkbox" checked={gmTracker.conflict.active === true && conflictParticipantIds.includes(player.id)} on:change={(event) => toggleCharacterConflict(player.id, event.currentTarget.checked)}><span>Conflicto</span></label><label class="roll-modifier-toggle advantage-toggle"><input type="checkbox" checked={playerTracker(player.id).rollModifier === 'advantage'} on:change={(event) => setPlayerRollModifier(player.id, event.currentTarget.checked ? 'advantage' : 'normal')}><span>Ventaja</span></label><label class="roll-modifier-toggle disadvantage-toggle"><input type="checkbox" checked={playerTracker(player.id).rollModifier === 'disadvantage'} on:change={(event) => setPlayerRollModifier(player.id, event.currentTarget.checked ? 'disadvantage' : 'normal')}><span>Desventaja</span></label><button class="danger-button" on:click={() => deletePlayerCharacter(player)}>Borrar personaje</button>{/if}</div></div>
               {#if getPlayerCharacter(player)?.created}
                 <div class="gm-stats"><div class="gm-adjust-row"><span>Voluntad: <b>{getPlayerCharacter(player)?.will} / {getPlayerCharacter(player)?.maxWill}</b></span><div class="stepper"><button aria-label="Quitar Voluntad" on:click={() => adjustPlayerWill(player.id, -1)} disabled={(Number(getPlayerCharacter(player)?.will) || 0) <= 0}>−</button><b>{getPlayerCharacter(player)?.will}</b><button aria-label="Añadir Voluntad" on:click={() => adjustPlayerWill(player.id, 1)} disabled={(Number(getPlayerCharacter(player)?.will) || 0) >= (Number(getPlayerCharacter(player)?.maxWill) || 4)}>+</button></div></div><span>Enfoques: <b>{APPROACHES.map(a => a + ' ' + (getPlayerCharacter(player)?.approaches?.[a] ?? 0)).join(' · ')}</b></span><span>Rasgos: <b>{(getPlayerCharacter(player)?.traits || []).map((trait) => traitLabel(trait, selectedGenre)).join(', ')}</b></span></div><p class="muted"><b>Equipo:</b> {(getPlayerCharacter(player)?.inventory || []).map((item) => equipmentDisplayName(item, selectedGenre)).join(' · ')}</p>
               {:else}<p class="muted">El jugador todavía no ha creado su ficha.</p>{/if}
@@ -2322,6 +2333,12 @@
   .gm-player-actions { display:flex; align-items:center; flex-wrap:wrap; gap:.6rem; }
   .conflict-character-toggle { display:inline-flex; align-items:center; gap:.45rem; margin:0; padding:.5rem .7rem; border:1px solid #9b555d; border-radius:6px; background:#302124; color:#ffdede; cursor:pointer; }
   .conflict-character-toggle input { width:auto; margin:0; accent-color:#d64b55; }
+  .roll-modifier-toggle { display:inline-flex; align-items:center; gap:.4rem; margin:0; padding:.5rem .65rem; border:1px solid #777; border-radius:6px; background:#292929; color:#eee; cursor:pointer; }
+  .roll-modifier-toggle input { width:auto; margin:0; }
+  .advantage-toggle { border-color:#668e70; background:#202b23; color:#d8f0dc; }
+  .advantage-toggle input { accent-color:#6cbb7b; }
+  .disadvantage-toggle { border-color:#9b555d; background:#302124; color:#ffdede; }
+  .disadvantage-toggle input { accent-color:#d64b55; }
   .gm-player-head h3 { margin:.1rem 0; }
   .gm-player-head small { color:#999; }
   .gm-stats { display:grid; gap:.4rem; padding:.6rem 0; color:#ccc; font-size:.85rem; }
