@@ -1818,8 +1818,8 @@
         pendingRoll={!!pendingDiceRoll}
         rollError={dicePlusError}
         {lastRoll}
-        onSelectApproach={(name) => { selectedApproach = name; sheetApproachSelected = true; }}
-        onSelectTrait={(name) => { selectedTrait = name; if (!name) rollHelp = false; }}
+        onSelectApproach={(name) => { if (sheetApproachSelected && selectedApproach === name) { selectedApproach = ''; sheetApproachSelected = false; } else { selectedApproach = name; sheetApproachSelected = true; } }}
+        onSelectTrait={(name) => { selectedTrait = selectedTrait === name ? '' : name; if (!selectedTrait) rollHelp = false; }}
         onRoll={rollDice}
         onSpendEffort={spendEffort}
         onEdit={() => { activeTab = 'personaje'; editingCharacter = true; }}
