@@ -536,7 +536,7 @@
   let effortDiceBonus = 0;
   let rollHelp = false;
   let selectedPlayerId = '';
-  let selectedApproach = 'Tenacidad';
+  let selectedApproach = '';
   let sheetApproachSelected = false;
   let selectedTrait = '';
   let selectedState = '';
@@ -859,7 +859,7 @@
   }
 
   async function rollDice() {
-    if (!sheetApproachSelected) return;
+    if (!sheetApproachSelected || !selectedApproach) return;
     if (!OBR.isAvailable || !loaded) {
       dicePlusError = 'Esta tirada necesita Owlbear Rodeo y la extensión Dice+.';
       return;
@@ -936,11 +936,7 @@
       critical, notation: roll.notation, summary: data.result.rollSummary, approach: roll.approach,
       retryNotation: roll.retryNotation, retryPool: roll.retryPool
     };
-    recordRoll(roll, dice, kept, finalResult, critical);
-    const notice = { rollId: data.rollId, result: finalResult };
-    showRollNotification(finalResult);
-    OBR.broadcast.sendMessage(ROLL_NOTICE_CHANNEL, notice, { destination: 'REMOTE' })
-      .catch((error) => console.error('No se pudo compartir el resultado de la tirada', error));
+    // El resultado se procesa internamente para aplicar reglas, sin guardar historial ni mostrar notificaciones.
     if (roll.spellCost > 0) { character.will = Math.max(0, Number(character.will || 0) - roll.spellCost); updateCharacter(); dicePlusError = `Has gastado ${roll.spellCost} Voluntad para lanzar ${roll.spellName || 'el conjuro'}.`; }
     pendingDiceRoll = null;
     if (critical) {
