@@ -2051,7 +2051,7 @@
                 {#each partyMembers as player}
                   <label class="gm-conflict-participant">
                     <span>{getPlayerCharacter(player)?.name || player.name}</span>
-                    <input type="checkbox" checked={conflictParticipantIds.includes(player.id)} on:change={(event) => toggleCharacterConflict(player.id, event.currentTarget.checked)} disabled={gmTracker.conflict.active && !conflictParticipantIds.includes(player.id)}>
+                    <input type="checkbox" checked={gmTracker.conflict.active === true && conflictParticipantIds.includes(player.id)} on:change={(event) => toggleCharacterConflict(player.id, event.currentTarget.checked)}>
                   </label>
                 {/each}
               </div>
