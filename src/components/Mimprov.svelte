@@ -23,6 +23,7 @@
   const SESSION_RESET_CHANNEL = 'com.heunithen.dummysheet-mimprov/session-reset';
   const DICE_PLUS_SOURCE = 'com.heunithen.dummysheet-mimprov';
   const ROLL_NOTICE_CHANNEL = 'com.heunithen.dummysheet-mimprov/roll-notification';
+  const CONFLICT_RESULT_CHANNEL = 'com.heunithen.dummysheet-mimprov/conflict-result';
   const DELETE_CHARACTER_CHANNEL = 'com.heunithen.dummysheet-mimprov/delete-character';
   const PLAYER_MAGIC_KEY = 'com.heunithen.dummysheet-mimprov/player-magic';
   const LINES_VEILS_KEY = 'com.heunithen.dummysheet-mimprov/lines-veils';
@@ -556,6 +557,8 @@
   let lastRoll: { dice: number[]; kept: number; pool: number; result: string; critical: boolean; notation?: string; summary?: string; approach?: string; retryNotation?: string; retryPool?: number } | null = null;
   let rollToast: { text: string; type: 'success' | 'consequence' | 'failure' } | null = null;
   let rollToastTimer: ReturnType<typeof setTimeout> | null = null;
+  let conflictToast: { title: string; detail: string; type: 'victory-decisive' | 'victory-resistance' | 'defeat' } | null = null;
+  let conflictToastTimer: ReturnType<typeof setTimeout> | null = null;
   let rollHistory: Array<{ id: string; timestamp: number; approach: string; dice: number[]; kept: number; result: string; critical: boolean; notation: string }> = [];
   let rollHistoryKey = '';
   let dicePlusError = '';
@@ -1217,6 +1220,11 @@
             if (!notice?.rollId || !notice?.result) return;
             showRollNotification(String(notice.result));
           });
+          OBR.broadcast.onMessage(CONFLICT_RESULT_CHANNEL, (event) => {
+            const notice = event.data as any;
+            if (!notice?.id || !notice?.type || !notice?.title) return;
+            showConflictNotification(notice);
+          });
           OBR.broadcast.onMessage(`${DICE_PLUS_SOURCE}/roll-result`, handleDicePlusResult);
           OBR.broadcast.onMessage(`${DICE_PLUS_SOURCE}/roll-error`, handleDicePlusError);
           loaded = true;
@@ -1538,25 +1546,55 @@
     }
   }
 
+  function showConflictNotification(notice: { title: string; detail: string; type: 'victory-decisive' | 'victory-resistance' | 'defeat' }) {
+    conflictToast = { title: notice.title, detail: notice.detail, type: notice.type };
+    if (conflictToastTimer) clearTimeout(conflictToastTimer);
+    conflictToastTimer = setTimeout(() => {
+      conflictToast = null;
+      conflictToastTimer = null;
+    }, 6500);
+  }
+
   function resolveConflict(outcome: 'decisive' | 'resistance' | 'defeat') {
     const conflict = gmTracker.conflict || { active: true, danger: 'Bajo', resistance: null };
     const resistance = Math.max(0, Number(conflict.resistance ?? initialConflictResistance) || 0);
+    let type: 'victory-decisive' | 'victory-resistance' | 'defeat';
+    let title: string;
+    let detail: string;
+
     if (outcome === 'decisive' || resistance <= 0) {
+      type = 'victory-decisive';
+      title = 'VICTORIA DECISIVA';
+      detail = 'La Resistencia llegó a 0.';
       conflict.result = 'Victoria decisiva: la Resistencia llegó a 0.';
     } else {
       const remainingWill = conflictParticipants.reduce((total, player) => {
         const will = Number(getPlayerCharacter(player)?.will) || 0;
         return total + Math.max(0, will);
       }, 0);
+      detail = `${remainingWill} de Voluntad frente a ${resistance} de Resistencia.`;
       if (remainingWill >= resistance) {
-        conflict.result = `Victoria por resistencia: ${remainingWill} de Voluntad frente a ${resistance} de Resistencia.`;
+        type = 'victory-resistance';
+        title = 'VICTORIA POR RESISTENCIA';
+        conflict.result = `Victoria por resistencia: ${detail}`;
       } else {
+        type = 'defeat';
+        title = 'DERROTA';
+        detail += ' Los personajes con 0 Voluntad quedan Abrumados.';
         conflict.result = `Derrota: ${remainingWill} de Voluntad frente a ${resistance} de Resistencia. Los personajes con 0 Voluntad quedan Abrumados.`;
       }
     }
     conflict.active = false;
     gmTracker.conflict = conflict;
     saveGmTracker();
+
+    const notice = { id: `conflict-${Date.now()}`, type, title, detail };
+    showConflictNotification(notice);
+    if (OBR.isAvailable) {
+      OBR.broadcast.sendMessage(CONFLICT_RESULT_CHANNEL, notice, { destination: 'ALL' }).catch((error) => {
+        console.error('No se pudo anunciar el resultado del conflicto', error);
+      });
+    }
   }
 
   function setConflictParticipant(id: string, included: boolean) {
@@ -1658,7 +1696,13 @@
   <title>DummySheet MIMPROV</title>
 </svelte:head>
 
-<div class="app-shell">\n  {#if rollToast}<div class="system-roll-toast {rollToast.type}" role="status" aria-live="assertive">{rollToast.text}</div>{/if}
+<div class="app-shell">\n  {#if conflictToast}
+    <div class="system-conflict-toast {conflictToast.type}" role="status" aria-live="assertive">
+      <strong>{conflictToast.title}</strong>
+      <span>{conflictToast.detail}</span>
+    </div>
+  {/if}
+  {#if rollToast}<div class="system-roll-toast {rollToast.type}" role="status" aria-live="assertive">{rollToast.text}</div>{/if}
   {#if !$isGM && sessionStarted}
     <nav class="main-tabs">
       <button class:active={activeTab === 'hoja' || activeTab === 'personaje'} on:click={() => { resetSheetRollSelection(); activeTab = character.created ? 'hoja' : 'personaje'; }}>Hoja de personaje</button>
@@ -2579,6 +2623,13 @@
     .trait-picker { grid-template-columns:1fr; }
     .trait-picker button { grid-column:1; grid-row:auto; }
   }
+  .system-conflict-toast { position:fixed; z-index:10001; top:1.2rem; left:50%; transform:translateX(-50%); display:grid; gap:.25rem; width:min( min(90vw, 34rem), calc(100vw - 2rem)); box-sizing:border-box; padding:1rem 1.4rem; border:2px solid currentColor; border-radius:9px; text-align:center; box-shadow:0 8px 28px #000b; animation:conflict-toast-in .35s ease-out; pointer-events:none; }
+  .system-conflict-toast strong { font-size:clamp(1.25rem, 4vw, 1.9rem); letter-spacing:.06em; }
+  .system-conflict-toast span { font-size:.95rem; line-height:1.4; }
+  .system-conflict-toast.victory-decisive { color:#d8ffe2; background:#145b32; border-color:#55c878; }
+  .system-conflict-toast.victory-resistance { color:#fff0c4; background:#725019; border-color:#e2bd61; }
+  .system-conflict-toast.defeat { color:#ffe0e0; background:#741f28; border-color:#ff6666; }
+  @keyframes conflict-toast-in { from { opacity:0; transform:translate(-50%, -18px) scale(.97); } to { opacity:1; transform:translate(-50%, 0) scale(1); } }
   .system-roll-toast { position: fixed; z-index: 10000; top: 1.2rem; left: 50%; transform: translateX(-50%); padding: .9rem 1.6rem; border: 2px solid currentColor; border-radius: 8px; font-size: clamp(1.1rem, 3vw, 1.65rem); font-weight: 900; letter-spacing: .04em; text-align: center; box-shadow: 0 8px 28px #0009; animation: roll-toast-in .2s ease-out; pointer-events: none; }
   .system-roll-toast.success { color: #fff; background: #218b45; border-color: #55c878; }
   .system-roll-toast.consequence { color: #171717; background: #f2c533; border-color: #d5a900; }
