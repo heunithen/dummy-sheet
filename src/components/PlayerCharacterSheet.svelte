@@ -30,11 +30,36 @@
   let cursorX = 0;
   let cursorY = 0;
   let cursorVisible = false;
+  let holdActive = false;
+  let holdX = 0;
+  let holdY = 0;
+  let holdTimer: ReturnType<typeof setTimeout> | null = null;
+  const HOLD_DURATION = 850;
   $: cursorDiceCount = !approachSelected ? 0 : Math.max(0, dicePool);
+  $: canStartRoll = approachSelected && !pendingRoll && (!selectedSpell || (!!selectedTrait && canCastSelectedSpell));
   function trackPointer(event: MouseEvent) {
     cursorX = event.clientX;
     cursorY = event.clientY;
     cursorVisible = true;
+  }
+  function startHold(event: PointerEvent) {
+    if (event.button !== 0 || !canStartRoll) return;
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('button, a, input, select, textarea, [contenteditable="true"], [role="button"]')) return;
+    cancelHold();
+    holdX = event.clientX;
+    holdY = event.clientY;
+    holdActive = true;
+    holdTimer = setTimeout(() => {
+      holdTimer = null;
+      holdActive = false;
+      if (canStartRoll) onRoll();
+    }, HOLD_DURATION);
+  }
+  function cancelHold() {
+    if (holdTimer) clearTimeout(holdTimer);
+    holdTimer = null;
+    holdActive = false;
   }
 
   const approaches = [
@@ -64,7 +89,7 @@
     <button on:click={onEdit}>Crear personaje</button>
   </section>
 {:else}
-  <section class="mimprov-sheet" class:conflict-active={conflictActive} on:mousemove={trackPointer} on:mouseleave={() => cursorVisible = false}>
+  <section class="mimprov-sheet" class:conflict-active={conflictActive} on:mousemove={trackPointer} on:mouseleave={() => cursorVisible = false} on:pointerdown={startHold} on:pointercancel={cancelHold} on:window:pointerup={cancelHold}>
     <header class="sheet-head">
       <div class="sheet-identity">
         <div class="portrait">
@@ -105,8 +130,8 @@
             </button>
           {/each}
         </div>
-        <button type="button" class="sheet-roll-button approach-roll-button" disabled={!approachSelected || pendingRoll || (!!selectedSpell && (!selectedTrait || !canCastSelectedSpell))} on:click={onRoll}>Lanzar dados</button>
-        {#if selectedSpell && !selectedTrait}<p class="condition-note">Selecciona también un Rasgo para lanzar este conjuro.</p>{:else if selectedSpell && !canCastSelectedSpell}<p class="condition-note">No tienes suficiente Voluntad. Necesitas {selectedSpell.willCost} y tienes {character.will}.</p>{:else if selectedSpell}<p class="hint">Tirada de {selectedSpell.name}: Enfoque + Rasgo. Coste: {selectedSpell.willCost} Voluntad.</p>{/if}
+        <p class="hold-roll-hint" class:hold-roll-disabled={!canStartRoll}>{canStartRoll ? 'Mantén presionada cualquier zona libre de la hoja para lanzar los dados.' : selectedSpell && !selectedTrait ? 'Selecciona también un Rasgo para lanzar este conjuro.' : selectedSpell && !canCastSelectedSpell ? `No tienes suficiente Voluntad. Necesitas ${selectedSpell.willCost} y tienes ${character.will}.` : 'Selecciona un Enfoque para habilitar la tirada.'}</p>
+        {#if selectedSpell && selectedTrait && canCastSelectedSpell}<p class="hint">Tirada de {selectedSpell.name}: Enfoque + Rasgo. Coste: {selectedSpell.willCost} Voluntad.</p>{/if}
         <div class="effort-controls">
           <h3>Monedas de esfuerzo</h3>
           <div class="effort-coins" aria-label="Monedas de esfuerzo disponibles">
@@ -244,6 +269,12 @@
         {/if}
       </div>
     {/if}
+    {#if holdActive}
+      <div class="hold-roll-indicator" style={`left:${holdX}px;top:${holdY}px`} aria-hidden="true">
+        <svg viewBox="0 0 60 60"><circle class="hold-track" cx="30" cy="30" r="25" /><circle class="hold-progress" cx="30" cy="30" r="25" /></svg>
+        <span>⚄</span>
+      </div>
+    {/if}
   </section>
 {/if}
 
@@ -368,6 +399,15 @@
   .effort-coin.spent { opacity:.25; filter:grayscale(1); cursor:not-allowed; }
   .effort-reroll { margin-top:.65rem; padding:.5rem .7rem; border:1px solid var(--sheet-line); border-radius:7px; background:#373a3e; color:var(--sheet-text); font-size:.78rem; cursor:pointer; }
   .approach-roll-button { width:100%; margin-top:.85rem; }
+  .hold-roll-hint { margin:.85rem 0 0; padding:.75rem .85rem; border:1px dashed var(--sheet-gold); border-radius:8px; color:var(--sheet-accent); background:var(--sheet-panel-inner); text-align:center; font-size:.78rem; line-height:1.45; }
+  .hold-roll-hint.hold-roll-disabled { color:var(--sheet-muted); border-color:var(--sheet-line); }
+  .hold-roll-indicator { position:fixed; z-index:10000; width:60px; height:60px; transform:translate(-50%,-50%); pointer-events:none; filter:drop-shadow(0 2px 5px #000c); }
+  .hold-roll-indicator svg { width:100%; height:100%; transform:rotate(-90deg); }
+  .hold-roll-indicator circle { fill:none; stroke-width:4; }
+  .hold-track { stroke:#ffffff55; }
+  .hold-progress { stroke:var(--sheet-accent); stroke-linecap:round; stroke-dasharray:157.1; stroke-dashoffset:157.1; animation:hold-charge .85s linear forwards; }
+  .hold-roll-indicator span { position:absolute; inset:0; display:grid; place-items:center; color:var(--sheet-accent); font-size:1.25rem; }
+  @keyframes hold-charge { to { stroke-dashoffset:0; } }
   .effort-bonus { margin:.7rem 0 0; color:var(--sheet-gold); font-size:.8rem; line-height:1.45; }
   .approach:focus-visible, .trait:focus-visible { outline:2px solid var(--sheet-gold); outline-offset:2px; }
   .approach strong { color:var(--sheet-text); font-size:.86rem; }
