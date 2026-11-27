@@ -4,7 +4,7 @@
   export let conflictActive = false;
   export let effortCoins = 3;
   export let spells: any[] = [];
-  export let catalogSpells: any[] = [];
+  export let catalogSpells: readonly any[] = [];
   export let selectedSpellId = '';
   export let canAddSpells = false;
   export let onSelectSpell: (id: string) => void = () => {};
