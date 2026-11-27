@@ -258,7 +258,7 @@
   .data-grid strong { display:block; color:var(--sheet-text); overflow-wrap:anywhere; font-size:.9rem; }
   .data-grid .wide { grid-column:1/-1; }
   .approach-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.6rem; }
-  .approach { width:100%; text-align:left; color:inherit; cursor:pointer; font:inherit; display:grid; grid-template-columns:1fr auto; gap:.25rem .5rem; align-items:center; padding:.8rem; border:1px solid var(--sheet-line); border-radius:8px; background:var(--sheet-panel-inner); }
+  .approach { width:100%; text-align:left; color:inherit; cursor:pointer; font:inherit; display:grid; grid-template-columns:1fr auto; gap:.25rem .5rem; align-items:center; padding:.8rem; border:1px solid #526b52; border-radius:8px; background:#1d2b20; box-shadow:inset 0 0 0 1px rgba(145,180,125,.12); }
   .approach>span { grid-column:1/-1; margin:0; color:var(--sheet-gold); }
   .approach.selected, .trait.selected { opacity:1 !important; filter:none !important; border-color:var(--sheet-accent); background:#263629; box-shadow:inset 0 0 0 1px var(--sheet-accent); }
   .approach.muted-approach { opacity:.42; filter:grayscale(1); }
@@ -276,6 +276,7 @@
   .trait-list, .state-list, .spell-grid { display:grid; gap:.6rem; }
   .trait, .state, .spell { padding:.8rem; border:1px solid var(--sheet-line); border-radius:8px; background:var(--sheet-panel-inner); }
   button.trait { width:100%; text-align:left; color:inherit; cursor:pointer; font:inherit; }
+  button.trait:not(.muted-trait) { opacity:1; filter:none; border-color:#526b52; background:#1d2b20; box-shadow:inset 0 0 0 1px rgba(145,180,125,.12); }
   .trait-die { display:block; margin-top:.5rem; color:var(--sheet-gold); font-size:.72rem; }
   .roll-panel { display:grid; gap:.85rem; }
   .roll-selection-summary { display:flex; flex-wrap:wrap; gap:.6rem; }
