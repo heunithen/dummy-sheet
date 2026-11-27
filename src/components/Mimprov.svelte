@@ -14,6 +14,7 @@
   const CONFLICT_KEY = 'com.heunithen.dummysheet-mimprov/conflict';
   const EFFORT_REQUEST_CHANNEL = 'com.heunithen.dummysheet-mimprov/spend-effort';
   const REST_REQUEST_CHANNEL = 'com.heunithen.dummysheet-mimprov/rest';
+  const SESSION_RESET_CHANNEL = 'com.heunithen.dummysheet-mimprov/session-reset';
   const DICE_PLUS_SOURCE = 'com.heunithen.dummysheet-mimprov';
   const ROLL_NOTICE_CHANNEL = 'com.heunithen.dummysheet-mimprov/roll-notification';
   const DELETE_CHARACTER_CHANNEL = 'com.heunithen.dummysheet-mimprov/delete-character';
@@ -598,11 +599,23 @@
 
   async function startNewSession() {
     if (!$isGM || !OBR.isAvailable) return;
-    if (!confirm('¿Estás seguro de que quieres iniciar una nueva sesión? Se restablecerán las monedas de esfuerzo de todos los jugadores a 3.')) return;
+    if (!confirm('¿Iniciar una nueva sesión? Todas las fichas recuperarán 4 puntos de Voluntad, eliminarán sus Estados y recibirán 3 monedas de esfuerzo.')) return;
     try {
-      const players = $PartyStore.filter(player => player.role !== 'GM');
-      players.forEach(player => { playerTracker(player.id).effortCoins = 3; });
+      const players = await OBR.party.getPlayers();
+      players.filter((player: any) => player.role !== 'GM').forEach((player: any) => {
+        const tracker = playerTracker(player.id);
+        tracker.states = [];
+        tracker.effortCoins = 3;
+      });
+      Object.values(gmTracker.players || {}).forEach((tracker: any) => {
+        tracker.states = [];
+        tracker.effortCoins = 3;
+      });
       saveGmTracker();
+      await OBR.broadcast.sendMessage(SESSION_RESET_CHANNEL, {
+        action: 'RESET_SESSION',
+        requestedAt: Date.now()
+      }, { destination: 'ALL' });
       await OBR.room.setMetadata({ [SESSION_KEY]: { active: true, startedAt: Date.now() } });
       sessionStarted = true;
     } catch (error) {
@@ -1040,6 +1053,20 @@
               saveGmTracker();
             } catch (error) {
               console.error('No se pudo registrar la moneda de esfuerzo', error);
+            }
+          });
+          OBR.broadcast.onMessage(SESSION_RESET_CHANNEL, async (event) => {
+            if (role !== 'PLAYER' || (event.data as any)?.action !== 'RESET_SESSION') return;
+            try {
+              const party = await OBR.party.getPlayers();
+              const sender = party.find((player: any) => player.connectionId === event.connectionId);
+              if (!sender || sender.role !== 'GM') return;
+              character = { ...character, will: Math.max(1, Number(character.maxWill) || 4), maxWill: 4 };
+              visibleStates = [];
+              visibleEffortCoins = 3;
+              updateCharacter();
+            } catch (error) {
+              console.error('No se pudo restablecer la ficha al iniciar la sesión', error);
             }
           });
           OBR.broadcast.onMessage(REST_REQUEST_CHANNEL, async (event) => {
