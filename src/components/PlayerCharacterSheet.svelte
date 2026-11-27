@@ -207,10 +207,12 @@
       </section>
     </div>
     <p class="sheet-footnote">Hoja de personaje · MIMPROV</p>
-    {#if cursorVisible && cursorDiceCount > 0}
+    {#if cursorVisible}
       <div class="cursor-dice" style={`left:${cursorX + 14}px;top:${cursorY + 14}px`} aria-hidden="true">
-        {#each Array.from({ length: Math.min(cursorDiceCount, 8) }) as _, index}<span>⚄</span>{/each}
-        {#if cursorDiceCount > 8}<span>+{cursorDiceCount - 8}</span>{/if}
+        {#if cursorDiceCount === 0}<span class="cursor-zero">0</span>{:else}
+          {#each Array.from({ length: Math.min(cursorDiceCount, 8) }) as _, index}<span>⚄</span>{/each}
+          {#if cursorDiceCount > 8}<span>+{cursorDiceCount - 8}</span>{/if}
+        {/if}
       </div>
     {/if}
   </section>
@@ -305,6 +307,7 @@
   .sheet-dice-results span.kept { border-color:var(--sheet-accent); background:var(--sheet-accent); color:#172016; font-weight:800; }
   .cursor-dice { position:fixed; z-index:9999; display:flex; gap:2px; pointer-events:none; filter:drop-shadow(0 2px 3px #000b); }
   .cursor-dice span { display:grid; place-items:center; width:22px; height:22px; border:1px solid #d9e7bd; border-radius:5px; background:#263629; color:#f3f7e9; font-size:15px; font-weight:800; }
+  .cursor-dice .cursor-zero { width:auto; min-width:22px; padding:0 5px; font-size:14px; }
   .trait strong, .state strong, .spell strong { color:var(--sheet-accent); }
   .trait p, .spell p { margin:.35rem 0 0; color:#c4cec3; font-size:.82rem; line-height:1.5; }
   .state small, .spell small, .equipment-item small { display:block; margin-top:.3rem; color:var(--sheet-muted); font-size:.72rem; line-height:1.4; }
