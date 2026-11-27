@@ -1930,34 +1930,51 @@
       {#if activeTab === 'gm'}
       <div class="eyebrow">HERRAMIENTAS DEL NARRADOR</div><h1>Controles</h1>
       <p class="muted">Administra la sesión, la ambientación y los valores de los personajes de la sala.</p>
-      <section class="card session-conflict-card">
-        <h2>Controles de sesión</h2>
-        <p class="muted">{sessionStarted ? 'Sesión iniciada. Los jugadores pueden crear sus personajes y utilizar la ficha.' : 'Inicia una sesión para permitir que los jugadores creen sus personajes y utilicen la ficha.'}</p>
-        <div class="session-actions"><button on:click={startNewSession}>Iniciar nueva sesión</button></div>
-        <section class="card control-subcard">
-          <h3>Ambientación de partida</h3>
-          <p class="muted">Adapta los nombres de Rasgos, conocimientos y objetos de equipo de todos los personajes de la sala. No modifica sus Enfoques, capacidades, reglas ni objetos personalizados.</p>
-          <label for="mimprov-genre">Género o ambientación</label>
-          <select id="mimprov-genre" value={selectedGenre} on:change={(event) => changeGenre(event.currentTarget.value)}>{#each GENRES as genre}<option value={genre.id}>{genre.label}</option>{/each}</select>
-          <p class="muted">La ambientación se comparte con todos los jugadores de esta sala.</p>
-        </section>
-        <section class="card control-subcard resistance-card">
-          <h3>Controles de conflicto</h3>
-          <p class="muted">El conflicto comienza al marcar la casilla «Conflicto» de uno o más personajes en Personajes de la sala. El peligro determina la pérdida de Voluntad al fracasar.</p>
-          <h4>Peligro</h4>
-          <div class="danger-levels">{#each ['Bajo', 'Medio', 'Alto'] as danger}<button class:active={gmTracker.conflict.danger === danger} class="secondary" on:click={() => setConflictDanger(danger)}>{danger}</button>{/each}</div>
-          <div class="resistance-summary"><div><span class="muted">Resistencia</span><strong>{gmTracker.conflict.resistance ?? initialConflictResistance}</strong></div><small>{conflictParticipants.length} participante(s) · Base: {initialConflictResistance}</small></div>
-          <div class="resistance-controls compact-resistance-controls">
-            <button class="secondary" on:click={() => adjustConflictResistance(-1)} disabled={gmTracker.conflict.active || (gmTracker.conflict.resistance ?? initialConflictResistance) <= 0}>−1</button>
-            <button on:click={() => adjustConflictResistance(1)} disabled={gmTracker.conflict.active}>+1</button>
-            <button class="secondary" on:click={resetConflictResistance} disabled={gmTracker.conflict.active}>Restablecer</button>
+      <section class="gm-session-section">
+        <h2>1. Administración de sesión</h2>
+        <div class="gm-session-grid">
+          <section class="card gm-session-card">
+            <h3>Estado de la sesión</h3>
+            <p class="muted">{sessionStarted ? 'Sesión iniciada. Los jugadores pueden crear sus personajes y utilizar la ficha.' : 'Inicia una sesión para permitir que los jugadores creen sus personajes y utilicen la ficha.'}</p>
+            <button on:click={startNewSession}>Iniciar nueva sesión</button>
+          </section>
+          <section class="card gm-session-card">
+            <h3>Ambientación de partida</h3>
+            <p class="muted">Adapta los nombres de Rasgos, conocimientos y objetos de equipo de todos los personajes de la sala. No modifica sus Enfoques, capacidades, reglas ni objetos personalizados.</p>
+            <label for="mimprov-genre">Género o ambientación</label>
+            <select id="mimprov-genre" value={selectedGenre} on:change={(event) => changeGenre(event.currentTarget.value)}>{#each GENRES as genre}<option value={genre.id}>{genre.label}</option>{/each}</select>
+            <small class="muted">El cambio se aplica inmediatamente a las hojas de todos los jugadores conectados.</small>
+          </section>
+        </div>
+      </section>
+
+      <section class="gm-conflict-section">
+        <h2>2. Gestión de conflictos</h2>
+        <section class="card gm-conflict-card">
+          <div class="gm-conflict-top">
+            <div class="gm-conflict-danger">
+              <h3>Peligro</h3>
+              <div class="danger-levels">{#each ['Bajo', 'Medio', 'Alto'] as danger}<button class:active={gmTracker.conflict.danger === danger} class="secondary" on:click={() => setConflictDanger(danger)}>{danger}</button>{/each}</div>
+            </div>
+            <div class="gm-conflict-resistance">
+              <span class="muted">Resistencia</span>
+              <strong>{gmTracker.conflict.resistance ?? initialConflictResistance}</strong>
+              <small>{conflictParticipants.length} participante(s) · Base: {initialConflictResistance}</small>
+              <div class="resistance-controls compact-resistance-controls">
+                <button class="secondary" on:click={() => adjustConflictResistance(-1)} disabled={gmTracker.conflict.active || (gmTracker.conflict.resistance ?? initialConflictResistance) <= 0}>−1</button>
+                <button on:click={() => adjustConflictResistance(1)} disabled={gmTracker.conflict.active}>+1</button>
+                <button class="secondary" on:click={resetConflictResistance} disabled={gmTracker.conflict.active}>Restablecer</button>
+              </div>
+            </div>
           </div>
-          <p class="muted">Fallo: Bajo −1 Voluntad · Medio −2 · Alto −3. Cada 6 reduce la Resistencia en 1; un 5 no la reduce.</p>
+          <p class="muted">El conflicto comienza al marcar «Participa en el conflicto» en uno o más personajes. El peligro determina la pérdida de Voluntad al fracasar. Cada 6 reduce la Resistencia en 1; un 5 no la reduce. Fallo: Bajo −1 Voluntad · Medio −2 · Alto −3.</p>
           {#if gmTracker.conflict.result}<p class="conflict-result">{gmTracker.conflict.result}</p>{/if}
-          <p class="muted">{gmTracker.conflict.active ? 'Conflicto activo.' : 'No hay un conflicto activo.'}</p>
+          <p class="muted gm-conflict-status">{gmTracker.conflict.active ? 'Conflicto activo.' : 'No hay un conflicto activo.'}</p>
         </section>
       </section>
-      <section class="card"><h2>Personajes de la sala</h2>
+
+      <section class="card gm-characters-section">
+        <h2>3. Personajes de la sala</h2>
         {#if partyMembers.length === 0}
           <p>No hay personajes creados en la sala.</p>
         {:else}
@@ -1968,12 +1985,77 @@
           </nav>
           {#each partyMembers.filter(p => p.id === selectedPlayerId) as player}
             <article class="gm-player">
-              <div class="gm-player-head"><div class="gm-player-identity">{#if getPlayerCharacter(player)?.portrait}<img class="gm-player-portrait" src={getPlayerCharacter(player)?.portrait} alt="Retrato de {getPlayerCharacter(player)?.name || player.name}">{/if}<div><h3>{getPlayerCharacter(player)?.name || player.name}</h3><small>{getPlayerCharacter(player)?.created ? getPlayerCharacter(player)?.concept : 'Ficha MIMPROV aún no creada'}</small></div></div><div class="gm-player-actions">{#if getPlayerCharacter(player)?.created}<label class="conflict-character-toggle"><input type="checkbox" checked={gmTracker.conflict.active === true && conflictParticipantIds.includes(player.id)} on:change={(event) => toggleCharacterConflict(player.id, event.currentTarget.checked)}><span>Conflicto</span></label><label class="roll-modifier-toggle advantage-toggle"><input type="checkbox" checked={playerTracker(player.id).rollModifier === 'advantage'} on:change={(event) => setPlayerRollModifier(player.id, event.currentTarget.checked ? 'advantage' : 'normal')}><span>Ventaja</span></label><label class="roll-modifier-toggle disadvantage-toggle"><input type="checkbox" checked={playerTracker(player.id).rollModifier === 'disadvantage'} on:change={(event) => setPlayerRollModifier(player.id, event.currentTarget.checked ? 'disadvantage' : 'normal')}><span>Desventaja</span></label><button class="danger-button" on:click={() => deletePlayerCharacter(player)}>Borrar personaje</button>{/if}</div></div>
+              <header class="gm-player-head">
+                <div class="gm-player-identity">
+                  {#if getPlayerCharacter(player)?.portrait}<img class="gm-player-portrait" src={getPlayerCharacter(player)?.portrait} alt="Retrato de {getPlayerCharacter(player)?.name || player.name}">{/if}
+                  <div><h3>{getPlayerCharacter(player)?.name || player.name}</h3><small>{getPlayerCharacter(player)?.created ? getPlayerCharacter(player)?.concept : 'Ficha MIMPROV aún no creada'}</small></div>
+                </div>
+              </header>
+
               {#if getPlayerCharacter(player)?.created}
-                <div class="gm-stats"><div class="gm-adjust-row"><span>Voluntad: <b>{getPlayerCharacter(player)?.will} / {getPlayerCharacter(player)?.maxWill}</b></span><div class="stepper"><button aria-label="Quitar Voluntad" on:click={() => adjustPlayerWill(player.id, -1)} disabled={(Number(getPlayerCharacter(player)?.will) || 0) <= 0}>−</button><b>{getPlayerCharacter(player)?.will}</b><button aria-label="Añadir Voluntad" on:click={() => adjustPlayerWill(player.id, 1)} disabled={(Number(getPlayerCharacter(player)?.will) || 0) >= (Number(getPlayerCharacter(player)?.maxWill) || 4)}>+</button></div></div><span>Enfoques: <b>{APPROACHES.map(a => a + ' ' + (getPlayerCharacter(player)?.approaches?.[a] ?? 0)).join(' · ')}</b></span><span>Rasgos: <b>{(getPlayerCharacter(player)?.traits || []).map((trait) => traitLabel(trait, selectedGenre)).join(', ')}</b></span></div><p class="muted"><b>Equipo:</b> {(getPlayerCharacter(player)?.inventory || []).map((item) => equipmentDisplayName(item, selectedGenre)).join(' · ')}</p>
-              {:else}<p class="muted">El jugador todavía no ha creado su ficha.</p>{/if}
-              <h4>Estados actuales</h4><div class="state-grid">{#each STATES as state}<label class="check-row"><input type="checkbox" checked={playerTracker(player.id).states.includes(state.name)} on:change={() => toggleState(player.id, state.name)}><span><b>{state.name}</b><small>{state.enfoque}: {state.detail}</small></span></label>{/each}</div>
-              <h4>Monedas de esfuerzo</h4><div class="gm-adjust-row effort-adjust-row"><span>Disponibles: <b>{playerTracker(player.id).effortCoins} / 3</b></span><div class="stepper"><button aria-label="Quitar moneda de esfuerzo" on:click={() => adjustEffortCoins(player.id, -1)} disabled={playerTracker(player.id).effortCoins <= 0}>−</button><b>{playerTracker(player.id).effortCoins}</b><button aria-label="Añadir moneda de esfuerzo" on:click={() => adjustEffortCoins(player.id, 1)} disabled={playerTracker(player.id).effortCoins >= 3}>+</button></div></div><small class="muted">Las monedas permiten añadir 1d6 a una tirada o repetir todos los dados ignorando los Estados o Desventajas que resten dados. Gastarlas no genera Estados. El descanso no las recupera.</small>
+                <section class="gm-character-information">
+                  <h4>Información del personaje</h4>
+                  <div class="gm-stats">
+                    <span>Enfoques: <b>{APPROACHES.map(a => a + ' ' + (getPlayerCharacter(player)?.approaches?.[a] ?? 0)).join(' · ')}</b></span>
+                    <span>Rasgos: <b>{(getPlayerCharacter(player)?.traits || []).map((trait) => traitLabel(trait, selectedGenre)).join(', ')}</b></span>
+                    <span>Equipo: <b>{(getPlayerCharacter(player)?.inventory || []).map((item) => equipmentDisplayName(item, selectedGenre)).join(' · ') || 'Sin equipo'}</b></span>
+                  </div>
+                </section>
+              {:else}
+                <p class="muted">El jugador todavía no ha creado su ficha.</p>
+              {/if}
+
+              <div class="gm-character-columns">
+                <section class="gm-character-column gm-resources-column">
+                  <h4>Recursos</h4>
+                  {#if getPlayerCharacter(player)?.created}
+                    <div class="gm-resource-control">
+                      <span>Voluntad <b>{getPlayerCharacter(player)?.will} / {getPlayerCharacter(player)?.maxWill}</b></span>
+                      <div class="stepper">
+                        <button aria-label="Quitar Voluntad" on:click={() => adjustPlayerWill(player.id, -1)} disabled={(Number(getPlayerCharacter(player)?.will) || 0) <= 0}>−</button>
+                        <b>{getPlayerCharacter(player)?.will}</b>
+                        <button aria-label="Añadir Voluntad" on:click={() => adjustPlayerWill(player.id, 1)} disabled={(Number(getPlayerCharacter(player)?.will) || 0) >= (Number(getPlayerCharacter(player)?.maxWill) || 4)}>+</button>
+                      </div>
+                    </div>
+                  {/if}
+                  <div class="gm-resource-control">
+                    <span>Monedas de esfuerzo <b>{playerTracker(player.id).effortCoins} / 3</b></span>
+                    <div class="stepper">
+                      <button aria-label="Quitar moneda de esfuerzo" on:click={() => adjustEffortCoins(player.id, -1)} disabled={playerTracker(player.id).effortCoins <= 0}>−</button>
+                      <b>{playerTracker(player.id).effortCoins}</b>
+                      <button aria-label="Añadir moneda de esfuerzo" on:click={() => adjustEffortCoins(player.id, 1)} disabled={playerTracker(player.id).effortCoins >= 3}>+</button>
+                    </div>
+                  </div>
+                  <small class="muted">Las monedas permiten añadir 1d6 o repetir todos los dados ignorando Estados o Desventajas que resten dados. Gastarlas no genera Estados y el descanso no las recupera.</small>
+                </section>
+
+                <section class="gm-character-column gm-states-column">
+                  <h4>Estados actuales</h4>
+                  <div class="state-grid">
+                    {#each STATES as state}
+                      <label class="check-row"><input type="checkbox" checked={playerTracker(player.id).states.includes(state.name)} on:change={() => toggleState(player.id, state.name)}><span><b>{state.name}</b><small>{state.enfoque}: {state.detail}</small></span></label>
+                    {/each}
+                  </div>
+                </section>
+
+                <section class="gm-character-column gm-modifiers-column">
+                  <h4>Modificadores de tirada</h4>
+                  {#if getPlayerCharacter(player)?.created}
+                    <label class="roll-modifier-toggle advantage-toggle"><input type="checkbox" checked={playerTracker(player.id).rollModifier === 'advantage'} on:change={(event) => setPlayerRollModifier(player.id, event.currentTarget.checked ? 'advantage' : 'normal')}><span>Ventaja</span></label>
+                    <label class="roll-modifier-toggle disadvantage-toggle"><input type="checkbox" checked={playerTracker(player.id).rollModifier === 'disadvantage'} on:change={(event) => setPlayerRollModifier(player.id, event.currentTarget.checked ? 'disadvantage' : 'normal')}><span>Desventaja</span></label>
+                    <small class="muted">Si ninguna opción está marcada, la tirada es normal.</small>
+                  {:else}
+                    <p class="muted">Disponible cuando el jugador cree su ficha.</p>
+                  {/if}
+                </section>
+              </div>
+
+              {#if getPlayerCharacter(player)?.created}
+                <footer class="gm-player-footer">
+                  <label class="conflict-character-toggle"><input type="checkbox" checked={gmTracker.conflict.active === true && conflictParticipantIds.includes(player.id)} on:change={(event) => toggleCharacterConflict(player.id, event.currentTarget.checked)}><span>Participa en el conflicto</span></label>
+                  <button class="danger-button" on:click={() => deletePlayerCharacter(player)}>Borrar personaje</button>
+                </footer>
+              {/if}
             </article>
           {/each}
         {/if}
@@ -2345,6 +2427,41 @@
   .state-badge { display:inline-block; padding:.4rem .75rem; border:1px solid #9b6262; border-radius:5px; background:#492e32; color:#ffd6d6; font-weight:650; }
   .extra-info p { margin:.4rem 0; }
   .gm-content > h1 { margin-bottom:0; }
+
+  .gm-session-section, .gm-conflict-section { margin:1.4rem 0; }
+  .gm-session-section > h2, .gm-conflict-section > h2 { margin-bottom:.65rem; }
+  .gm-session-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem; }
+  .gm-session-card { margin:0; min-width:0; }
+  .gm-session-card h3, .gm-conflict-card h3 { margin:0 0 .55rem; }
+  .gm-session-card p { margin:.35rem 0 .8rem; }
+  .gm-session-card label { margin:.7rem 0 .35rem; }
+  .gm-session-card select { margin-top:.25rem; }
+  .gm-conflict-card { margin:0; }
+  .gm-conflict-top { display:grid; grid-template-columns:minmax(0,1fr) minmax(240px,1fr); gap:1.5rem; align-items:center; }
+  .gm-conflict-resistance { display:grid; grid-template-columns:auto auto 1fr; align-items:center; gap:.2rem .7rem; }
+  .gm-conflict-resistance strong { color:#f2c879; font-size:2rem; }
+  .gm-conflict-resistance small { color:#999; }
+  .gm-conflict-resistance .resistance-controls { grid-column:1 / -1; margin-top:.35rem; }
+  .gm-conflict-card > p { margin:.8rem 0 .25rem; }
+  .gm-conflict-status { margin-bottom:0 !important; }
+  .gm-characters-section { margin-top:1.4rem; }
+  .gm-character-information { padding:.8rem 0; border-top:1px solid #414448; border-bottom:1px solid #414448; }
+  .gm-character-information h4 { margin:.1rem 0 .45rem; }
+  .gm-character-information .gm-stats { padding:0; }
+  .gm-character-columns { display:grid; grid-template-columns:1fr 1.35fr 1fr; gap:.8rem; margin-top:.9rem; }
+  .gm-character-column { min-width:0; padding:.8rem; border:1px solid #414448; border-radius:7px; background:#222427; }
+  .gm-character-column h4 { margin:.05rem 0 .7rem; }
+  .gm-resource-control { display:flex; align-items:center; justify-content:space-between; gap:.5rem; margin:.65rem 0; color:#ccc; font-size:.85rem; }
+  .gm-resource-control > span { display:grid; gap:.15rem; }
+  .gm-resource-control > span b { color:#f1d49d; }
+  .gm-resources-column > small { display:block; line-height:1.45; margin-top:.7rem; }
+  .gm-character-column .state-grid { grid-template-columns:1fr; }
+  .gm-modifiers-column .roll-modifier-toggle { width:100%; box-sizing:border-box; margin:.4rem 0; }
+  .gm-modifiers-column > small { display:block; line-height:1.4; margin-top:.6rem; }
+  .gm-player-footer { display:flex; justify-content:space-between; align-items:center; gap:1rem; margin-top:1rem; padding-top:.8rem; border-top:1px solid #414448; }
+  .gm-player-footer .conflict-character-toggle { margin:0; }
+  .gm-player-footer .danger-button { margin-left:auto; }
+
   .gm-npc-list { display:grid; gap:.7rem; }
   .gm-npc-card { padding:.9rem; border:1px solid #484b50; border-radius:7px; background:#222427; }
   .gm-npc-heading { display:flex; align-items:center; justify-content:space-between; gap:1rem; }
