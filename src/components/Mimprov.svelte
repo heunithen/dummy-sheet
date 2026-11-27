@@ -11,6 +11,7 @@
   const DATA_KEY = 'com.heunithen.dummysheet-mimprov/sheet';
   const STATE_KEY = 'com.heunithen.dummysheet-mimprov/player-states';
   const STATE_SYNC_CHANNEL = 'com.heunithen.dummysheet-mimprov/state-sync';
+  const CONFLICT_SYNC_CHANNEL = 'com.heunithen.dummysheet-mimprov/conflict-sync';
   const OVEREXERTION_KEY = 'com.heunithen.dummysheet-mimprov/player-overexertion';
   const CONFLICT_KEY = 'com.heunithen.dummysheet-mimprov/conflict';
   const EFFORT_REQUEST_CHANNEL = 'com.heunithen.dummysheet-mimprov/spend-effort';
@@ -535,6 +536,7 @@
   let linesVeils: { lines: string; veils: string } = { lines: '', veils: '' };
   let visibleStates: string[] = [];
   let visibleEffortCoins = 3;
+  let visibleConflictActive = false;
   let effortDiceBonus = 0;
   let rollHelp = false;
   let selectedPlayerId = '';
@@ -998,6 +1000,13 @@
           const syncSession = (metadata: any) => { sessionStarted = metadata?.[SESSION_KEY]?.active === true; };
           syncSession(await OBR.room.getMetadata());
           OBR.room.onMetadataChange(syncSession);
+          const syncConflict = (metadata: any) => {
+            const conflict = metadata?.[CONFLICT_KEY];
+            visibleConflictActive = conflict?.active === true && Array.isArray(conflict.participantIds) && conflict.participantIds.includes(playerId);
+          };
+          syncConflict(await OBR.room.getMetadata());
+          OBR.room.onMetadataChange(syncConflict);
+
           syncLinesVeils(await OBR.room.getMetadata());
           OBR.room.onMetadataChange(syncLinesVeils);
           OBR.broadcast.onMessage(LINES_VEILS_REQUEST_CHANNEL, async (event) => {
@@ -1483,6 +1492,28 @@
     saveGmTracker();
   }
 
+  function toggleCharacterConflict(id: string, included: boolean) {
+    if (!gmTracker.conflict) gmTracker.conflict = { active: false, danger: 'Bajo', resistance: null, participantIds: [] };
+    const currentIds = Array.isArray(gmTracker.conflict.participantIds) ? [...gmTracker.conflict.participantIds] : [];
+    if (included) {
+      gmTracker.conflict.participantIds = [...new Set([...currentIds, id])];
+      if (!gmTracker.conflict.active) {
+        gmTracker.conflict.resistance = Math.max(1, gmTracker.conflict.participantIds.length * 2);
+        gmTracker.conflict.active = true;
+        gmTracker.conflict.result = '';
+      } else {
+        gmTracker.conflict.resistance = Math.max(0, Number(gmTracker.conflict.resistance ?? 0)) + 2;
+      }
+    } else {
+      gmTracker.conflict.participantIds = currentIds.filter(playerId => playerId !== id);
+      if (!gmTracker.conflict.participantIds.length) {
+        gmTracker.conflict.active = false;
+        gmTracker.conflict.resistance = null;
+      }
+    }
+    saveGmTracker();
+  }
+
   function setConflictActive(active: boolean) {
     if (!gmTracker.conflict) gmTracker.conflict = { active: false, danger: 'Bajo', resistance: null };
     if (active) {
@@ -1692,6 +1723,7 @@
       <PlayerCharacterSheet
         character={character}
         states={displayedStates}
+        conflictActive={visibleConflictActive}
         effortCoins={visibleEffortCoins}
         spells={playerMagicRecord?.spells || []}
         {traitLabel}
@@ -1856,7 +1888,7 @@
           </nav>
           {#each partyMembers.filter(p => p.id === selectedPlayerId) as player}
             <article class="gm-player">
-              <div class="gm-player-head"><div class="gm-player-identity">{#if getPlayerCharacter(player)?.portrait}<img class="gm-player-portrait" src={getPlayerCharacter(player)?.portrait} alt="Retrato de {getPlayerCharacter(player)?.name || player.name}">{/if}<div><h3>{getPlayerCharacter(player)?.name || player.name}</h3><small>{getPlayerCharacter(player)?.created ? getPlayerCharacter(player)?.concept : 'Ficha MIMPROV aún no creada'}</small></div></div>{#if getPlayerCharacter(player)?.created}<button class="danger-button" on:click={() => deletePlayerCharacter(player)}>Borrar personaje</button>{/if}</div>
+              <div class="gm-player-head"><div class="gm-player-identity">{#if getPlayerCharacter(player)?.portrait}<img class="gm-player-portrait" src={getPlayerCharacter(player)?.portrait} alt="Retrato de {getPlayerCharacter(player)?.name || player.name}">{/if}<div><h3>{getPlayerCharacter(player)?.name || player.name}</h3><small>{getPlayerCharacter(player)?.created ? getPlayerCharacter(player)?.concept : 'Ficha MIMPROV aún no creada'}</small></div></div><div class="gm-player-actions">{#if getPlayerCharacter(player)?.created}<label class="conflict-character-toggle"><input type="checkbox" checked={gmTracker.conflict.active === true && conflictParticipantIds.includes(player.id)} on:change={(event) => toggleCharacterConflict(player.id, event.currentTarget.checked)}><span>Conflicto</span></label><button class="danger-button" on:click={() => deletePlayerCharacter(player)}>Borrar personaje</button>{/if}</div></div>
               {#if getPlayerCharacter(player)?.created}
                 <div class="gm-stats"><span>Voluntad: <b>{getPlayerCharacter(player)?.will} / {getPlayerCharacter(player)?.maxWill}</b></span><span>Enfoques: <b>{APPROACHES.map(a => a + ' ' + (getPlayerCharacter(player)?.approaches?.[a] ?? 0)).join(' · ')}</b></span><span>Rasgos: <b>{(getPlayerCharacter(player)?.traits || []).map((trait) => traitLabel(trait, selectedGenre)).join(', ')}</b></span></div><p class="muted"><b>Equipo:</b> {(getPlayerCharacter(player)?.inventory || []).map((item) => equipmentDisplayName(item, selectedGenre)).join(' · ')}</p>
               {:else}<p class="muted">El jugador todavía no ha creado su ficha.</p>{/if}
@@ -2248,6 +2280,9 @@
   .character-tabs button.active { background:#6d542b; border-color:#d8b66f; color:#fff; }
   .gm-player { border-top:1px solid #444; padding:1rem 0; }
   .gm-player-head { display:flex; justify-content:space-between; align-items:center; gap:1rem; }
+  .gm-player-actions { display:flex; align-items:center; flex-wrap:wrap; gap:.6rem; }
+  .conflict-character-toggle { display:inline-flex; align-items:center; gap:.45rem; margin:0; padding:.5rem .7rem; border:1px solid #9b555d; border-radius:6px; background:#302124; color:#ffdede; cursor:pointer; }
+  .conflict-character-toggle input { width:auto; margin:0; accent-color:#d64b55; }
   .gm-player-head h3 { margin:.1rem 0; }
   .gm-player-head small { color:#999; }
   .gm-stats { display:grid; gap:.4rem; padding:.6rem 0; color:#ccc; font-size:.85rem; }
