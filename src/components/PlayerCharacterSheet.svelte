@@ -105,7 +105,7 @@
         {#if character.traits?.length}
           <div class="trait-list">
             {#each character.traits as trait}
-              <button type="button" class="trait" class:selected={selectedTrait === trait} class:muted-trait={!!selectedTrait && selectedTrait !== trait} aria-pressed={selectedTrait === trait} on:click={() => onSelectTrait(selectedTrait === trait ? '' : trait)}>
+              <button type="button" class="trait" class:selected={selectedTrait === trait} class:muted-trait={!!selectedTrait && selectedTrait !== trait} aria-pressed={selectedTrait === trait} on:click={() => onSelectTrait(trait)}>
                 <strong>{traitLabel(trait)}</strong>
                 <p>{traitDescription(trait)}</p>
                 <small class="trait-die">{selectedTrait === trait ? '+1d6 seleccionado' : 'Seleccionar +1d6'}</small>
