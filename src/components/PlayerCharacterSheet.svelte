@@ -52,6 +52,8 @@
   };
   $: groupedEquipment = character?.inventory || [];
   $: characterSpells = spells || [];
+  $: selectedSpell = characterSpells.find((spell) => spell.id === selectedSpellId);
+  $: canCastSelectedSpell = !selectedSpell || Number(character.will || 0) >= Number(selectedSpell.willCost || 0);
 </script>
 
 {#if !character?.created}
@@ -103,7 +105,8 @@
             </button>
           {/each}
         </div>
-        <button type="button" class="sheet-roll-button approach-roll-button" disabled={!approachSelected || pendingRoll} on:click={onRoll}>Lanzar dados</button>
+        <button type="button" class="sheet-roll-button approach-roll-button" disabled={!approachSelected || pendingRoll || (!!selectedSpell && (!selectedTrait || !canCastSelectedSpell))} on:click={onRoll}>Lanzar dados</button>
+        {#if selectedSpell && !selectedTrait}<p class="condition-note">Selecciona también un Rasgo para lanzar este conjuro.</p>{:else if selectedSpell && !canCastSelectedSpell}<p class="condition-note">No tienes suficiente Voluntad. Necesitas {selectedSpell.willCost} y tienes {character.will}.</p>{:else if selectedSpell}<p class="hint">Tirada de {selectedSpell.name}: Enfoque + Rasgo. Coste: {selectedSpell.willCost} Voluntad.</p>{/if}
         <div class="effort-controls">
           <h3>Monedas de esfuerzo</h3>
           <div class="effort-coins" aria-label="Monedas de esfuerzo disponibles">
