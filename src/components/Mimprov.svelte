@@ -548,6 +548,8 @@
   let selectedState = '';
   let rollModifier = 'normal';
   let lastRoll: { dice: number[]; kept: number; pool: number; result: string; critical: boolean; notation?: string; summary?: string; approach?: string; retryNotation?: string; retryPool?: number } | null = null;
+  let rollToast: { text: string; type: 'success' | 'consequence' | 'failure' } | null = null;
+  let rollToastTimer: ReturnType<typeof setTimeout> | null = null;
   let rollHistory: Array<{ id: string; timestamp: number; approach: string; dice: number[]; kept: number; result: string; critical: boolean; notation: string }> = [];
   let rollHistoryKey = '';
   let dicePlusError = '';
@@ -931,13 +933,12 @@
     adjustWill(-loss);
   }
 
-  async function showRollNotification(result: string) {
-    try {
-      const id = await OBR.notification.show(result, result === 'Fracaso' ? 'WARNING' : 'SUCCESS');
-      setTimeout(() => { OBR.notification.close(id).catch(() => undefined); }, 5500);
-    } catch (error) {
-      console.error('No se pudo mostrar la notificación de la tirada', error);
-    }
+  function showRollNotification(result: string) {
+    const type = result === 'Fracaso' ? 'failure' : result === 'Éxito con consecuencia' ? 'consequence' : 'success';
+    const text = type === 'failure' ? '¡FALLO!' : type === 'consequence' ? '¡ÉXITO CON CONSECUENCIA!' : '¡ÉXITO!';
+    rollToast = { text, type };
+    if (rollToastTimer) clearTimeout(rollToastTimer);
+    rollToastTimer = setTimeout(() => { rollToast = null; rollToastTimer = null; }, 3500);
   }
 
   function handleDicePlusResult(event: any) {
@@ -961,10 +962,11 @@
       critical, notation: roll.notation, summary: data.result.rollSummary, approach: roll.approach,
       retryNotation: roll.retryNotation, retryPool: roll.retryPool
     };
-    // El resultado se procesa internamente para aplicar reglas, sin guardar historial ni mostrar notificaciones.
+    // El resultado se anuncia a toda la sala mediante un mensaje visual de sistema.
     if (roll.spellCost > 0) { character.will = Math.max(0, Number(character.will || 0) - roll.spellCost); updateCharacter(); dicePlusError = `Has gastado ${roll.spellCost} Voluntad para lanzar ${roll.spellName || 'el conjuro'}.`; }
     pendingDiceRoll = null;
     resetSheetRollSelection();
+    OBR.broadcast.sendMessage(ROLL_NOTICE_CHANNEL, { rollId: roll.rollId, result: finalResult }, { destination: 'ALL' }).catch((error) => console.error('No se pudo anunciar el resultado de la tirada', error));
     if (critical) {
       adjustWill(1);
       return;
@@ -1604,7 +1606,7 @@
   <title>DummySheet MIMPROV</title>
 </svelte:head>
 
-<div class="app-shell">
+<div class="app-shell">\n  {#if rollToast}<div class="system-roll-toast {rollToast.type}" role="status" aria-live="assertive">{rollToast.text}</div>{/if}
   {#if !$isGM && sessionStarted}
     <nav class="main-tabs">
       <button class:active={activeTab === 'hoja' || activeTab === 'personaje'} on:click={() => { resetSheetRollSelection(); activeTab = character.created ? 'hoja' : 'personaje'; }}>Hoja de personaje</button>
@@ -2376,4 +2378,4 @@
     .trait-picker { grid-template-columns:1fr; }
     .trait-picker button { grid-column:1; grid-row:auto; }
   }
-</style>
+</style>\n<style>\n  .system-roll-toast { position: fixed; z-index: 10000; top: 1.2rem; left: 50%; transform: translateX(-50%); padding: .9rem 1.6rem; border: 2px solid currentColor; border-radius: 8px; font-size: clamp(1.1rem, 3vw, 1.65rem); font-weight: 900; letter-spacing: .04em; text-align: center; box-shadow: 0 8px 28px #0009; animation: roll-toast-in .2s ease-out; pointer-events: none; }\n  .system-roll-toast.success { color: #fff; background: #218b45; border-color: #55c878; }\n  .system-roll-toast.consequence { color: #171717; background: #f2c533; border-color: #d5a900; }\n  .system-roll-toast.failure { color: #171717; background: #d93636; border-color: #ff6666; }\n  @keyframes roll-toast-in { from { opacity: 0; transform: translate(-50%, -12px); } to { opacity: 1; transform: translate(-50%, 0); } }\n</style>\n
