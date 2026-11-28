@@ -1404,7 +1404,15 @@
       return;
     }
     gmNpcTokenCreatingIndex = index;
+    let stage = 'comprobando permisos';
     try {
+      const canCreateCharacter = await OBR.player.hasPermission('CHARACTER_CREATE');
+      if (!canCreateCharacter) {
+        await OBR.notification.show('Owlbear no permite crear personajes en esta sala. Revisa Permisos de jugadores → Personajes → Crear.', 'WARNING');
+        return;
+      }
+
+      stage = 'dibujando el retrato';
       const svg = createNpcTokenSvg(npc);
       const svgBlob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
       const svgUrl = URL.createObjectURL(svgBlob);
@@ -1413,17 +1421,25 @@
         image.src = svgUrl;
         await new Promise<void>((resolve, reject) => {
           image.onload = () => resolve();
-          image.onerror = () => reject(new Error('No se pudo dibujar la ficha del PNJ.'));
+          image.onerror = () => reject(new Error('El navegador no pudo interpretar el SVG.'));
         });
+
+        stage = 'convirtiendo el retrato a PNG';
         const canvas = document.createElement('canvas');
         canvas.width = 512;
         canvas.height = 512;
         const context = canvas.getContext('2d');
-        if (!context) throw new Error('No se pudo preparar la imagen del token.');
+        if (!context) throw new Error('El navegador no pudo crear el lienzo.');
         context.drawImage(image, 0, 0, 512, 512);
         const pngUrl = canvas.toDataURL('image/png');
-        const centerScreen = { x: await OBR.viewport.getWidth() / 2, y: await OBR.viewport.getHeight() / 2 };
-        const center = await OBR.viewport.inverseTransformPoint(centerScreen);
+        if (!pngUrl.startsWith('data:image/png;base64,')) throw new Error('No se pudo codificar el retrato.');
+
+        stage = 'calculando la posición en la escena';
+        const width = await OBR.viewport.getWidth();
+        const height = await OBR.viewport.getHeight();
+        const center = await OBR.viewport.inverseTransformPoint({ x: width / 2, y: height / 2 });
+
+        stage = 'añadiendo el token a Owlbear';
         const token = buildImage(
           { width: 512, height: 512, mime: 'image/png', url: pngUrl },
           { dpi: 512, offset: { x: 256, y: 256 } }
@@ -1439,8 +1455,9 @@
         URL.revokeObjectURL(svgUrl);
       }
     } catch (error) {
-      console.error('No se pudo crear el token del PNJ:', error);
-      await OBR.notification.show('No se pudo crear el token. Revisa que tengas permisos en la escena.', 'ERROR');
+      const detail = error instanceof Error ? error.message : String(error);
+      console.error('No se pudo crear el token del PNJ en la etapa "' + stage + '":', error);
+      await OBR.notification.show('Error al ' + stage + ': ' + detail.slice(0, 150), 'ERROR');
     } finally {
       gmNpcTokenCreatingIndex = null;
     }
