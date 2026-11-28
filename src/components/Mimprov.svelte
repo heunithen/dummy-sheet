@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import OBR, { buildImage } from '@owlbear-rodeo/sdk';
+  import OBR, { buildImage, buildImageUpload } from '@owlbear-rodeo/sdk';
   import { PartyStore, currentPlayerId, isGM } from '../services/OBRHelper';
   import { getNameOptions, getSurnameOptions } from '../data/name-library';
   import { getConceptOptions } from '../data/concept-library';
@@ -1388,13 +1388,48 @@
         ${overflowMarkup}
         <path d="M190 474H322" stroke="#d6b56d" stroke-opacity=".75" stroke-width="2"/>
       </svg>`;
-      // SVG compacto: mantiene el texto integrado en la imagen sin superar
-      // los límites de tamaño que Owlbear aplica a los objetos de escena.
-      const imageUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
-      const token = buildImage(
-        { url: imageUrl, mime: 'image/svg+xml', width: size, height: size },
-        { dpi: size, offset: { x: size / 2, y: size / 2 } }
-      )
+      // Renderizar la tarjeta a PNG y guardarla en los recursos de Owlbear.
+      // Owlbear no acepta de forma fiable data URLs al crear elementos IMAGE.
+      const svgBlob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+      const svgUrl = URL.createObjectURL(svgBlob);
+      let pngBlob: Blob;
+      try {
+        const image = new Image();
+        image.src = svgUrl;
+        await new Promise<void>((resolve, reject) => {
+          image.onload = () => resolve();
+          image.onerror = () => reject(new Error('No se pudo renderizar la tarjeta del PNJ.'));
+        });
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const context = canvas.getContext('2d');
+        if (!context) throw new Error('No se pudo crear el lienzo de la tarjeta.');
+        context.drawImage(image, 0, 0, size, size);
+        pngBlob = await new Promise<Blob>((resolve, reject) => {
+          canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('No se pudo generar el PNG de la tarjeta.')), 'image/png');
+        });
+      } finally {
+        URL.revokeObjectURL(svgUrl);
+      }
+
+      stage = 'guardando la tarjeta en los recursos de Owlbear';
+      const upload = buildImageUpload(pngBlob)
+        .name(npc.name)
+        .dpi(size)
+        .offset({ x: size / 2, y: size / 2 })
+        .description(description)
+        .build();
+      await OBR.assets.uploadImages([upload], 'CHARACTER');
+
+      stage = 'seleccionando la tarjeta recién guardada';
+      const [asset] = await OBR.assets.downloadImages(false, npc.name, 'CHARACTER');
+      if (!asset || asset.name !== npc.name) {
+        await OBR.notification.show('No se seleccionó la tarjeta del PNJ. Vuelve a pulsar el botón y elige la tarjeta recién creada.', 'WARNING');
+        return;
+      }
+
+      const token = buildImage(asset.image, asset.grid)
         .position(center)
         .layer('CHARACTER')
         .name(npc.name)
