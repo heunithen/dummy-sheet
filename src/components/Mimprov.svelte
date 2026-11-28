@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import OBR, { buildShape, buildText } from '@owlbear-rodeo/sdk';
+  import OBR, { buildText } from '@owlbear-rodeo/sdk';
   import { PartyStore, currentPlayerId, isGM } from '../services/OBRHelper';
   import { getNameOptions, getSurnameOptions } from '../data/name-library';
   import { getConceptOptions } from '../data/concept-library';
@@ -1304,39 +1304,10 @@
   }
 
 
-  function getNpcPortraitColors(appearance: string) {
-    const skin = appearance.match(/piel ([^,]+)/i)?.[1]?.toLowerCase() || 'trigueña';
-    const hair = appearance.match(/cabello ([^,;]+)/i)?.[1]?.toLowerCase() || 'castaño';
-    const eyes = appearance.match(/ojos ([^,]+)/i)?.[1]?.toLowerCase() || 'marrones';
-    const skinColors: Record<string, string> = {
-      'muy clara':'#f1d8c4','clara':'#e9c4a5','pálida':'#e8d5c8','olivácea':'#bd986f',
-      'trigueña':'#c58f68','morena':'#986747','oscura':'#704b3c','cobriza':'#bd7958',
-      'dorada':'#d3a36d','rojiza':'#b96f59','verdosa':'#8c9b70','azulada':'#829fb3','grisácea':'#a5a5a0'
-    };
-    const hairColors: Record<string, string> = {
-      'negro':'#24232a','castaño oscuro':'#493126','castaño':'#76503a','rubio':'#d6b66b',
-      'rubio ceniza':'#b8aa91','pelirrojo':'#a94f32','blanco':'#e5e0d4','gris':'#96999c',
-      'plateado':'#c5c9ca','azul':'#527fa5','verde':'#5e8a65','violeta':'#80618f'
-    };
-    const eyeColors: Record<string, string> = {
-      'marrones':'#754b2c','negros':'#29252a','avellana':'#a17a3d','ámbar':'#c18a32',
-      'verdes':'#63865b','azules':'#668eae','grises':'#8d9ba5','violetas':'#9274a8','de distinto color':'#7c8b9b'
-    };
-    return {
-      skin: skinColors[skin] || '#c58f68',
-      hair: hairColors[hair.split(' ')[0] === 'castaño' && hair.startsWith('castaño oscuro') ? 'castaño oscuro' : hair.split(' ')[0]] || hairColors[hair] || '#76503a',
-      eyes: eyeColors[eyes] || '#754b2c',
-      female: /^una\s/i.test(appearance),
-      longHair: /largo|hombros|coleta|trenzado|abundante/i.test(appearance),
-      shortHair: /corto|rapado|escaso/i.test(appearance)
-    };
-  }
-
-
   async function createGmNpcToken(npc: GmNpc, index: number) {
     if (gmNpcTokenCreatingIndex !== null) return;
     if (!OBR.isAvailable || !(await OBR.scene.isReady())) {
-      if (OBR.isAvailable) await OBR.notification.show('Abre una escena para crear el token.', 'WARNING');
+      if (OBR.isAvailable) await OBR.notification.show('Abre una escena para crear el PNJ.', 'WARNING');
       return;
     }
     gmNpcTokenCreatingIndex = index;
@@ -1348,79 +1319,34 @@
         return;
       }
 
-      stage = 'construyendo el retrato vectorial';
-      const colors = getNpcPortraitColors(npc.appearance);
-      const themes: Record<GmNpcGenre, { accent: string; background: string; clothing: string }> = {
-        fantasy: { accent: '#d2b36c', background: '#354538', clothing: '#687b58' },
-        scifi: { accent: '#72d5df', background: '#203f55', clothing: '#397b8c' },
-        horror: { accent: '#bd7b83', background: '#44303e', clothing: '#684754' },
-        modern: { accent: '#c5b49c', background: '#414b55', clothing: '#68727b' },
-        postapocalyptic: { accent: '#d09a5d', background: '#514333', clothing: '#776044' }
-      };
-      const theme = themes[npc.genre] || themes.fantasy;
-      const items: any[] = [];
-      const addShape = (label: string, dx: number, dy: number, width: number, height: number, shapeType: 'RECTANGLE' | 'CIRCLE' | 'TRIANGLE' | 'HEXAGON', fill: string, stroke = '#17191d', strokeWidth = 2) => {
-        items.push(
-          buildShape()
-            .shapeType(shapeType)
-            .width(width)
-            .height(height)
-            .fillColor(fill)
-            .strokeColor(stroke)
-            .strokeWidth(strokeWidth)
-            .position({ x: center.x + dx, y: center.y + dy })
-            .layer('CHARACTER')
-            .name(npc.name + ' — ' + label)
-            .description(npc.appearance)
-            .build()
-        );
-      };
-
-      stage = 'calculando la posición en la escena';
+      stage = 'preparando la descripción del PNJ';
       const viewportWidth = await OBR.viewport.getWidth();
       const viewportHeight = await OBR.viewport.getHeight();
-      const center = await OBR.viewport.inverseTransformPoint({ x: viewportWidth / 2, y: viewportHeight / 2 });
+      const center = await OBR.viewport.inverseTransformPoint({
+        x: viewportWidth / 2,
+        y: viewportHeight / 2
+      });
 
-      stage = 'construyendo el retrato vectorial';
-      // Marco cuadrado y fondo.
-      addShape('fondo', 0, 0, 170, 170, 'RECTANGLE', theme.background, theme.accent, 5);
-      addShape('halo', 0, -24, 112, 112, 'CIRCLE', theme.accent, theme.accent, 0);
-      // Hombros, cuello y cabeza.
-      addShape('cuerpo', 0, 61, 118, 65, 'TRIANGLE', theme.clothing, '#17191d', 3);
-      addShape('cuello', 0, 38, 30, 38, 'RECTANGLE', colors.skin, '#17191d', 2);
-      addShape('cabello', 0, -28, colors.longHair ? 88 : 82, colors.longHair ? 104 : 76, 'CIRCLE', colors.hair, '#17191d', 3);
-      addShape('rostro', 0, -20, 66, 82, 'CIRCLE', colors.skin, '#17191d', 2);
-      // Flequillo y detalles del rostro.
-      if (/flequillo|despeinado|mechones|rizado|trenzado/i.test(npc.appearance)) {
-        addShape('flequillo', 0, -51, 62, 27, 'TRIANGLE', colors.hair, colors.hair, 1);
-      }
-      addShape('ojo izquierdo', -17, -20, 8, 8, 'CIRCLE', colors.eyes, '#292522', 1);
-      addShape('ojo derecho', 17, -20, 8, 8, 'CIRCLE', colors.eyes, '#292522', 1);
-      addShape('nariz', 0, -5, 7, 10, 'TRIANGLE', '#9b6c55', '#805b4a', 1);
-      addShape('boca', 0, 10, 18, 4, 'RECTANGLE', '#754a43', '#754a43', 0);
-      addShape('detalle de vestimenta', 0, 55, 52, 8, 'RECTANGLE', theme.accent, theme.accent, 0);
-      // Placa inferior y nombre legible dentro del token.
-      addShape('placa', 0, 77, 156, 25, 'RECTANGLE', '#17191d', theme.accent, 1);
-      const title = buildText()
-        .plainText(npc.name)
-        .fontFamily('Georgia')
-        .fontSize(npc.name.length > 18 ? 10 : 13)
-        .fontWeight(700)
-        .textAlign('CENTER')
+      const description = npc.appearance.trim();
+      const text = buildText()
+        .plainText(npc.name + '\\n\\n' + description)
+        .fontFamily('Arial')
+        .fontSize(24)
+        .fontWeight(400)
+        .textAlign('LEFT')
         .textAlignVertical('MIDDLE')
-        .width(148)
-        .height(20)
-        .fillColor(theme.accent)
-        .position({ x: center.x, y: center.y + 77 })
+        .width(520)
+        .height(180)
+        .fillColor('#ffffff')
+        .position(center)
         .layer('CHARACTER')
-        .name(npc.name + ' — nombre')
-        .description(npc.appearance)
+        .name(npc.name)
+        .description(description)
         .build();
-      items.push(title);
 
-      stage = 'añadiendo las figuras vectoriales a Owlbear';
-      await OBR.scene.items.addItems(items);
-      await OBR.notification.show('Token vectorial de ' + npc.name + ' añadido a la escena.', 'SUCCESS');
+      stage = 'añadiendo el PNJ a Owlbear';
+      await OBR.scene.items.addItems([text]);
+      await OBR.notification.show('PNJ ' + npc.name + ' añadido a la escena.', 'SUCCESS');
     } catch (error) {
       let detail = 'Error desconocido';
       try {
@@ -1430,7 +1356,7 @@
       } catch {
         detail = String(error);
       }
-      console.error('No se pudo crear el token vectorial del PNJ en la etapa "' + stage + '":', error);
+      console.error('No se pudo crear el PNJ en la etapa "' + stage + '":', error);
       await OBR.notification.show('Error al ' + stage + ': ' + (detail || 'sin detalle').slice(0, 180), 'ERROR');
     } finally {
       gmNpcTokenCreatingIndex = null;
