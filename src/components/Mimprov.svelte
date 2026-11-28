@@ -1339,7 +1339,7 @@
       const wrapText = (value: string, maxChars: number) => {
         const lines: string[] = [];
         let line = '';
-        for (const word of value.split(/\\s+/)) {
+        for (const word of value.split(/\s+/)) {
           const candidate = line ? line + ' ' + word : word;
           if (candidate.length > maxChars && line) {
             lines.push(line);
@@ -1392,7 +1392,7 @@
       // los límites de tamaño que Owlbear aplica a los objetos de escena.
       const imageUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
       const token = buildImage(
-        { url: imageUrl, mime: 'image/png', width: size, height: size },
+        { url: imageUrl, mime: 'image/svg+xml', width: size, height: size },
         { dpi: size, offset: { x: size / 2, y: size / 2 } }
       )
         .position(center)
