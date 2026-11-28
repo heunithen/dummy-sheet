@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import OBR, { buildLabel } from '@owlbear-rodeo/sdk';
+  import OBR, { buildImage } from '@owlbear-rodeo/sdk';
   import { PartyStore, currentPlayerId, isGM } from '../services/OBRHelper';
   import { getNameOptions, getSurnameOptions } from '../data/name-library';
   import { getConceptOptions } from '../data/concept-library';
@@ -1327,34 +1327,42 @@
         y: viewportHeight / 2
       });
       const description = npc.appearance.trim();
-      const content = npc.name + '\n\n' + description;
-      const estimatedLines = content.split('\n').reduce((total, line) => {
-        return total + Math.max(1, Math.ceil(line.length / 68));
-      }, 0);
-      const labelHeight = Math.max(180, estimatedLines * 34 + 48);
-      const text = buildLabel()
-        .plainText(content)
+      const initials = npc.name
+        .split(/\\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part.charAt(0).toLocaleUpperCase())
+        .join('');
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+        <circle cx="128" cy="128" r="119" fill="#20252d" stroke="#d6b56d" stroke-width="10"/>
+        <circle cx="128" cy="128" r="104" fill="none" stroke="#ffffff" stroke-opacity=".22" stroke-width="2"/>
+        <text x="128" y="146" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="76" font-weight="700" fill="#ffffff">${initials}</text>
+      </svg>`;
+      const imageUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+      const token = buildImage(
+        { url: imageUrl, mime: 'image/svg+xml', width: 256, height: 256 },
+        { dpi: 100, offset: { x: 128, y: 128 } }
+      )
+        .plainText(npc.name)
+        .textItemType('LABEL')
         .fontFamily('Arial')
-        .fontSize(24)
+        .fontSize(18)
         .fontWeight(600)
-        .textAlign('LEFT')
-        .textAlignVertical('TOP')
-        .width(900)
-        .height(labelHeight)
-        .padding(20)
-        .fillColor('#ffffff')
-        .fillOpacity(1)
-        .backgroundColor('#17191d')
-        .backgroundOpacity(0.96)
-        .cornerRadius(12)
+        .textAlign('CENTER')
+        .textFillColor('#ffffff')
+        .textFillOpacity(1)
+        .textStrokeColor('#17191d')
+        .textStrokeOpacity(1)
+        .textStrokeWidth(3)
+        .textPadding(4)
         .position(center)
-        .layer('TEXT')
+        .layer('CHARACTER')
         .name(npc.name)
         .description(description)
-        .build();;
+        .build();
 
       stage = 'añadiendo el PNJ a Owlbear';
-      await OBR.scene.items.addItems([text]);
+      await OBR.scene.items.addItems([token]);
       await OBR.notification.show('PNJ ' + npc.name + ' añadido a la escena.', 'SUCCESS');
     } catch (error) {
       let detail = 'Error desconocido';
