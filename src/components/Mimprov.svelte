@@ -1330,14 +1330,14 @@
       skin: skinColors[skin] || '#c58f68',
       hair: hairColors[hair.split(' ')[0] === 'castaño' && hair.startsWith('castaño oscuro') ? 'castaño oscuro' : hair.split(' ')[0]] || hairColors[hair] || '#76503a',
       eyes: eyeColors[eyes] || '#754b2c',
-      female: /^una\\s/i.test(appearance),
+      female: /^una\s/i.test(appearance),
       longHair: /largo|hombros|coleta|trenzado|abundante/i.test(appearance),
       shortHair: /corto|rapado|escaso/i.test(appearance)
     };
   }
 
   function wrapNpcDescription(value: string, maxChars = 54): string[] {
-    const words = value.split(/\\s+/);
+    const words = value.split(/\s+/);
     const lines: string[] = [];
     let line = '';
     for (const word of words) {
