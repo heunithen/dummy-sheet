@@ -82,8 +82,7 @@ function combine(base: string[], endings: string[]) {
 export function getNameOptions(style: string, gender: string): string[] {
   const group = names[style as keyof typeof names] || names.fantasy;
   const base = group[gender as keyof typeof group] || group.unisex;
-  if (style === "fantasy") return combine(base, fantasyEndings);
-  if (style === "futuristic") return combine(base, futuristicEndings);
+  if (style === "fantasy" || style === "futuristic") return [...new Set(base)].sort((a,b) => a.localeCompare(b, "es"));
   return [...new Set(base)].sort((a,b) => a.localeCompare(b, "es"));
 }
 
@@ -115,6 +114,6 @@ export function getSurnameOptions(style: string): string[] {
   if (style === "fantasy") {
     return fantasySurnames;
   }
-  if (style === "futuristic") return futuristicSurnames;
+  if (style === "futuristic") return contemporarySurnames;
   return contemporarySurnames;
 }
