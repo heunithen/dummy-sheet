@@ -1,8 +1,8 @@
 const names = {
   fantasy: {
-    masculine: ["Abel","Adam","Alan","Aldo","Alain","Anselm","Arno","Baldwin","Basil","Benedict","Bruno","Colin","Conrad","David","Diego","Edgar","Edmund","Emil","Eric","Felix","Francis","Geoffrey","Gerald","Giles","Gordon","Hector","Henry","Hugh","Hugo","Ivo","Jasper","Julian","Leon","Louis","Lucas","Marco","Martin","Milo","Nicholas","Nils","Otto","Peter","Philip","Ralph","Raymond","Robin","Roland","Simon","Stephen","Theodore","Thomas","Walter","William","Yves"],
-    feminine: ["Ada","Alice","Alma","Amice","Anna","Anne","Beatrice","Cecily","Clara","Cora","Diana","Edith","Eleanor","Ella","Ellen","Emma","Eva","Giselle","Helen","Ida","Ines","Iris","Isabel","Joan","Julia","Laura","Lena","Lisa","Lucy","Mabel","Margot","Maria","Marta","Matilda","Mildred","Nora","Olive","Petra","Rose","Sara","Sibyl","Vera","Agnes","Audrey","Bridget","Cecilia","Evelyn","Flora","Greta","Helena","Leonie","Louise","Maud","Martha","Ruth"],
-    unisex: ["Ari","Eli","Lou","Noa","Robin","Sasha"]
+    masculine: ["Adam","Aldo","Arno","Baldwin","Basil","Bruno","Colin","Conrad","David","Edgar","Edmund","Emil","Eric","Felix","Francis","Geoffrey","Gerald","Gordon","Hector","Henry","Hugo","Ivo","Jasper","Leon","Lucas","Marco","Martin","Milo","Otto","Peter","Philip","Raymond","Robin","Roland","Simon","Stephen","Thomas","Walter","William"],
+    feminine: ["Ada","Alice","Alma","Amice","Anna","Clara","Cora","Edith","Ella","Ellen","Emma","Eva","Giselle","Helen","Ida","Iris","Laura","Lena","Lisa","Lucy","Mabel","Margot","Mildred","Nora","Olive","Petra","Vera","Agnes","Audrey","Bridget","Flora","Greta","Martha"],
+    unisex: ["Ari","Eli","Lou","Robin","Sasha"]
   },
   contemporary: {
     masculine: [
