@@ -2790,6 +2790,8 @@
   .gm-npc-card p { margin:.45rem 0 0; line-height:1.6; }
   .gm-npc-card p strong { color:#e8c47f; }
   .gm-npc-reroll { width:2.6rem; height:2.6rem; padding:0; font-size:1.2rem; }
+  .gm-npc-token-button { width:100%; margin-top:.7rem; border:1px solid #c19a54; color:#e8c47f; background:#302a20; }
+  .gm-npc-token-button:disabled { opacity:.55; cursor:wait; }
   .gm-npc-notes h3 { margin:0 0 .6rem; }
   .gm-npc-notes textarea { width:100%; min-height:5.5rem; resize:vertical; box-sizing:border-box; }
   .character-tabs { display:flex; flex-wrap:wrap; gap:.4rem; margin:.8rem 0 1rem; border-bottom:1px solid #444; padding-bottom:.6rem; }
