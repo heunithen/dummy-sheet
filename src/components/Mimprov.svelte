@@ -1312,23 +1312,46 @@
     return sharedGmNpcs.some((entry) => entry.index === index);
   }
 
+  let gmNpcShareBusy = false;
+
   async function toggleGmNpcShare(index: number) {
-    if (!$isGM || !OBR.isAvailable) return;
+    if (!$isGM || !OBR.isAvailable || gmNpcShareBusy) return;
     const currentNpc = gmNpcCharacters[index];
     if (!currentNpc) return;
+    gmNpcShareBusy = true;
     try {
+      // Leer siempre el estado persistido más reciente para no perder otros PNJ
+      // cuando se comparten varios seguidos.
       const metadata = await OBR.room.getMetadata();
       const current = Array.isArray(metadata?.[SHARED_GM_NPCS_KEY])
         ? metadata[SHARED_GM_NPCS_KEY] as Array<{ index: number; npc: GmNpc }>
         : [];
-      const next = current.some((entry) => entry.index === index)
+      const alreadyShared = current.some((entry) => entry.index === index);
+      const next = alreadyShared
         ? current.filter((entry) => entry.index !== index)
         : [...current.filter((entry) => entry.index !== index), { index, npc: clone(currentNpc) }];
       await OBR.room.setMetadata({ [SHARED_GM_NPCS_KEY]: next });
-      sharedGmNpcs = next;
+
+      // Confirmar el valor escrito en Owlbear antes de actualizar los botones.
+      const confirmedMetadata = await OBR.room.getMetadata();
+      syncSharedGmNpcs(confirmedMetadata);
+      const confirmed = Array.isArray(confirmedMetadata?.[SHARED_GM_NPCS_KEY])
+        ? confirmedMetadata[SHARED_GM_NPCS_KEY] as Array<{ index: number; npc: GmNpc }>
+        : [];
+      const confirmedState = confirmed.some((entry) => entry.index === index);
+      if (confirmedState !== !alreadyShared) {
+        throw new Error('Owlbear no confirmó el cambio de estado del PNJ.');
+      }
+      await OBR.notification.show(
+        alreadyShared ? 'PNJ eliminado de PNJ importantes.' : 'PNJ compartido con los jugadores.',
+        'SUCCESS'
+      );
     } catch (error) {
       console.error('No se pudo actualizar la lista de PNJ importantes', error);
-      await OBR.notification.show('No se pudo actualizar el PNJ compartido.', 'ERROR');
+      let detail = error instanceof Error ? error.message : String(error);
+      await OBR.notification.show('No se pudo actualizar el PNJ: ' + detail.slice(0, 160), 'ERROR');
+    } finally {
+      gmNpcShareBusy = false;
     }
   }
 
@@ -2317,7 +2340,7 @@
                 <div><small>{GM_NPC_GENRES.find((item) => item.id === selectedGmNpcGenre)?.label} · PNJ {index + 1}</small><h3>{npc.name}</h3></div>
                 <div class="gm-npc-actions">
                 <button class="secondary gm-npc-reroll" aria-label="Generar otro personaje" title="Generar otro personaje de la misma ambientación" on:click={() => rerollGmNpc(index)}>🎲</button>
-                <button class:shared={isGmNpcShared(index)} class="secondary gm-npc-share" aria-pressed={isGmNpcShared(index)} title={isGmNpcShared(index) ? 'Dejar de compartir con los jugadores' : 'Compartir con los jugadores'} on:click={() => toggleGmNpcShare(index)}>{isGmNpcShared(index) ? 'Compartido ✓' : 'Compartir'}</button>
+                <button class:shared={isGmNpcShared(index)} class="secondary gm-npc-share" disabled={gmNpcShareBusy} aria-pressed={isGmNpcShared(index)} title={isGmNpcShared(index) ? 'Dejar de compartir con los jugadores' : 'Compartir con los jugadores'} on:click={() => toggleGmNpcShare(index)}>{gmNpcShareBusy ? 'Guardando…' : isGmNpcShared(index) ? 'Compartido ✓' : 'Compartir'}</button>
               </div>
               </div>
               <p><strong>Apariencia:</strong> {npc.appearance}</p>
