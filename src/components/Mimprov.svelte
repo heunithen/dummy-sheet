@@ -1387,7 +1387,7 @@
 
   function saveGmNpcCharacters() {
     const room = OBR.isAvailable ? OBR.room.id : 'local';
-    localStorage.setItem('mimprov-gm-npcs-v1-' + room, JSON.stringify(gmNpcCharacters));
+    localStorage.setItem('mimprov-gm-npcs-v2-' + room, JSON.stringify(gmNpcCharacters));
     localStorage.setItem('mimprov-gm-npc-genre-v1-' + room, selectedGmNpcGenre);
   }
 
@@ -2301,8 +2301,7 @@
               <div class="gm-npc-heading">
                 <div><small>PNJ importante</small><h3>{entry.npc.name}</h3></div>
               </div>
-              <p><strong>Apariencia:</strong> {entry.npc.appearance}</p>
-              <p><strong>Personalidad:</strong> {entry.npc.personality}</p>
+              <div class="gm-npc-details"><section><h4>Aspecto</h4><p>{entry.npc.appearance}</p></section><section><h4>Carácter</h4><p>{entry.npc.personality}</p></section></div>
             </article>
           {/each}
         </div>
@@ -2343,8 +2342,7 @@
                 <button class:shared={isGmNpcShared(index)} class="secondary gm-npc-share" disabled={gmNpcShareBusy} aria-pressed={isGmNpcShared(index)} title={isGmNpcShared(index) ? 'Dejar de compartir con los jugadores' : 'Compartir con los jugadores'} on:click={() => toggleGmNpcShare(index)}>{gmNpcShareBusy ? 'Guardando…' : isGmNpcShared(index) ? 'Compartido ✓' : 'Compartir'}</button>
               </div>
               </div>
-              <p><strong>Apariencia:</strong> {npc.appearance}</p>
-              <p><strong>Personalidad:</strong> {npc.personality}</p>
+              <div class="gm-npc-details"><section><h4>Aspecto</h4><p>{npc.appearance}</p></section><section><h4>Carácter</h4><p>{npc.personality}</p></section></div>
             </article>
           {/each}
         </div>
@@ -2729,13 +2727,18 @@
   .gm-player-footer .danger-button { margin-left:auto; }
 
   .gm-npc-list { display:grid; gap:.7rem; }
-  .gm-npc-card { padding:.9rem; border:1px solid #484b50; border-radius:7px; background:#222427; }
+  .gm-npc-card { padding:1rem; border:1px solid #484b50; border-radius:9px; background:linear-gradient(145deg,#292b2e,#202225); box-shadow:0 3px 10px #0003; }
   .gm-npc-heading { display:flex; align-items:center; justify-content:space-between; gap:1rem; }
   .gm-npc-actions { display:flex; align-items:center; gap:.4rem; }
   .gm-npc-share { min-height:2.6rem; white-space:nowrap; border-color:#668e70; color:#d8f0dc; }
   .gm-npc-share.shared { background:#24452e; border-color:#70b982; color:#d9ffe2; }
   .gm-npc-heading small { color:#c19a54; letter-spacing:.08em; text-transform:uppercase; font-size:.7rem; font-weight:700; }
-  .gm-npc-heading h3 { margin:.2rem 0 .5rem; }
+  .gm-npc-heading h3 { margin:.2rem 0 .5rem; font-size:1.25rem; color:#f2d9a4; }
+  .gm-npc-details { display:grid; grid-template-columns:1fr 1fr; gap:.75rem; margin-top:.7rem; }
+  .gm-npc-details section { min-width:0; padding:.75rem; border:1px solid #414448; border-radius:7px; background:#1d1f21; }
+  .gm-npc-details h4 { margin:0 0 .35rem; color:#d8b66f; font-size:.82rem; letter-spacing:.04em; text-transform:uppercase; }
+  .gm-npc-details p { margin:0; line-height:1.55; color:#ddd; }
+  @media(max-width:600px) { .gm-npc-details { grid-template-columns:1fr; } }
   .gm-npc-card p { margin:.45rem 0 0; line-height:1.6; }
   .gm-npc-card p strong { color:#e8c47f; }
   .gm-npc-reroll { width:2.6rem; height:2.6rem; padding:0; font-size:1.2rem; }
