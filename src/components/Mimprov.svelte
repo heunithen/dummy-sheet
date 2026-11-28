@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import OBR, { buildImage, buildImageUpload } from '@owlbear-rodeo/sdk';
+  import OBR from '@owlbear-rodeo/sdk';
   import { PartyStore, currentPlayerId, isGM } from '../services/OBRHelper';
   import { getNameOptions, getSurnameOptions } from '../data/name-library';
   import { getConceptOptions } from '../data/concept-library';
@@ -1307,138 +1307,50 @@
   async function createGmNpcToken(npc: GmNpc, index: number) {
     if (gmNpcTokenCreatingIndex !== null) return;
     if (!OBR.isAvailable || !(await OBR.scene.isReady())) {
-      if (OBR.isAvailable) await OBR.notification.show('Abre una escena para crear el PNJ.', 'WARNING');
+      if (OBR.isAvailable) await OBR.notification.show('Abre una escena para asignar el PNJ a una nota.', 'WARNING');
       return;
     }
     gmNpcTokenCreatingIndex = index;
-    let stage = 'comprobando permisos';
+    let stage = 'buscando notas en la escena';
     try {
-      const canCreateCharacter = await OBR.player.hasPermission('CHARACTER_CREATE');
-      if (!canCreateCharacter) {
-        await OBR.notification.show('Owlbear no permite crear personajes en esta sala. Revisa Permisos de jugadores → Personajes → Crear.', 'WARNING');
+      const notes = await OBR.scene.items.getItems(
+        (item) => item.layer === 'NOTE' && 'text' in item
+      );
+      if (!notes.length) {
+        await OBR.notification.show('No hay notas compatibles en la capa Notas de esta escena.', 'WARNING');
         return;
       }
 
-      stage = 'diseñando la tarjeta del PNJ';
-      const viewportWidth = await OBR.viewport.getWidth();
-      const viewportHeight = await OBR.viewport.getHeight();
-      const center = await OBR.viewport.inverseTransformPoint({
-        x: viewportWidth / 2,
-        y: viewportHeight / 2
-      });
+      const noteList = notes.map((note, i) => {
+        const currentText = 'text' in note ? note.text.plainText || '' : '';
+        const preview = currentText.replace(/\\s+/g, ' ').trim().slice(0, 65);
+        return `${i + 1}. ${note.name || 'Nota sin nombre'}${preview ? ' — ' + preview : ''}`;
+      }).join('\\n');
+      const choice = window.prompt(
+        `¿Qué nota quieres sobrescribir con este PNJ?\\n\\n${noteList}\\n\\nEscribe el número de la nota:`
+      );
+      if (choice === null) return;
+      const selectedIndex = Number.parseInt(choice, 10) - 1;
+      if (!Number.isInteger(selectedIndex) || selectedIndex < 0 || selectedIndex >= notes.length) {
+        await OBR.notification.show('Selección de nota no válida. No se modificó ninguna nota.', 'WARNING');
+        return;
+      }
 
-      const size = 512;
-      const escapeXml = (value: string) => value
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&apos;');
-      const safeName = escapeXml(npc.name.trim() || 'Personaje sin nombre');
-      const description = npc.appearance.trim() || 'Sin descripción física.';
-      const wrapText = (value: string, maxChars: number) => {
-        const lines: string[] = [];
-        let line = '';
-        for (const word of value.split(/\s+/)) {
-          const candidate = line ? line + ' ' + word : word;
-          if (candidate.length > maxChars && line) {
-            lines.push(line);
-            line = word;
-          } else {
-            line = candidate;
-          }
+      const selectedNote = notes[selectedIndex];
+      const content = `${npc.name}\\n\\nAPARIENCIA\\n${npc.appearance}`;
+      stage = 'sobrescribiendo la nota seleccionada';
+      await OBR.scene.items.updateItems([selectedNote], (items) => {
+        for (const item of items) {
+          if (!('text' in item)) continue;
+          item.text = {
+            ...item.text,
+            type: 'PLAIN',
+            plainText: content,
+            richText: []
+          };
         }
-        if (line) lines.push(line);
-        return lines;
-      };
-      const descriptionLines = wrapText(description, 39);
-      const visibleLines = descriptionLines.slice(0, 12);
-      const lineMarkup = visibleLines.map((line, i) =>
-        `<text x="256" y="${211 + i * 23}" text-anchor="middle" class="body">${escapeXml(line)}</text>`
-      ).join('');
-      const overflowMarkup = descriptionLines.length > visibleLines.length
-        ? '<text x="256" y="463" text-anchor="middle" class="small">…</text>'
-        : '';
-      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
-        <defs>
-          <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stop-color="#263544"/>
-            <stop offset=".58" stop-color="#151d27"/>
-            <stop offset="1" stop-color="#3b2d20"/>
-          </linearGradient>
-          <pattern id="grain" width="24" height="24" patternUnits="userSpaceOnUse">
-            <path d="M0 24L24 0" stroke="#ffffff" stroke-opacity=".025" stroke-width="1"/>
-          </pattern>
-          <style>
-            .title { font: 700 31px Georgia,serif; fill: #f3dfb7; }
-            .heading { font: 700 16px Arial,sans-serif; letter-spacing: 4px; fill: #c6a66a; }
-            .body { font: 400 17px Arial,sans-serif; fill: #f0eee8; }
-            .small { font: 400 16px Arial,sans-serif; fill: #c6a66a; }
-          </style>
-        </defs>
-        <rect width="512" height="512" rx="8" fill="url(#bg)"/>
-        <rect width="512" height="512" fill="url(#grain)"/>
-        <rect x="15" y="15" width="482" height="482" fill="none" stroke="#c6a66a" stroke-width="5"/>
-        <rect x="27" y="27" width="458" height="458" fill="none" stroke="#e7d3ab" stroke-opacity=".28"/>
-        <path d="M42 62h24M54 50v24M446 62h24M458 50v24M42 450h24M54 438v24M446 450h24M458 438v24" stroke="#d6b56d" stroke-opacity=".45" stroke-width="2"/>
-        <text x="256" y="103" text-anchor="middle" class="title" textLength="410" lengthAdjust="spacingAndGlyphs">${safeName}</text>
-        <path d="M76 143H436" stroke="#c6a66a" stroke-width="2"/>
-        <text x="256" y="177" text-anchor="middle" class="heading">APARIENCIA</text>
-        ${lineMarkup}
-        ${overflowMarkup}
-        <path d="M190 474H322" stroke="#d6b56d" stroke-opacity=".75" stroke-width="2"/>
-      </svg>`;
-      // Renderizar la tarjeta a PNG y guardarla en los recursos de Owlbear.
-      // Owlbear no acepta de forma fiable data URLs al crear elementos IMAGE.
-      const svgBlob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
-      const svgUrl = URL.createObjectURL(svgBlob);
-      let pngBlob: Blob;
-      try {
-        const image = new Image();
-        image.src = svgUrl;
-        await new Promise<void>((resolve, reject) => {
-          image.onload = () => resolve();
-          image.onerror = () => reject(new Error('No se pudo renderizar la tarjeta del PNJ.'));
-        });
-        const canvas = document.createElement('canvas');
-        canvas.width = size;
-        canvas.height = size;
-        const context = canvas.getContext('2d');
-        if (!context) throw new Error('No se pudo crear el lienzo de la tarjeta.');
-        context.drawImage(image, 0, 0, size, size);
-        pngBlob = await new Promise<Blob>((resolve, reject) => {
-          canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('No se pudo generar el PNG de la tarjeta.')), 'image/png');
-        });
-      } finally {
-        URL.revokeObjectURL(svgUrl);
-      }
-
-      stage = 'guardando la tarjeta en los recursos de Owlbear';
-      const upload = buildImageUpload(pngBlob)
-        .name(npc.name)
-        .dpi(size)
-        .offset({ x: size / 2, y: size / 2 })
-        .description(description)
-        .build();
-      await OBR.assets.uploadImages([upload], 'CHARACTER');
-
-      stage = 'seleccionando la tarjeta recién guardada';
-      const [asset] = await OBR.assets.downloadImages(false, npc.name, 'CHARACTER');
-      if (!asset || asset.name !== npc.name) {
-        await OBR.notification.show('No se seleccionó la tarjeta del PNJ. Vuelve a pulsar el botón y elige la tarjeta recién creada.', 'WARNING');
-        return;
-      }
-
-      const token = buildImage(asset.image, asset.grid)
-        .position(center)
-        .layer('CHARACTER')
-        .name(npc.name)
-        .description(description)
-        .build();
-
-      stage = 'añadiendo el token a Owlbear';
-      await OBR.scene.items.addItems([token]);
-      await OBR.notification.show('Tarjeta de PNJ añadida a la escena.', 'SUCCESS');
+      });
+      await OBR.notification.show(`Nota actualizada con ${npc.name}.`, 'SUCCESS');
     } catch (error) {
       let detail = 'Error desconocido';
       try {
@@ -1448,7 +1360,7 @@
       } catch {
         detail = String(error);
       }
-      console.error('No se pudo crear el PNJ en la etapa "' + stage + '":', error);
+      console.error('No se pudo asignar el PNJ a la nota en la etapa "' + stage + '":', error);
       await OBR.notification.show('Error al ' + stage + ': ' + (detail || 'sin detalle').slice(0, 180), 'ERROR');
     } finally {
       gmNpcTokenCreatingIndex = null;
@@ -2405,7 +2317,7 @@
               </div>
               <p><strong>Apariencia:</strong> {npc.appearance}</p>
               <button class="secondary gm-npc-token-button" disabled={gmNpcTokenCreatingIndex !== null || !OBR.isAvailable} on:click={() => createGmNpcToken(npc, index)}>
-                {gmNpcTokenCreatingIndex === index ? 'Creando token…' : 'Crear token'}
+                {gmNpcTokenCreatingIndex === index ? 'Actualizando nota…' : 'Asignar a nota'}
               </button>
               <p><strong>Personalidad:</strong> {npc.personality}</p>
             </article>
