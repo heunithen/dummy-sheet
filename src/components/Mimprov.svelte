@@ -1328,74 +1328,20 @@
       });
 
       const size = 512;
-      const canvas = document.createElement('canvas');
-      canvas.width = size;
-      canvas.height = size;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) throw new Error('No se pudo preparar el lienzo de la tarjeta.');
-
-      // Fondo gráfico: toda la información queda dibujada dentro del PNG.
-      const background = ctx.createLinearGradient(0, 0, size, size);
-      background.addColorStop(0, '#202a35');
-      background.addColorStop(0.55, '#151c25');
-      background.addColorStop(1, '#30271d');
-      ctx.fillStyle = background;
-      ctx.fillRect(0, 0, size, size);
-
-      ctx.strokeStyle = '#c6a66a';
-      ctx.lineWidth = 5;
-      ctx.strokeRect(15, 15, size - 30, size - 30);
-      ctx.strokeStyle = 'rgba(231, 211, 171, .28)';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(27, 27, size - 54, size - 54);
-
-      // Motivo geométrico discreto en las esquinas.
-      ctx.strokeStyle = 'rgba(214, 181, 109, .28)';
-      ctx.lineWidth = 2;
-      for (const x of [42, size - 42]) {
-        for (const y of [42, size - 42]) {
-          ctx.beginPath();
-          ctx.moveTo(x - 12, y);
-          ctx.lineTo(x + 12, y);
-          ctx.moveTo(x, y - 12);
-          ctx.lineTo(x, y + 12);
-          ctx.stroke();
-        }
-      }
-
-      const safeName = npc.name.trim() || 'Personaje sin nombre';
+      const escapeXml = (value: string) => value
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&apos;');
+      const safeName = escapeXml(npc.name.trim() || 'Personaje sin nombre');
       const description = npc.appearance.trim() || 'Sin descripción física.';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillStyle = '#f3dfb7';
-      let nameFontSize = 34;
-      ctx.font = `700 ${nameFontSize}px Georgia, serif`;
-      while (ctx.measureText(safeName).width > 410 && nameFontSize > 22) {
-        nameFontSize -= 2;
-        ctx.font = `700 ${nameFontSize}px Georgia, serif`;
-      }
-      ctx.fillText(safeName, size / 2, 92, 410);
-
-      ctx.fillStyle = '#c6a66a';
-      ctx.fillRect(76, 132, 360, 2);
-      ctx.font = '700 17px Arial, sans-serif';
-      ctx.letterSpacing = '3px';
-      ctx.fillText('APARIENCIA', size / 2, 169);
-      ctx.letterSpacing = '0px';
-
-      const maxWidth = 390;
-      const maxHeight = 250;
-      const words = description.split(/\s+/);
-      let fontSize = 25;
-      let lines: string[] = [];
-      let lineHeight = 0;
-      while (fontSize >= 15) {
-        ctx.font = `400 ${fontSize}px Arial, sans-serif`;
-        lines = [];
+      const wrapText = (value: string, maxChars: number) => {
+        const lines: string[] = [];
         let line = '';
-        for (const word of words) {
+        for (const word of value.split(/\\s+/)) {
           const candidate = line ? line + ' ' + word : word;
-          if (ctx.measureText(candidate).width > maxWidth && line) {
+          if (candidate.length > maxChars && line) {
             lines.push(line);
             line = word;
           } else {
@@ -1403,26 +1349,48 @@
           }
         }
         if (line) lines.push(line);
-        lineHeight = Math.round(fontSize * 1.42);
-        if (lines.length * lineHeight <= maxHeight) break;
-        fontSize -= 1;
-      }
-
-      ctx.font = `400 ${fontSize}px Arial, sans-serif`;
-      ctx.fillStyle = '#f0eee8';
-      ctx.textAlign = 'center';
-      const textHeight = lines.length * lineHeight;
-      let textY = 218 + Math.max(0, (maxHeight - textHeight) / 2) + lineHeight / 2;
-      for (const line of lines) {
-        ctx.fillText(line, size / 2, textY, maxWidth);
-        textY += lineHeight;
-      }
-
-      ctx.fillStyle = 'rgba(214, 181, 109, .75)';
-      ctx.fillRect(190, 466, 132, 2);
-
-      stage = 'convirtiendo la tarjeta en imagen PNG';
-      const imageUrl = canvas.toDataURL('image/png');
+        return lines;
+      };
+      const descriptionLines = wrapText(description, 39);
+      const visibleLines = descriptionLines.slice(0, 12);
+      const lineMarkup = visibleLines.map((line, i) =>
+        `<text x="256" y="${211 + i * 23}" text-anchor="middle" class="body">${escapeXml(line)}</text>`
+      ).join('');
+      const overflowMarkup = descriptionLines.length > visibleLines.length
+        ? '<text x="256" y="463" text-anchor="middle" class="small">…</text>'
+        : '';
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+        <defs>
+          <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#263544"/>
+            <stop offset=".58" stop-color="#151d27"/>
+            <stop offset="1" stop-color="#3b2d20"/>
+          </linearGradient>
+          <pattern id="grain" width="24" height="24" patternUnits="userSpaceOnUse">
+            <path d="M0 24L24 0" stroke="#ffffff" stroke-opacity=".025" stroke-width="1"/>
+          </pattern>
+          <style>
+            .title { font: 700 31px Georgia,serif; fill: #f3dfb7; }
+            .heading { font: 700 16px Arial,sans-serif; letter-spacing: 4px; fill: #c6a66a; }
+            .body { font: 400 17px Arial,sans-serif; fill: #f0eee8; }
+            .small { font: 400 16px Arial,sans-serif; fill: #c6a66a; }
+          </style>
+        </defs>
+        <rect width="512" height="512" rx="8" fill="url(#bg)"/>
+        <rect width="512" height="512" fill="url(#grain)"/>
+        <rect x="15" y="15" width="482" height="482" fill="none" stroke="#c6a66a" stroke-width="5"/>
+        <rect x="27" y="27" width="458" height="458" fill="none" stroke="#e7d3ab" stroke-opacity=".28"/>
+        <path d="M42 62h24M54 50v24M446 62h24M458 50v24M42 450h24M54 438v24M446 450h24M458 438v24" stroke="#d6b56d" stroke-opacity=".45" stroke-width="2"/>
+        <text x="256" y="103" text-anchor="middle" class="title" textLength="410" lengthAdjust="spacingAndGlyphs">${safeName}</text>
+        <path d="M76 143H436" stroke="#c6a66a" stroke-width="2"/>
+        <text x="256" y="177" text-anchor="middle" class="heading">APARIENCIA</text>
+        ${lineMarkup}
+        ${overflowMarkup}
+        <path d="M190 474H322" stroke="#d6b56d" stroke-opacity=".75" stroke-width="2"/>
+      </svg>`;
+      // SVG compacto: mantiene el texto integrado en la imagen sin superar
+      // los límites de tamaño que Owlbear aplica a los objetos de escena.
+      const imageUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
       const token = buildImage(
         { url: imageUrl, mime: 'image/png', width: size, height: size },
         { dpi: size, offset: { x: size / 2, y: size / 2 } }
