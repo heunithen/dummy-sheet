@@ -31,6 +31,7 @@
   const LINES_VEILS_KEY = 'com.heunithen.dummysheet-mimprov/lines-veils';
   const LINES_VEILS_REQUEST_CHANNEL = 'com.heunithen.dummysheet-mimprov/lines-veils-update';
   const PLAYER_NOTES_KEY = 'com.heunithen.dummysheet-mimprov/player-notes';
+  const SHARED_GM_NPCS_KEY = 'com.heunithen.dummysheet-mimprov/shared-important-npcs';
   const STATES = [
     { name: 'Mermado', enfoque: 'Instinto', detail: 'Lesión o limitación física.' },
     { name: 'Debilitado', enfoque: 'Tenacidad', detail: 'Enfermedad, intoxicación o debilidad física.' },
@@ -540,7 +541,7 @@
   let gmNpcCharacters: GmNpc[] = [];
   let selectedGmNpcGenre: GmNpcGenre = 'fantasy';
   let gmNpcNotes = '';
-  let gmNpcTokenCreatingIndex: number | null = null;
+  let sharedGmNpcs: Array<{ index: number; npc: GmNpc }> = [];
   let selectedGenre = 'fantasy';
   let sessionStarted = false;
   let linesVeils: { lines: string; veils: string } = { lines: '', veils: '' };
@@ -1032,6 +1033,9 @@
           loadRollHistory();
           const savedNotes = localStorage.getItem(playerNotesStorageKey);
           if (savedNotes !== null) playerNotes = savedNotes;
+          const syncSharedNpcs = (metadata: any) => syncSharedGmNpcs(metadata);
+          syncSharedNpcs(await OBR.room.getMetadata());
+          OBR.room.onMetadataChange(syncSharedNpcs);
           const syncLinesVeils = (metadata: any) => {
             const shared = metadata?.[LINES_VEILS_KEY] || { lines: '', veils: '' };
             linesVeils = { lines: String(shared.lines || ''), veils: String(shared.veils || '') };
@@ -1304,67 +1308,35 @@
   }
 
 
-  async function createGmNpcToken(npc: GmNpc, index: number) {
-    if (gmNpcTokenCreatingIndex !== null) return;
-    if (!OBR.isAvailable || !(await OBR.scene.isReady())) {
-      if (OBR.isAvailable) await OBR.notification.show('Abre una escena para asignar el PNJ a una nota.', 'WARNING');
-      return;
-    }
-    gmNpcTokenCreatingIndex = index;
-    let stage = 'buscando notas en la escena';
+  function isGmNpcShared(index: number) {
+    return sharedGmNpcs.some((entry) => entry.index === index);
+  }
+
+  async function toggleGmNpcShare(index: number) {
+    if (!$isGM || !OBR.isAvailable) return;
+    const currentNpc = gmNpcCharacters[index];
+    if (!currentNpc) return;
     try {
-      const notes = await OBR.scene.items.getItems(
-        (item) => item.layer === 'NOTE' && 'text' in item
-      );
-      if (!notes.length) {
-        await OBR.notification.show('No hay notas compatibles en la capa Notas de esta escena.', 'WARNING');
-        return;
-      }
-
-      const noteList = notes.map((note, i) => {
-        const currentText = 'text' in note ? note.text.plainText || '' : '';
-        const preview = currentText.replace(/\\s+/g, ' ').trim().slice(0, 65);
-        return `${i + 1}. ${note.name || 'Nota sin nombre'}${preview ? ' — ' + preview : ''}`;
-      }).join('\\n');
-      const choice = window.prompt(
-        `¿Qué nota quieres sobrescribir con este PNJ?\\n\\n${noteList}\\n\\nEscribe el número de la nota:`
-      );
-      if (choice === null) return;
-      const selectedIndex = Number.parseInt(choice, 10) - 1;
-      if (!Number.isInteger(selectedIndex) || selectedIndex < 0 || selectedIndex >= notes.length) {
-        await OBR.notification.show('Selección de nota no válida. No se modificó ninguna nota.', 'WARNING');
-        return;
-      }
-
-      const selectedNote = notes[selectedIndex];
-      const content = `${npc.name}\\n\\nAPARIENCIA\\n${npc.appearance}`;
-      stage = 'sobrescribiendo la nota seleccionada';
-      await OBR.scene.items.updateItems([selectedNote], (items) => {
-        for (const item of items) {
-          if (!('text' in item)) continue;
-          item.text = {
-            ...item.text,
-            type: 'PLAIN',
-            plainText: content,
-            richText: []
-          };
-        }
-      });
-      await OBR.notification.show(`Nota actualizada con ${npc.name}.`, 'SUCCESS');
+      const metadata = await OBR.room.getMetadata();
+      const current = Array.isArray(metadata?.[SHARED_GM_NPCS_KEY])
+        ? metadata[SHARED_GM_NPCS_KEY] as Array<{ index: number; npc: GmNpc }>
+        : [];
+      const next = current.some((entry) => entry.index === index)
+        ? current.filter((entry) => entry.index !== index)
+        : [...current.filter((entry) => entry.index !== index), { index, npc: clone(currentNpc) }];
+      await OBR.room.setMetadata({ [SHARED_GM_NPCS_KEY]: next });
+      sharedGmNpcs = next;
     } catch (error) {
-      let detail = 'Error desconocido';
-      try {
-        detail = error instanceof Error
-          ? error.name + ': ' + error.message
-          : typeof error === 'string' ? error : JSON.stringify(error);
-      } catch {
-        detail = String(error);
-      }
-      console.error('No se pudo asignar el PNJ a la nota en la etapa "' + stage + '":', error);
-      await OBR.notification.show('Error al ' + stage + ': ' + (detail || 'sin detalle').slice(0, 180), 'ERROR');
-    } finally {
-      gmNpcTokenCreatingIndex = null;
+      console.error('No se pudo actualizar la lista de PNJ importantes', error);
+      await OBR.notification.show('No se pudo actualizar el PNJ compartido.', 'ERROR');
     }
+  }
+
+  function syncSharedGmNpcs(metadata: any) {
+    const shared = metadata?.[SHARED_GM_NPCS_KEY];
+    sharedGmNpcs = Array.isArray(shared)
+      ? shared.filter((entry: any) => Number.isInteger(entry?.index) && entry.index >= 0 && entry.index < 5 && entry.npc?.name && entry.npc?.appearance && entry.npc?.personality)
+      : [];
   }
 
   function updateLinesVeils(field: 'lines' | 'veils', value: string) {
@@ -1422,9 +1394,18 @@
     saveGmNpcCharacters();
   }
 
-  function rerollGmNpc(index: number) {
+  async function rerollGmNpc(index: number) {
     gmNpcCharacters = gmNpcCharacters.map((npc, i) => i === index ? createGmNpc(selectedGmNpcGenre) : npc);
     saveGmNpcCharacters();
+    if (OBR.isAvailable && isGmNpcShared(index)) {
+      try {
+        const metadata = await OBR.room.getMetadata();
+        const current = Array.isArray(metadata?.[SHARED_GM_NPCS_KEY]) ? metadata[SHARED_GM_NPCS_KEY] : [];
+        const next = current.map((entry: any) => entry.index === index ? { index, npc: clone(gmNpcCharacters[index]) } : entry);
+        await OBR.room.setMetadata({ [SHARED_GM_NPCS_KEY]: next });
+        sharedGmNpcs = next;
+      } catch (error) { console.error('No se pudo actualizar el PNJ importante', error); }
+    }
   }
 
   function loadGmTracker() {
@@ -1823,6 +1804,7 @@
       <button class:active={activeTab === 'reglamento'} on:click={() => { activeTab = 'reglamento'; }}>Reglamento</button>
       <button class:active={activeTab === 'lineas-velos'} on:click={() => { activeTab = 'lineas-velos'; }}>Líneas y velos</button>
       <button class:active={activeTab === 'notas'} on:click={() => { activeTab = 'notas'; }}>Notas</button>
+      <button class:active={activeTab === 'pnj-importantes'} on:click={() => { activeTab = 'pnj-importantes'; }}>PNJ importantes</button>
     </nav>
   {:else if $isGM}
     <nav class="main-tabs">
@@ -2285,6 +2267,26 @@
       {/if}
       <section class="card"><h2>Resolver la magia</h2><p>Todos los conjuros requieren una tirada normal. Si la tirada tiene éxito, los éxitos adicionales amplían el efecto descrito; no se convierten en resultados de 6, no reducen Resistencia ni generan críticos.</p><p>Primero se resuelve la tirada y después se descuenta el coste de Voluntad. Debes tener Voluntad suficiente al comenzar el lanzamiento. Si fracasa, se aplica también la pérdida de Voluntad correspondiente al fracaso.</p><p>La resistencia a los efectos de control mental se resuelve narrativamente según el resultado de la tirada y la situación, sin tirada opuesta independiente. Los conjuros no requieren concentración y puedes mantener varios simultáneamente.</p></section>
     </main>
+  {:else if !$isGM && activeTab === 'pnj-importantes'}
+    <main class="content player-important-npcs">
+      <div class="eyebrow">PERSONAJES DE LA PARTIDA</div>
+      <h1>PNJ importantes</h1>
+      {#if sharedGmNpcs.length}
+        <div class="gm-npc-list">
+          {#each sharedGmNpcs as entry (entry.index)}
+            <article class="gm-npc-card">
+              <div class="gm-npc-heading">
+                <div><small>PNJ importante</small><h3>{entry.npc.name}</h3></div>
+              </div>
+              <p><strong>Apariencia:</strong> {entry.npc.appearance}</p>
+              <p><strong>Personalidad:</strong> {entry.npc.personality}</p>
+            </article>
+          {/each}
+        </div>
+      {:else}
+        <section class="card"><p class="muted">El narrador todavía no ha compartido ningún PNJ importante.</p></section>
+      {/if}
+    </main>
   {:else if !$isGM && activeTab === 'notas'}
     <main class="content notes-content">
       <div class="eyebrow">CUADERNO DE PARTIDA</div>
@@ -2313,12 +2315,12 @@
             <article class="gm-npc-card">
               <div class="gm-npc-heading">
                 <div><small>{GM_NPC_GENRES.find((item) => item.id === selectedGmNpcGenre)?.label} · PNJ {index + 1}</small><h3>{npc.name}</h3></div>
+                <div class="gm-npc-actions">
                 <button class="secondary gm-npc-reroll" aria-label="Generar otro personaje" title="Generar otro personaje de la misma ambientación" on:click={() => rerollGmNpc(index)}>🎲</button>
+                <button class:shared={isGmNpcShared(index)} class="secondary gm-npc-share" aria-pressed={isGmNpcShared(index)} title={isGmNpcShared(index) ? 'Dejar de compartir con los jugadores' : 'Compartir con los jugadores'} on:click={() => toggleGmNpcShare(index)}>{isGmNpcShared(index) ? 'Compartido ✓' : 'Compartir'}</button>
+              </div>
               </div>
               <p><strong>Apariencia:</strong> {npc.appearance}</p>
-              <button class="secondary gm-npc-token-button" disabled={gmNpcTokenCreatingIndex !== null || !OBR.isAvailable} on:click={() => createGmNpcToken(npc, index)}>
-                {gmNpcTokenCreatingIndex === index ? 'Actualizando nota…' : 'Asignar a nota'}
-              </button>
               <p><strong>Personalidad:</strong> {npc.personality}</p>
             </article>
           {/each}
@@ -2706,6 +2708,9 @@
   .gm-npc-list { display:grid; gap:.7rem; }
   .gm-npc-card { padding:.9rem; border:1px solid #484b50; border-radius:7px; background:#222427; }
   .gm-npc-heading { display:flex; align-items:center; justify-content:space-between; gap:1rem; }
+  .gm-npc-actions { display:flex; align-items:center; gap:.4rem; }
+  .gm-npc-share { min-height:2.6rem; white-space:nowrap; border-color:#668e70; color:#d8f0dc; }
+  .gm-npc-share.shared { background:#24452e; border-color:#70b982; color:#d9ffe2; }
   .gm-npc-heading small { color:#c19a54; letter-spacing:.08em; text-transform:uppercase; font-size:.7rem; font-weight:700; }
   .gm-npc-heading h3 { margin:.2rem 0 .5rem; }
   .gm-npc-card p { margin:.45rem 0 0; line-height:1.6; }
