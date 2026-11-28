@@ -1,8 +1,8 @@
 const names = {
   fantasy: {
-    masculine: ["Aldo","Arno","Berto","Bruno","Dario","Darek","Darío","Daren","Dilan","Edan","Einar","Elio","Enzo","Fabio","Gael","Galo","Hugo","Ilan","Ivo","Laro","Leo","Lino","Luca","Marek","Milo","Nilo","Nuno","Omar","Orin","Pablo","Rami","Reno","Rian","Ronan","Silan","Taro","Teo","Timo","Toran","Ulmo","Varen"],
-    feminine: ["Ada","Aila","Alba","Alma","Alya","Amia","Ania","Aria","Ayla","Bela","Bruna","Cala","Celia","Cira","Cora","Dalia","Dara","Dina","Dora","Eira","Elia","Elsa","Emma","Enya","Erin","Fara","Fina","Freya","Gala","Gina","Iara","Inés","Iria","Iris","Lara","Lena","Lila","Lina","Lira","Lola","Lua","Mara","Mila","Mina","Mira","Nara","Nela","Nina","Nora","Rina","Runa","Sara","Sira","Tara","Vera","Vida","Yara"],
-    unisex: ["Ari","Dani","Eli","Gael","Ira","Kai","Lior","Luca","Mika","Neri","Noa","Ori","Rai","Ren","Sami","Tari"]
+    masculine: ["Aldo","Arno","Berto","Bruno","Darek","Daren","Dilan","Edan","Einar","Enzo","Galo","Hugo","Ilan","Ivo","Laro","Leo","Lino","Luca","Marek","Milo","Nilo","Nuno","Omar","Orin","Pablo","Rami","Reno","Rian","Ronan","Silan","Taro","Teo","Timo","Toran","Ulmo","Varen"],
+    feminine: ["Ada","Aila","Alba","Alma","Alya","Ania","Ayla","Bela","Bruna","Cala","Celia","Cira","Cora","Dara","Dina","Dora","Eira","Elsa","Emma","Enya","Erin","Fara","Fina","Freya","Gala","Gina","Inés","Iris","Lara","Lena","Lila","Lina","Lira","Lola","Lua","Mara","Mila","Mina","Mira","Nara","Nela","Nina","Nora","Rina","Runa","Sara","Sira","Tara","Vera","Vida","Yara"],
+    unisex: ["Ari","Dani","Eli","Ira","Kai","Lior","Luca","Mika","Neri","Noa","Ori","Rai","Ren","Sami","Tari"]
   },
   contemporary: {
     masculine: [
@@ -64,8 +64,8 @@ const names = {
   },
   futuristic: {
     masculine: ["Ari","Axel","Ciro","Dax","Daren","Dilan","Eron","Ilan","Ivo","Kian","Kiro","Lian","Milo","Nico","Nilo","Noel","Rian","Riko","Soren","Taro","Timo","Vico","Zeno"],
-    feminine: ["Aira","Alya","Ayla","Cira","Dara","Eira","Elia","Enya","Iria","Kaia","Kira","Lara","Lena","Lira","Mara","Mira","Nara","Nexa","Nira","Nova","Rhea","Sira","Tala","Vega","Yuna","Zara"],
-    unisex: ["Ari","Axo","Eli","Ira","Kai","Lian","Mika","Neri","Noa","Ori","Rai","Ren","Sami","Tari","Zai"]
+    feminine: ["Aira","Alya","Ayla","Cira","Dara","Eira","Enya","Kaia","Kira","Lara","Lena","Lira","Mara","Mira","Nara","Nira","Nova","Rhea","Sira","Tala","Vega","Yuna","Zara"],
+    unisex: ["Ari","Eli","Ira","Kai","Lian","Mika","Neri","Noa","Ori","Rai","Ren","Sami","Tari","Zai"]
   }
 };
 const fantasyEndings = ["ar","en","ion","or","iel","ius","ael","eth","wyn","andir","aris","eon","ith","amir","orin","ayne","eron","ovar","riel","azar","eira","ara","elle","ia","issa","oria","yra","wynne","ithiel","aeris"];
