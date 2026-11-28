@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import OBR, { buildText } from '@owlbear-rodeo/sdk';
+  import OBR, { buildLabel } from '@owlbear-rodeo/sdk';
   import { PartyStore, currentPlayerId, isGM } from '../services/OBRHelper';
   import { getNameOptions, getSurnameOptions } from '../data/name-library';
   import { getConceptOptions } from '../data/concept-library';
@@ -1326,29 +1326,32 @@
         x: viewportWidth / 2,
         y: viewportHeight / 2
       });
-
       const description = npc.appearance.trim();
-      const text = buildText()
-        .plainText(npc.name + '\n\n' + description)
-        .textType('PLAIN')
+      const content = npc.name + '\n\n' + description;
+      const estimatedLines = content.split('\n').reduce((total, line) => {
+        return total + Math.max(1, Math.ceil(line.length / 68));
+      }, 0);
+      const labelHeight = Math.max(180, estimatedLines * 34 + 48);
+      const text = buildLabel()
+        .plainText(content)
         .fontFamily('Arial')
-        .fontSize(32)
+        .fontSize(24)
         .fontWeight(600)
         .textAlign('LEFT')
         .textAlignVertical('TOP')
-        .width(640)
-        .height(240)
-        .padding(12)
+        .width(900)
+        .height(labelHeight)
+        .padding(20)
         .fillColor('#ffffff')
         .fillOpacity(1)
-        .strokeColor('#17191d')
-        .strokeOpacity(1)
-        .strokeWidth(1)
+        .backgroundColor('#17191d')
+        .backgroundOpacity(0.96)
+        .cornerRadius(12)
         .position(center)
         .layer('TEXT')
         .name(npc.name)
         .description(description)
-        .build();
+        .build();;
 
       stage = 'añadiendo el PNJ a Owlbear';
       await OBR.scene.items.addItems([text]);
