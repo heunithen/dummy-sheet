@@ -1341,7 +1341,7 @@
       const imageUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
       const token = buildImage(
         { url: imageUrl, mime: 'image/svg+xml', width: 256, height: 256 },
-        { dpi: 100, offset: { x: 128, y: 128 } }
+        { dpi: 256, offset: { x: 128, y: 128 } }
       )
         .plainText(npc.name)
         .textItemType('LABEL')
