@@ -1319,51 +1319,123 @@
         return;
       }
 
-      stage = 'preparando la descripción del PNJ';
+      stage = 'diseñando la tarjeta del PNJ';
       const viewportWidth = await OBR.viewport.getWidth();
       const viewportHeight = await OBR.viewport.getHeight();
       const center = await OBR.viewport.inverseTransformPoint({
         x: viewportWidth / 2,
         y: viewportHeight / 2
       });
-      const description = npc.appearance.trim();
-      const initials = npc.name
-        .split(/\\s+/)
-        .filter(Boolean)
-        .slice(0, 2)
-        .map((part) => part.charAt(0).toLocaleUpperCase())
-        .join('');
-      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
-        <circle cx="128" cy="128" r="119" fill="#20252d" stroke="#d6b56d" stroke-width="10"/>
-        <circle cx="128" cy="128" r="104" fill="none" stroke="#ffffff" stroke-opacity=".22" stroke-width="2"/>
-        <text x="128" y="146" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="76" font-weight="700" fill="#ffffff">${initials}</text>
-      </svg>`;
-      const imageUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+
+      const size = 512;
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('No se pudo preparar el lienzo de la tarjeta.');
+
+      // Fondo gráfico: toda la información queda dibujada dentro del PNG.
+      const background = ctx.createLinearGradient(0, 0, size, size);
+      background.addColorStop(0, '#202a35');
+      background.addColorStop(0.55, '#151c25');
+      background.addColorStop(1, '#30271d');
+      ctx.fillStyle = background;
+      ctx.fillRect(0, 0, size, size);
+
+      ctx.strokeStyle = '#c6a66a';
+      ctx.lineWidth = 5;
+      ctx.strokeRect(15, 15, size - 30, size - 30);
+      ctx.strokeStyle = 'rgba(231, 211, 171, .28)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(27, 27, size - 54, size - 54);
+
+      // Motivo geométrico discreto en las esquinas.
+      ctx.strokeStyle = 'rgba(214, 181, 109, .28)';
+      ctx.lineWidth = 2;
+      for (const x of [42, size - 42]) {
+        for (const y of [42, size - 42]) {
+          ctx.beginPath();
+          ctx.moveTo(x - 12, y);
+          ctx.lineTo(x + 12, y);
+          ctx.moveTo(x, y - 12);
+          ctx.lineTo(x, y + 12);
+          ctx.stroke();
+        }
+      }
+
+      const safeName = npc.name.trim() || 'Personaje sin nombre';
+      const description = npc.appearance.trim() || 'Sin descripción física.';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#f3dfb7';
+      let nameFontSize = 34;
+      ctx.font = `700 ${nameFontSize}px Georgia, serif`;
+      while (ctx.measureText(safeName).width > 410 && nameFontSize > 22) {
+        nameFontSize -= 2;
+        ctx.font = `700 ${nameFontSize}px Georgia, serif`;
+      }
+      ctx.fillText(safeName, size / 2, 92, 410);
+
+      ctx.fillStyle = '#c6a66a';
+      ctx.fillRect(76, 132, 360, 2);
+      ctx.font = '700 17px Arial, sans-serif';
+      ctx.letterSpacing = '3px';
+      ctx.fillText('APARIENCIA', size / 2, 169);
+      ctx.letterSpacing = '0px';
+
+      const maxWidth = 390;
+      const maxHeight = 250;
+      const words = description.split(/\s+/);
+      let fontSize = 25;
+      let lines: string[] = [];
+      let lineHeight = 0;
+      while (fontSize >= 15) {
+        ctx.font = `400 ${fontSize}px Arial, sans-serif`;
+        lines = [];
+        let line = '';
+        for (const word of words) {
+          const candidate = line ? line + ' ' + word : word;
+          if (ctx.measureText(candidate).width > maxWidth && line) {
+            lines.push(line);
+            line = word;
+          } else {
+            line = candidate;
+          }
+        }
+        if (line) lines.push(line);
+        lineHeight = Math.round(fontSize * 1.42);
+        if (lines.length * lineHeight <= maxHeight) break;
+        fontSize -= 1;
+      }
+
+      ctx.font = `400 ${fontSize}px Arial, sans-serif`;
+      ctx.fillStyle = '#f0eee8';
+      ctx.textAlign = 'center';
+      const textHeight = lines.length * lineHeight;
+      let textY = 218 + Math.max(0, (maxHeight - textHeight) / 2) + lineHeight / 2;
+      for (const line of lines) {
+        ctx.fillText(line, size / 2, textY, maxWidth);
+        textY += lineHeight;
+      }
+
+      ctx.fillStyle = 'rgba(214, 181, 109, .75)';
+      ctx.fillRect(190, 466, 132, 2);
+
+      stage = 'convirtiendo la tarjeta en imagen PNG';
+      const imageUrl = canvas.toDataURL('image/png');
       const token = buildImage(
-        { url: imageUrl, mime: 'image/svg+xml', width: 256, height: 256 },
-        { dpi: 256, offset: { x: 128, y: 128 } }
+        { url: imageUrl, mime: 'image/png', width: size, height: size },
+        { dpi: size, offset: { x: size / 2, y: size / 2 } }
       )
-        .plainText(npc.name)
-        .textItemType('LABEL')
-        .fontFamily('Arial')
-        .fontSize(18)
-        .fontWeight(600)
-        .textAlign('CENTER')
-        .textFillColor('#ffffff')
-        .textFillOpacity(1)
-        .textStrokeColor('#17191d')
-        .textStrokeOpacity(1)
-        .textStrokeWidth(3)
-        .textPadding(4)
         .position(center)
         .layer('CHARACTER')
         .name(npc.name)
         .description(description)
         .build();
 
-      stage = 'añadiendo el PNJ a Owlbear';
+      stage = 'añadiendo el token a Owlbear';
       await OBR.scene.items.addItems([token]);
-      await OBR.notification.show('PNJ ' + npc.name + ' añadido a la escena.', 'SUCCESS');
+      await OBR.notification.show('Tarjeta de PNJ añadida a la escena.', 'SUCCESS');
     } catch (error) {
       let detail = 'Error desconocido';
       try {
