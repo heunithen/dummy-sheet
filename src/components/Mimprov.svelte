@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import OBR, { buildImage } from '@owlbear-rodeo/sdk';
+  import OBR, { buildShape, buildText } from '@owlbear-rodeo/sdk';
   import { PartyStore, currentPlayerId, isGM } from '../services/OBRHelper';
   import { getNameOptions, getSurnameOptions } from '../data/name-library';
   import { getConceptOptions } from '../data/concept-library';
@@ -1304,10 +1304,6 @@
   }
 
 
-  function escapeSvgText(value: string): string {
-    return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
-  }
-
   function getNpcPortraitColors(appearance: string) {
     const skin = appearance.match(/piel ([^,]+)/i)?.[1]?.toLowerCase() || 'trigueña';
     const hair = appearance.match(/cabello ([^,;]+)/i)?.[1]?.toLowerCase() || 'castaño';
@@ -1336,66 +1332,6 @@
     };
   }
 
-  function wrapNpcDescription(value: string, maxChars = 54): string[] {
-    const words = value.split(/\s+/);
-    const lines: string[] = [];
-    let line = '';
-    for (const word of words) {
-      const next = line ? line + ' ' + word : word;
-      if (next.length > maxChars && line) {
-        lines.push(line);
-        line = word;
-      } else line = next;
-    }
-    if (line) lines.push(line);
-    return lines.slice(0, 5);
-  }
-
-  function createNpcTokenSvg(npc: GmNpc): string {
-    const colors = getNpcPortraitColors(npc.appearance);
-    const genreColors: Record<GmNpcGenre, { accent: string; glow: string }> = {
-      fantasy: { accent: '#c5a15d', glow: '#52634e' },
-      scifi: { accent: '#72cbd0', glow: '#315d75' },
-      horror: { accent: '#a86d75', glow: '#573d4b' },
-      modern: { accent: '#b4a18a', glow: '#58616a' },
-      postapocalyptic: { accent: '#c28a4e', glow: '#62513b' }
-    };
-    const theme = genreColors[npc.genre] || genreColors.fantasy;
-    const descLines = wrapNpcDescription(npc.appearance);
-    const descriptionSvg = descLines.map((line, i) =>
-      '<text x="256" y="' + (426 + i * 17) + '" text-anchor="middle" fill="#e5dfd2" font-size="13" font-family="Georgia,serif">' + escapeSvgText(line) + '</text>'
-    ).join('');
-    const hairShape = colors.longHair
-      ? '<path d="M145 190 Q132 86 256 75 Q380 86 367 190 L354 308 Q330 335 314 282 L198 282 Q180 335 158 308 Z" fill="' + colors.hair + '" stroke="#17191d" stroke-width="8"/>'
-      : '<path d="M145 190 Q132 86 256 75 Q380 86 367 190 L345 211 Q333 125 256 124 Q179 125 167 211 Z" fill="' + colors.hair + '" stroke="#17191d" stroke-width="8"/>';
-    const hairFringe = /flequillo|despeinado|mechones|rizado|trenzado/i.test(npc.appearance)
-      ? '<path d="M170 155 Q205 105 245 135 Q268 95 305 140 Q330 119 346 164 Q312 150 292 169 Q264 145 244 169 Q211 145 190 174 Z" fill="' + colors.hair + '"/>'
-      : '';
-    const faceShape = colors.female
-      ? 'M177 164 Q177 116 256 116 Q335 116 335 164 L326 250 Q311 302 256 312 Q201 302 186 250 Z'
-      : 'M174 163 Q174 116 256 116 Q338 116 338 163 L326 253 Q309 303 256 307 Q203 303 186 253 Z';
-    const nameSize = npc.name.length > 22 ? 23 : npc.name.length > 16 ? 27 : 31;
-    return '<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">' +
-      '<defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#25282c"/><stop offset="1" stop-color="' + theme.glow + '"/></linearGradient><radialGradient id="halo"><stop stop-color="' + theme.accent + '" stop-opacity=".45"/><stop offset="1" stop-color="' + theme.accent + '" stop-opacity="0"/></radialGradient></defs>' +
-      '<rect width="512" height="512" rx="24" fill="url(#bg)"/><circle cx="256" cy="190" r="175" fill="url(#halo)"/>' +
-      '<rect x="12" y="12" width="488" height="488" rx="18" fill="none" stroke="' + theme.accent + '" stroke-width="5"/>' +
-      '<path d="M90 375 Q102 300 183 290 L329 290 Q410 300 422 375 L422 390 L90 390 Z" fill="#30343a" stroke="#17191d" stroke-width="9"/>' +
-      '<path d="M220 276 L220 323 Q256 351 292 323 L292 276" fill="' + colors.skin + '" stroke="#17191d" stroke-width="7"/>' +
-      hairShape +
-      '<path d="' + faceShape + '" fill="' + colors.skin + '" stroke="#17191d" stroke-width="8"/>' +
-      hairFringe +
-      '<path d="M202 203 Q220 193 237 203 M275 203 Q292 193 310 203" fill="none" stroke="#44332d" stroke-width="7" stroke-linecap="round"/>' +
-      '<ellipse cx="220" cy="220" rx="8" ry="6" fill="' + colors.eyes + '"/><ellipse cx="292" cy="220" rx="8" ry="6" fill="' + colors.eyes + '"/>' +
-      '<path d="M255 224 L245 252 Q256 260 267 252" fill="none" stroke="#805b4a" stroke-width="5" stroke-linecap="round"/>' +
-      '<path d="M226 273 Q256 289 286 273" fill="none" stroke="#754a43" stroke-width="6" stroke-linecap="round"/>' +
-      '<path d="M185 316 L256 360 L327 316 L355 390 L157 390 Z" fill="' + theme.glow + '" stroke="#17191d" stroke-width="8"/>' +
-      '<path d="M222 320 L256 359 L290 320" fill="none" stroke="' + theme.accent + '" stroke-width="5"/>' +
-      '<path d="M28 395 H484" stroke="' + theme.accent + '" stroke-width="2" opacity=".8"/>' +
-      '<rect x="20" y="400" width="472" height="92" rx="10" fill="#17191d" opacity=".94"/>' +
-      '<text x="256" y="423" text-anchor="middle" fill="' + theme.accent + '" font-size="' + nameSize + '" font-family="Georgia,serif" font-weight="bold">' + escapeSvgText(npc.name) + '</text>' +
-      descriptionSvg +
-      '</svg>';
-  }
 
   async function createGmNpcToken(npc: GmNpc, index: number) {
     if (gmNpcTokenCreatingIndex !== null) return;
@@ -1412,52 +1348,90 @@
         return;
       }
 
-      stage = 'dibujando el retrato';
-      const svg = createNpcTokenSvg(npc);
-      const svgBlob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
-      const svgUrl = URL.createObjectURL(svgBlob);
-      try {
-        const image = new Image();
-        image.src = svgUrl;
-        await new Promise<void>((resolve, reject) => {
-          image.onload = () => resolve();
-          image.onerror = () => reject(new Error('El navegador no pudo interpretar el SVG.'));
-        });
+      stage = 'construyendo el retrato vectorial';
+      const colors = getNpcPortraitColors(npc.appearance);
+      const themes: Record<GmNpcGenre, { accent: string; background: string; clothing: string }> = {
+        fantasy: { accent: '#d2b36c', background: '#354538', clothing: '#687b58' },
+        scifi: { accent: '#72d5df', background: '#203f55', clothing: '#397b8c' },
+        horror: { accent: '#bd7b83', background: '#44303e', clothing: '#684754' },
+        modern: { accent: '#c5b49c', background: '#414b55', clothing: '#68727b' },
+        postapocalyptic: { accent: '#d09a5d', background: '#514333', clothing: '#776044' }
+      };
+      const theme = themes[npc.genre] || themes.fantasy;
+      const items: any[] = [];
+      const addShape = (label: string, dx: number, dy: number, width: number, height: number, shapeType: 'RECTANGLE' | 'CIRCLE' | 'TRIANGLE' | 'HEXAGON', fill: string, stroke = '#17191d', strokeWidth = 2) => {
+        items.push(
+          buildShape()
+            .shapeType(shapeType)
+            .width(width)
+            .height(height)
+            .fillColor(fill)
+            .strokeColor(stroke)
+            .strokeWidth(strokeWidth)
+            .position({ x: center.x + dx, y: center.y + dy })
+            .layer('CHARACTER')
+            .name(npc.name + ' — ' + label)
+            .description(npc.appearance)
+            .build()
+        );
+      };
 
-        stage = 'convirtiendo el retrato a PNG';
-        const canvas = document.createElement('canvas');
-        canvas.width = 512;
-        canvas.height = 512;
-        const context = canvas.getContext('2d');
-        if (!context) throw new Error('El navegador no pudo crear el lienzo.');
-        context.drawImage(image, 0, 0, 512, 512);
-        const pngUrl = canvas.toDataURL('image/png');
-        if (!pngUrl.startsWith('data:image/png;base64,')) throw new Error('No se pudo codificar el retrato.');
+      stage = 'calculando la posición en la escena';
+      const viewportWidth = await OBR.viewport.getWidth();
+      const viewportHeight = await OBR.viewport.getHeight();
+      const center = await OBR.viewport.inverseTransformPoint({ x: viewportWidth / 2, y: viewportHeight / 2 });
 
-        stage = 'calculando la posición en la escena';
-        const width = await OBR.viewport.getWidth();
-        const height = await OBR.viewport.getHeight();
-        const center = await OBR.viewport.inverseTransformPoint({ x: width / 2, y: height / 2 });
-
-        stage = 'añadiendo el token a Owlbear';
-        const token = buildImage(
-          { width: 512, height: 512, mime: 'image/png', url: pngUrl },
-          { dpi: 512, offset: { x: 256, y: 256 } }
-        )
-          .name(npc.name)
-          .description(npc.appearance)
-          .layer('CHARACTER')
-          .position(center)
-          .build();
-        await OBR.scene.items.addItems([token]);
-        await OBR.notification.show('Token de ' + npc.name + ' añadido a la escena.', 'SUCCESS');
-      } finally {
-        URL.revokeObjectURL(svgUrl);
+      stage = 'construyendo el retrato vectorial';
+      // Marco cuadrado y fondo.
+      addShape('fondo', 0, 0, 170, 170, 'RECTANGLE', theme.background, theme.accent, 5);
+      addShape('halo', 0, -24, 112, 112, 'CIRCLE', theme.accent, theme.accent, 0);
+      // Hombros, cuello y cabeza.
+      addShape('cuerpo', 0, 61, 118, 65, 'TRIANGLE', theme.clothing, '#17191d', 3);
+      addShape('cuello', 0, 38, 30, 38, 'RECTANGLE', colors.skin, '#17191d', 2);
+      addShape('cabello', 0, -28, colors.longHair ? 88 : 82, colors.longHair ? 104 : 76, 'CIRCLE', colors.hair, '#17191d', 3);
+      addShape('rostro', 0, -20, 66, 82, 'CIRCLE', colors.skin, '#17191d', 2);
+      // Flequillo y detalles del rostro.
+      if (/flequillo|despeinado|mechones|rizado|trenzado/i.test(npc.appearance)) {
+        addShape('flequillo', 0, -51, 62, 27, 'TRIANGLE', colors.hair, colors.hair, 1);
       }
+      addShape('ojo izquierdo', -17, -20, 8, 8, 'CIRCLE', colors.eyes, '#292522', 1);
+      addShape('ojo derecho', 17, -20, 8, 8, 'CIRCLE', colors.eyes, '#292522', 1);
+      addShape('nariz', 0, -5, 7, 10, 'TRIANGLE', '#9b6c55', '#805b4a', 1);
+      addShape('boca', 0, 10, 18, 4, 'RECTANGLE', '#754a43', '#754a43', 0);
+      addShape('detalle de vestimenta', 0, 55, 52, 8, 'RECTANGLE', theme.accent, theme.accent, 0);
+      // Placa inferior y nombre legible dentro del token.
+      addShape('placa', 0, 77, 156, 25, 'RECTANGLE', '#17191d', theme.accent, 1);
+      const title = buildText()
+        .plainText(npc.name)
+        .fontFamily('Georgia')
+        .fontSize(npc.name.length > 18 ? 10 : 13)
+        .fontWeight(700)
+        .textAlign('CENTER')
+        .textAlignVertical('MIDDLE')
+        .width(148)
+        .height(20)
+        .fillColor(theme.accent)
+        .position({ x: center.x, y: center.y + 77 })
+        .layer('CHARACTER')
+        .name(npc.name + ' — nombre')
+        .description(npc.appearance)
+        .build();
+      items.push(title);
+
+      stage = 'añadiendo las figuras vectoriales a Owlbear';
+      await OBR.scene.items.addItems(items);
+      await OBR.notification.show('Token vectorial de ' + npc.name + ' añadido a la escena.', 'SUCCESS');
     } catch (error) {
-      const detail = error instanceof Error ? error.message : String(error);
-      console.error('No se pudo crear el token del PNJ en la etapa "' + stage + '":', error);
-      await OBR.notification.show('Error al ' + stage + ': ' + detail.slice(0, 150), 'ERROR');
+      let detail = 'Error desconocido';
+      try {
+        detail = error instanceof Error
+          ? error.name + ': ' + error.message
+          : typeof error === 'string' ? error : JSON.stringify(error);
+      } catch {
+        detail = String(error);
+      }
+      console.error('No se pudo crear el token vectorial del PNJ en la etapa "' + stage + '":', error);
+      await OBR.notification.show('Error al ' + stage + ': ' + (detail || 'sin detalle').slice(0, 180), 'ERROR');
     } finally {
       gmNpcTokenCreatingIndex = null;
     }
