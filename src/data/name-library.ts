@@ -1,8 +1,8 @@
 const names = {
   fantasy: {
-    masculine: ["Aldo","Arno","Berto","Bruno","Darek","Daren","Dilan","Edan","Einar","Enzo","Galo","Hugo","Ilan","Ivo","Laro","Leo","Lino","Luca","Marek","Milo","Nilo","Nuno","Omar","Orin","Pablo","Rami","Reno","Rian","Ronan","Silan","Taro","Teo","Timo","Toran","Ulmo","Varen"],
-    feminine: ["Ada","Aila","Alba","Alma","Alya","Ania","Ayla","Bela","Bruna","Cala","Celia","Cira","Cora","Dara","Dina","Dora","Eira","Elsa","Emma","Enya","Erin","Fara","Fina","Freya","Gala","Gina","Inés","Iris","Lara","Lena","Lila","Lina","Lira","Lola","Lua","Mara","Mila","Mina","Mira","Nara","Nela","Nina","Nora","Rina","Runa","Sara","Sira","Tara","Vera","Vida","Yara"],
-    unisex: ["Ari","Dani","Eli","Ira","Kai","Lior","Luca","Mika","Neri","Noa","Ori","Rai","Ren","Sami","Tari"]
+    masculine: ["Abel","Adam","Alan","Aldo","Alain","Anselm","Arno","Baldwin","Basil","Benedict","Bruno","Colin","Conrad","David","Diego","Edgar","Edmund","Emil","Eric","Felix","Francis","Geoffrey","Gerald","Giles","Gordon","Hector","Henry","Hugh","Hugo","Ivo","Jasper","Julian","Leon","Louis","Lucas","Marco","Martin","Milo","Nicholas","Nils","Otto","Peter","Philip","Ralph","Raymond","Robin","Roland","Simon","Stephen","Theodore","Thomas","Walter","William","Yves"],
+    feminine: ["Ada","Alice","Alma","Amice","Anna","Anne","Beatrice","Cecily","Clara","Cora","Diana","Edith","Eleanor","Ella","Ellen","Emma","Eva","Giselle","Helen","Ida","Ines","Iris","Isabel","Joan","Julia","Laura","Lena","Lisa","Lucy","Mabel","Margot","Maria","Marta","Matilda","Mildred","Nora","Olive","Petra","Rose","Sara","Sibyl","Vera","Agnes","Audrey","Bridget","Cecilia","Evelyn","Flora","Greta","Helena","Leonie","Louise","Maud","Martha","Ruth"],
+    unisex: ["Ari","Eli","Lou","Noa","Robin","Sasha"]
   },
   contemporary: {
     masculine: [
@@ -100,9 +100,11 @@ const contemporarySurnames = [
   "Novák","Svoboda","Dvořák","Černý","Kowalski","Nowak","Horváth","Nagy","Popescu","Ionescu"
 ];
 const fantasySurnames = [
-  "Robledal","Piedralta","Valverde","Monteluz","Rocafirme","Riomar","Buenavista","Del Valle",
-  "Del Bosque","Latorre","Campoverde","Castañeda","Villalba","Serrano","Luna","Solís",
-  "Ribera","Aranda","Salvatierra","Mirador","Vallejo","Olmedo","Roldán","Montalvo"
+  "Ashford","Baker","Beaumont","Blackwood","Bourne","Bramwell","Brewster","Carter",
+  "Clifford","Cooper","Crawford","Fairfax","Fletcher","Ford","Graham","Graves",
+  "Hawthorne","Hayward","Holland","Kendall","Kingsley","Lockwood","Miller","Montfort",
+  "Neville","Oakley","Parker","Pemberton","Percy","Redmond","Shepherd","Stafford",
+  "Talbot","Thatcher","Turner","Underhill","Warren","Whitaker","Whitmore","Woodward"
 ];
 const futuristicSurnames = [
   "Vex","Kade","Nox","Strix","Quell","Stryker","Voss","Korr","Zane","Rhyse","Kest","Dray",
