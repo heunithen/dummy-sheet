@@ -1,8 +1,8 @@
 const names = {
   fantasy: {
-    masculine: ["Aelar","Aldric","Alaric","Aldren","Arannis","Arius","Baelor","Bastian","Caelan","Caspian","Cedric","Daeron","Darian","Darius","Draven","Eldric","Eryndor","Faelar","Fenric","Gareth","Gideon","Hadrian","Kaelen","Kaelor","Kael","Lorien","Lucan","Magnus","Maelor","Theron","Vaelor","Valen","Zephyr","Aeron","Arden","Bram","Corvin","Dain","Evander","Galen","Isen","Jareth","Leoric","Merek","Oberon","Orin","Rhydian","Silas","Tavian","Ulric","Varek","Wystan"],
-    feminine: ["Aelira","Aeris","Althea","Amaris","Anwen","Aria","Aurelia","Caelia","Calista","Celene","Cerys","Daena","Elaria","Elowen","Elysia","Evelune","Faelith","Freya","Isolde","Kaela","Liora","Lyra","Maelis","Maera","Mirelle","Nerys","Nyra","Orielle","Ravena","Rowena","Saela","Seraphine","Sylvara","Thalia","Vaela","Vespera","Ysolde","Ariadne","Astra","Brienne","Elara","Illyria","Isara","Luneth","Morrigan","Nimue","Rhiannon","Selene","Talia","Zaria"],
-    unisex: ["Aeris","Aryn","Ash","Auden","Cael","Ciel","Cove","Darian","Eris","Eryn","Fable","Haven","Indigo","Kael","Lior","Lumen","Marlow","Morgan","Noor","Onyx","Ori","Phoenix","Quinn","Rain","Riven","Rune","Sage","Shay","Sol","Tarin","Vale","Winter"]
+    masculine: ["Aldo","Arno","Berto","Bruno","Dario","Darek","Darío","Daren","Dilan","Edan","Einar","Elio","Enzo","Fabio","Gael","Galo","Hugo","Ilan","Ivo","Laro","Leo","Lino","Luca","Marek","Milo","Nilo","Nuno","Omar","Orin","Pablo","Rami","Reno","Rian","Ronan","Silan","Taro","Teo","Timo","Toran","Ulmo","Varen"],
+    feminine: ["Ada","Aila","Alba","Alma","Alya","Amia","Ania","Aria","Ayla","Bela","Bruna","Cala","Celia","Cira","Cora","Dalia","Dara","Dina","Dora","Eira","Elia","Elsa","Emma","Enya","Erin","Fara","Fina","Freya","Gala","Gina","Iara","Inés","Iria","Iris","Lara","Lena","Lila","Lina","Lira","Lola","Lua","Mara","Mila","Mina","Mira","Nara","Nela","Nina","Nora","Rina","Runa","Sara","Sira","Tara","Vera","Vida","Yara"],
+    unisex: ["Ari","Dani","Eli","Gael","Ira","Kai","Lior","Luca","Mika","Neri","Noa","Ori","Rai","Ren","Sami","Tari"]
   },
   contemporary: {
     masculine: [
@@ -63,9 +63,9 @@ const names = {
     ]
   },
   futuristic: {
-    masculine: ["Axton","Bex","Caelix","Cirox","Dax","Dextro","Eon","Evex","Jax","Kaiden","Kairo","Kellan","Kovax","Lex","Maddox","Nex","Orion","Pax","Quillon","Raze","Rex","Soren","Talon","Tarek","Tavian","Vex","Xander","Zarek","Zayden","Zenon","Arko","Brax","Caden","Darian","Eryx","Juno","Kade","Kian","Lazlo","Nero","Nyx","Oryn","Riven","Sylar","Teyo","Valk","Xavian","Yarik","Zeno","Zyron"],
-    feminine: ["Astra","Aven","Azura","Bexley","Cyra","Dara","Echo","Elix","Eris","Ione","Jexa","Kaia","Kira","Lumi","Lyric","Mira","Nexa","Nova","Nyra","Onyxia","Oria","Rhea","Ryn","Sable","Sera","Siri","Tala","Vega","Vexa","Xara","Yuna","Zara","Aella","Ari","Calyx","Delya","Evara","Iris","Kora","Lexa","Maven","Nira","Oona","Rivena","Solara","Taryn","Vanya","Xenia","Yara","Zyra"],
-    unisex: ["Aero","Axiom","Blitz","Cipher","Coda","Delta","Echo","Flux","Halo","Hex","Ion","Jett","Kestrel","Lux","Matrix","Neo","Nexus","Nova","Nyx","Orbit","Pixel","Quark","Rebel","Rift","Rune","Sable","Solis","Tesla","Vector","Vesper","Zero","Zenith"]
+    masculine: ["Ari","Axel","Ciro","Dax","Daren","Dilan","Eron","Ilan","Ivo","Kian","Kiro","Lian","Milo","Nico","Nilo","Noel","Rian","Riko","Soren","Taro","Timo","Vico","Zeno"],
+    feminine: ["Aira","Alya","Ayla","Cira","Dara","Eira","Elia","Enya","Iria","Kaia","Kira","Lara","Lena","Lira","Mara","Mira","Nara","Nexa","Nira","Nova","Rhea","Sira","Tala","Vega","Yuna","Zara"],
+    unisex: ["Ari","Axo","Eli","Ira","Kai","Lian","Mika","Neri","Noa","Ori","Rai","Ren","Sami","Tari","Zai"]
   }
 };
 const fantasyEndings = ["ar","en","ion","or","iel","ius","ael","eth","wyn","andir","aris","eon","ith","amir","orin","ayne","eron","ovar","riel","azar","eira","ara","elle","ia","issa","oria","yra","wynne","ithiel","aeris"];
@@ -100,13 +100,10 @@ const contemporarySurnames = [
   "Andersson","Johansson","Karlsson","Nilsson","Eriksson","Lindberg","Hansen","Nielsen","Larsen","Berg",
   "Novák","Svoboda","Dvořák","Černý","Kowalski","Nowak","Horváth","Nagy","Popescu","Ionescu"
 ];
-const fantasySurnameRoots = [
-  "Alder","Ash","Black","Bright","Dawn","Dusk","Elder","Ember","Fallow","Frost","Gold","Green",
-  "Hallow","Iron","Moon","Night","Oak","Raven","Silver","Storm","Thorn","Vale","Winter","Wyrm"
-];
-const fantasySurnameEnds = [
-  "bane","brook","caller","crest","fall","field","flame","ford","guard","hall","heart","keep",
-  "mantle","mere","more","ridge","shade","shield","song","spire","stone","thorn","walker","watch"
+const fantasySurnames = [
+  "Robledal","Piedralta","Valverde","Monteluz","Rocafirme","Riomar","Buenavista","Del Valle",
+  "Del Bosque","Latorre","Campoverde","Castañeda","Villalba","Serrano","Luna","Solís",
+  "Ribera","Aranda","Salvatierra","Mirador","Vallejo","Olmedo","Roldán","Montalvo"
 ];
 const futuristicSurnames = [
   "Vex","Kade","Nox","Strix","Quell","Stryker","Voss","Korr","Zane","Rhyse","Kest","Dray",
@@ -116,9 +113,7 @@ const futuristicSurnames = [
 
 export function getSurnameOptions(style: string): string[] {
   if (style === "fantasy") {
-    return fantasySurnameRoots.flatMap((root) =>
-      fantasySurnameEnds.map((ending) => root + ending)
-    );
+    return fantasySurnames;
   }
   if (style === "futuristic") return futuristicSurnames;
   return contemporarySurnames;
