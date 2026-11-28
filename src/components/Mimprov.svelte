@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import OBR from '@owlbear-rodeo/sdk';
+  import OBR, { buildImage } from '@owlbear-rodeo/sdk';
   import { PartyStore, currentPlayerId, isGM } from '../services/OBRHelper';
   import { getNameOptions, getSurnameOptions } from '../data/name-library';
   import { getConceptOptions } from '../data/concept-library';
@@ -540,6 +540,7 @@
   let gmNpcCharacters: GmNpc[] = [];
   let selectedGmNpcGenre: GmNpcGenre = 'fantasy';
   let gmNpcNotes = '';
+  let gmNpcTokenCreatingIndex: number | null = null;
   let selectedGenre = 'fantasy';
   let sessionStarted = false;
   let linesVeils: { lines: string; veils: string } = { lines: '', veils: '' };
@@ -1300,6 +1301,149 @@
       appearance: getRandomAppearance(age, appearanceGender),
       personality: getRandomGmNpcPersonality(genre)
     };
+  }
+
+
+  function escapeSvgText(value: string): string {
+    return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+  }
+
+  function getNpcPortraitColors(appearance: string) {
+    const skin = appearance.match(/piel ([^,]+)/i)?.[1]?.toLowerCase() || 'trigueña';
+    const hair = appearance.match(/cabello ([^,;]+)/i)?.[1]?.toLowerCase() || 'castaño';
+    const eyes = appearance.match(/ojos ([^,]+)/i)?.[1]?.toLowerCase() || 'marrones';
+    const skinColors: Record<string, string> = {
+      'muy clara':'#f1d8c4','clara':'#e9c4a5','pálida':'#e8d5c8','olivácea':'#bd986f',
+      'trigueña':'#c58f68','morena':'#986747','oscura':'#704b3c','cobriza':'#bd7958',
+      'dorada':'#d3a36d','rojiza':'#b96f59','verdosa':'#8c9b70','azulada':'#829fb3','grisácea':'#a5a5a0'
+    };
+    const hairColors: Record<string, string> = {
+      'negro':'#24232a','castaño oscuro':'#493126','castaño':'#76503a','rubio':'#d6b66b',
+      'rubio ceniza':'#b8aa91','pelirrojo':'#a94f32','blanco':'#e5e0d4','gris':'#96999c',
+      'plateado':'#c5c9ca','azul':'#527fa5','verde':'#5e8a65','violeta':'#80618f'
+    };
+    const eyeColors: Record<string, string> = {
+      'marrones':'#754b2c','negros':'#29252a','avellana':'#a17a3d','ámbar':'#c18a32',
+      'verdes':'#63865b','azules':'#668eae','grises':'#8d9ba5','violetas':'#9274a8','de distinto color':'#7c8b9b'
+    };
+    return {
+      skin: skinColors[skin] || '#c58f68',
+      hair: hairColors[hair.split(' ')[0] === 'castaño' && hair.startsWith('castaño oscuro') ? 'castaño oscuro' : hair.split(' ')[0]] || hairColors[hair] || '#76503a',
+      eyes: eyeColors[eyes] || '#754b2c',
+      female: /^una\\s/i.test(appearance),
+      longHair: /largo|hombros|coleta|trenzado|abundante/i.test(appearance),
+      shortHair: /corto|rapado|escaso/i.test(appearance)
+    };
+  }
+
+  function wrapNpcDescription(value: string, maxChars = 54): string[] {
+    const words = value.split(/\\s+/);
+    const lines: string[] = [];
+    let line = '';
+    for (const word of words) {
+      const next = line ? line + ' ' + word : word;
+      if (next.length > maxChars && line) {
+        lines.push(line);
+        line = word;
+      } else line = next;
+    }
+    if (line) lines.push(line);
+    return lines.slice(0, 5);
+  }
+
+  function createNpcTokenSvg(npc: GmNpc): string {
+    const colors = getNpcPortraitColors(npc.appearance);
+    const genreColors: Record<GmNpcGenre, { accent: string; glow: string }> = {
+      fantasy: { accent: '#c5a15d', glow: '#52634e' },
+      scifi: { accent: '#72cbd0', glow: '#315d75' },
+      horror: { accent: '#a86d75', glow: '#573d4b' },
+      modern: { accent: '#b4a18a', glow: '#58616a' },
+      postapocalyptic: { accent: '#c28a4e', glow: '#62513b' }
+    };
+    const theme = genreColors[npc.genre] || genreColors.fantasy;
+    const descLines = wrapNpcDescription(npc.appearance);
+    const descriptionSvg = descLines.map((line, i) =>
+      '<text x="256" y="' + (426 + i * 17) + '" text-anchor="middle" fill="#e5dfd2" font-size="13" font-family="Georgia,serif">' + escapeSvgText(line) + '</text>'
+    ).join('');
+    const hairShape = colors.longHair
+      ? '<path d="M145 190 Q132 86 256 75 Q380 86 367 190 L354 308 Q330 335 314 282 L198 282 Q180 335 158 308 Z" fill="' + colors.hair + '" stroke="#17191d" stroke-width="8"/>'
+      : '<path d="M145 190 Q132 86 256 75 Q380 86 367 190 L345 211 Q333 125 256 124 Q179 125 167 211 Z" fill="' + colors.hair + '" stroke="#17191d" stroke-width="8"/>';
+    const hairFringe = /flequillo|despeinado|mechones|rizado|trenzado/i.test(npc.appearance)
+      ? '<path d="M170 155 Q205 105 245 135 Q268 95 305 140 Q330 119 346 164 Q312 150 292 169 Q264 145 244 169 Q211 145 190 174 Z" fill="' + colors.hair + '"/>'
+      : '';
+    const faceShape = colors.female
+      ? 'M177 164 Q177 116 256 116 Q335 116 335 164 L326 250 Q311 302 256 312 Q201 302 186 250 Z'
+      : 'M174 163 Q174 116 256 116 Q338 116 338 163 L326 253 Q309 303 256 307 Q203 303 186 253 Z';
+    const nameSize = npc.name.length > 22 ? 23 : npc.name.length > 16 ? 27 : 31;
+    return '<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">' +
+      '<defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#25282c"/><stop offset="1" stop-color="' + theme.glow + '"/></linearGradient><radialGradient id="halo"><stop stop-color="' + theme.accent + '" stop-opacity=".45"/><stop offset="1" stop-color="' + theme.accent + '" stop-opacity="0"/></radialGradient></defs>' +
+      '<rect width="512" height="512" rx="24" fill="url(#bg)"/><circle cx="256" cy="190" r="175" fill="url(#halo)"/>' +
+      '<rect x="12" y="12" width="488" height="488" rx="18" fill="none" stroke="' + theme.accent + '" stroke-width="5"/>' +
+      '<path d="M90 375 Q102 300 183 290 L329 290 Q410 300 422 375 L422 390 L90 390 Z" fill="#30343a" stroke="#17191d" stroke-width="9"/>' +
+      '<path d="M220 276 L220 323 Q256 351 292 323 L292 276" fill="' + colors.skin + '" stroke="#17191d" stroke-width="7"/>' +
+      hairShape +
+      '<path d="' + faceShape + '" fill="' + colors.skin + '" stroke="#17191d" stroke-width="8"/>' +
+      hairFringe +
+      '<path d="M202 203 Q220 193 237 203 M275 203 Q292 193 310 203" fill="none" stroke="#44332d" stroke-width="7" stroke-linecap="round"/>' +
+      '<ellipse cx="220" cy="220" rx="8" ry="6" fill="' + colors.eyes + '"/><ellipse cx="292" cy="220" rx="8" ry="6" fill="' + colors.eyes + '"/>' +
+      '<path d="M255 224 L245 252 Q256 260 267 252" fill="none" stroke="#805b4a" stroke-width="5" stroke-linecap="round"/>' +
+      '<path d="M226 273 Q256 289 286 273" fill="none" stroke="#754a43" stroke-width="6" stroke-linecap="round"/>' +
+      '<path d="M185 316 L256 360 L327 316 L355 390 L157 390 Z" fill="' + theme.glow + '" stroke="#17191d" stroke-width="8"/>' +
+      '<path d="M222 320 L256 359 L290 320" fill="none" stroke="' + theme.accent + '" stroke-width="5"/>' +
+      '<path d="M28 395 H484" stroke="' + theme.accent + '" stroke-width="2" opacity=".8"/>' +
+      '<rect x="20" y="400" width="472" height="92" rx="10" fill="#17191d" opacity=".94"/>' +
+      '<text x="256" y="423" text-anchor="middle" fill="' + theme.accent + '" font-size="' + nameSize + '" font-family="Georgia,serif" font-weight="bold">' + escapeSvgText(npc.name) + '</text>' +
+      descriptionSvg +
+      '</svg>';
+  }
+
+  async function createGmNpcToken(npc: GmNpc, index: number) {
+    if (gmNpcTokenCreatingIndex !== null) return;
+    if (!OBR.isAvailable || !(await OBR.scene.isReady())) {
+      if (OBR.isAvailable) await OBR.notification.show('Abre una escena para crear el token.', 'WARNING');
+      return;
+    }
+    gmNpcTokenCreatingIndex = index;
+    try {
+      const svg = createNpcTokenSvg(npc);
+      const svgBlob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+      const svgUrl = URL.createObjectURL(svgBlob);
+      try {
+        const image = new Image();
+        image.src = svgUrl;
+        await new Promise<void>((resolve, reject) => {
+          image.onload = () => resolve();
+          image.onerror = () => reject(new Error('No se pudo dibujar la ficha del PNJ.'));
+        });
+        const canvas = document.createElement('canvas');
+        canvas.width = 512;
+        canvas.height = 512;
+        const context = canvas.getContext('2d');
+        if (!context) throw new Error('No se pudo preparar la imagen del token.');
+        context.drawImage(image, 0, 0, 512, 512);
+        const pngUrl = canvas.toDataURL('image/png');
+        const centerScreen = { x: await OBR.viewport.getWidth() / 2, y: await OBR.viewport.getHeight() / 2 };
+        const center = await OBR.viewport.inverseTransformPoint(centerScreen);
+        const token = buildImage(
+          { width: 512, height: 512, mime: 'image/png', url: pngUrl },
+          { dpi: 512, offset: { x: 256, y: 256 } }
+        )
+          .name(npc.name)
+          .description(npc.appearance)
+          .layer('CHARACTER')
+          .position(center)
+          .build();
+        await OBR.scene.items.addItems([token]);
+        await OBR.notification.show('Token de ' + npc.name + ' añadido a la escena.', 'SUCCESS');
+      } finally {
+        URL.revokeObjectURL(svgUrl);
+      }
+    } catch (error) {
+      console.error('No se pudo crear el token del PNJ:', error);
+      await OBR.notification.show('No se pudo crear el token. Revisa que tengas permisos en la escena.', 'ERROR');
+    } finally {
+      gmNpcTokenCreatingIndex = null;
+    }
   }
 
   function updateLinesVeils(field: 'lines' | 'veils', value: string) {
@@ -2251,6 +2395,9 @@
                 <button class="secondary gm-npc-reroll" aria-label="Generar otro personaje" title="Generar otro personaje de la misma ambientación" on:click={() => rerollGmNpc(index)}>🎲</button>
               </div>
               <p><strong>Apariencia:</strong> {npc.appearance}</p>
+              <button class="secondary gm-npc-token-button" disabled={gmNpcTokenCreatingIndex !== null || !OBR.isAvailable} on:click={() => createGmNpcToken(npc, index)}>
+                {gmNpcTokenCreatingIndex === index ? 'Creando token…' : 'Crear token'}
+              </button>
               <p><strong>Personalidad:</strong> {npc.personality}</p>
             </article>
           {/each}
